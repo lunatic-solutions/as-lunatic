@@ -1,0 +1,12 @@
+{
+  "targets": {
+    "debug": {
+      "lib": ["assembly/"],
+      "binaryFile": "build/test.wasm",
+      "textFile": "build/test.wat",
+      "sourceMap": true,
+      "debug": true
+    }
+  },
+  "options": {}
+}
