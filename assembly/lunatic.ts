@@ -3,11 +3,6 @@ const enum ChannelReceivePrepareResult {
   Fail = 1,
 }
 
-const enum ChannelResult {
-  Success = 0,
-  Fail = 1,
-}
-
 const enum ChannelReceiveResult {
   Success = 0,
   Fail = 1,
@@ -20,7 +15,7 @@ const enum ChannelSendResult {
 
 // @ts-ignore: valid decorator here
 @external("lunatic", "channel")
-declare function channel(bound: usize, receiver: usize): ChannelResult;
+declare function channel(bound: usize, receiver: usize): usize;
 
 // @ts-ignore: valid decorator here
 @external("lunatic", "channel_receive_prepare")
@@ -34,31 +29,52 @@ declare function channel_receive(buffer: StaticArray<u8>, length: usize): Channe
 @external("lunatic", "channel_send")
 declare function channel_send(channel: u32, buffer: StaticArray<u8>, length: usize): ChannelSendResult;
 
+// @ts-ignore: valid decorator ehre
+@external("lunatic", "sender_serialize")
+declare function sender_serialize(channel_id: u32): u32;
+// @ts-ignore: valid decorator ehre
+@external("lunatic", "sender_serialize")
+declare function sender_deserialize(channel_id: u32): u32;
+
+// @ts-ignore: valid decorator ehre
+@external("lunatic", "receiver_serialize")
+declare function receiver_serialize(channel_id: u32): u32;
+
+// @ts-ignore: valid decorator ehre
+@external("lunatic", "receiver_serialize")
+declare function receiver_deserialize(channel_id: u32): u32;
 
 // a static heap location reserved just for receiving data from lunatic
 const receive_length_pointer = memory.data(sizeof<u32>());
-// a static heap location reserved just for receiving data from lunatic
-const receiver_pointer = memory.data(sizeof<u32>());
 
+// The channel namespace
 export namespace Channel {
-  @unmanaged export class MessageChannel {
-    get isValid(): bool {
-      let channel_id = changetype<i32>(this);
-      return channel_id != -1;
+
+  // A message channel object
+  export class MessageChannel {
+    public sender: u32 = 0;
+    public receiver: u32 = 0;
+
+    // turns the u64 serialized ids into a MessageChannel for sending and receiving
+    public static deserialize(value: u64): MessageChannel {
+      let result = new MessageChannel();
+      result.sender = sender_deserialize(<u32>(u32.MAX_VALUE & value));
+      result.receiver = receiver_deserialize(<u32>(u32.MAX_VALUE & (value >>> 32)));
+      return result;
     }
 
+    // the sender_serialize and receiver_serialize methods are host methods, used to encode channel ids
+    public serialize(): u64 {
+      return (<u64>sender_serialize(this.sender)) | (<u64>receiver_serialize(this.receiver) << 32);
+    }
+
+    // send some data
     public send(bytes: StaticArray<u8>): bool {
-      let channel_id = changetype<i32>(this);
-      assert(channel_id !== -1);
-      channel_send(<u32>channel_id, bytes, bytes.length);
-      return false;
+      return channel_send(this.sender, bytes, bytes.length) == ChannelSendResult.Success;
     }
 
     public receive(): StaticArray<u8> | null {
-      let channel_id = changetype<i32>(this);
-      assert(channel_id !== -1);
-
-      let prepareResult = channel_receive_prepare(<u32>channel_id, receive_length_pointer);
+      let prepareResult = channel_receive_prepare(this.receiver, receive_length_pointer);
       let length = load<u32>(receive_length_pointer);
       if (prepareResult == ChannelReceivePrepareResult.Fail) return null;
       let result = new StaticArray<u8>(length);
@@ -67,14 +83,10 @@ export namespace Channel {
     }
   }
 
-  export function create(messageCount: usize): MessageChannel {
-    let result = channel(messageCount, receiver_pointer);
-    if (result == ChannelResult.Fail) return changetype<MessageChannel>(-1);
-    return changetype<MessageChannel>(load<u32>(receiver_pointer));
-  }
-
-  export function from(id: u32): MessageChannel {
-    assert(<i32>id != -1);
-    return changetype<MessageChannel>(id);
+  // create a brand new message channel
+  export function create(bound: usize): MessageChannel {
+    let result = new MessageChannel();
+    result.sender = channel(bound, changetype<usize>(result) + offsetof<MessageChannel>("receiver"));
+    return result;
   }
 }
