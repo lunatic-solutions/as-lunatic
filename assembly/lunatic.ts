@@ -72,4 +72,9 @@ export namespace Channel {
     if (result == ChannelResult.Fail) return changetype<MessageChannel>(-1);
     return changetype<MessageChannel>(load<u32>(receiver_pointer));
   }
+
+  export function from(id: u32): MessageChannel {
+    assert(<i32>id != -1);
+    return changetype<MessageChannel>(id);
+  }
 }
