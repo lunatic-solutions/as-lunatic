@@ -1,4 +1,4 @@
-declare module lunatic {
+declare module "lunatic" {
   // put lunatic types here
   /** The channel namespace, used for creating communication channels between threads. */
   export namespace Channel {
