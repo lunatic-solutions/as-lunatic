@@ -14,4 +14,4 @@ let result  = c.receive()!;
 for (let i = 0; i < data.length; i++) {
     assert(data[i] == result[i]);
 }
-Console.log("[Pass] Basic Send/Receive");
+Console.log("[Pass] Basic Send/Receive\r\n");
