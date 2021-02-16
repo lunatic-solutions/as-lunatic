@@ -7,7 +7,7 @@
   "scripts": {
     "test": "run-s asbuild:channels test:channels",
     "test:channels": "lunatic build/test.wasm",
-    "asbuild:channels": "asc test/channels.ts --target debug --use abort=test/channels/abort"
+    "asbuild:channels": "asc test/channels.ts --target debug"
   },
   "repository": {
     "type": "git",
