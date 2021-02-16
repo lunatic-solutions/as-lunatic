@@ -47,11 +47,12 @@ declare function receiver_deserialize(channel_id: u32): u32;
 // a static heap location reserved just for receiving data from lunatic
 const receive_length_pointer = memory.data(sizeof<u32>());
 
+
 // The channel namespace
 export namespace Channel {
 
   // A message channel object
-  export class MessageChannel {
+  @final export class MessageChannel {
     public sender: u32 = 0;
     public receiver: u32 = 0;
 
@@ -84,7 +85,7 @@ export namespace Channel {
   }
 
   // create a brand new message channel
-  export function create(bound: usize): MessageChannel {
+  export function create(bound: usize = 0): MessageChannel {
     let result = new MessageChannel();
     result.sender = channel(bound, changetype<usize>(result) + offsetof<MessageChannel>("receiver"));
     return result;

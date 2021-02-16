@@ -2,8 +2,13 @@ declare module "lunatic" {
   // put lunatic types here
   /** The channel namespace, used for creating communication channels between threads. */
   export namespace Channel {
-    /** A method for creating a brand new message channel with a message count limit equal to the bound. */
-    export function create(bound: usize): MessageChannel;
+    /**
+     * A method for creating a brand new message channel with a message
+     * count limit equal to the bound.
+     *
+     * @param {usize} bound - Default is [0], which provides an unbounded Message channel.
+     */
+    export function create(bound?: usize): MessageChannel;
 
     /** The MessageChannel class, used for communicating with a single channel between multiple threads. */
     export class MessageChannel {

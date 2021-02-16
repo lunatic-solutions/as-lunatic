@@ -4,7 +4,7 @@ import { Channel } from "lunatic";
 
 const data = [137, 42, 123, 86, 34, 72, 21] as StaticArray<u8>;
 
-let c = Channel.create(0);
+let c = Channel.create();
 c.send(data);
 let result  = c.receive()!; // runtime assertion
 
