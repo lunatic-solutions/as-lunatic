@@ -27,4 +27,28 @@ declare module "lunatic" {
     /** A method for receiving a payload from a channel, returns null when there are no messages to recieve. */
     public receive(): StaticArray<u8> | null;
   }
+
+  /** A reference that reperesents a handle to a process. */
+  export class Process {
+    private _pid: u32;
+    /** The process id. */
+    public readonly pid: u32;
+
+    /**
+     * Start a process with a given value that calls the provided callback.
+     *
+     * @param {T} value - A given workload value for this Process.
+     * @param {(value: T) => void} callback - A callback to be called on the Process thread.
+     */
+    public static start<T>(value: T, callback: (val: T) => void): Process;
+
+    /** Wait for the process to finish executing. */
+    public join(): bool;
+
+    /** Detatch the process from the current thread. */
+    public detach(): void;
+
+    /** Cancel the process, terminating it. */
+    public drop(): void;
+  }
 }

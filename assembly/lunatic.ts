@@ -171,7 +171,7 @@ const CHANNEL_INITIAL_PAYLOAD: u32 = 0;
       let messageLength = byteLength + sizeof<usize>();
       let messagePtr = __alloc(messageLength);
       // store the callback pointer and message contents
-      store(messagePtr, changetype<usize>(callback));
+      store<usize>(messagePtr, changetype<usize>(callback));
       memory.copy(messagePtr + sizeof<usize>(), dataStart, byteLength);
 
       // spawn the thread
