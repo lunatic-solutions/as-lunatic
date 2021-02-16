@@ -1,23 +1,15 @@
+import "wasi";
 import { Console } from "as-wasi";
-import {Channel} from "../assembly/lunatic";
+import { Channel } from "../assembly/lunatic";
+const data = [137, 42, 123, 86, 34, 72, 21] as StaticArray<u8>;
 
-export function _start(): void {
-    let c = Channel.create(0);
-    let message = StaticArray.fromArray<u8>([137,42]);
-    c.send(message);
-    let result  = c.receive();
-    if (result != null) {
-        Console.log("Received: " + result.toString());
-    }
-    
+let c = Channel.create(0);
+c.send(data);
+let result  = c.receive()!;
+
+for (let i = 0; i < data.length; i++) {
+    assert(data[i] == result[i]);
 }
-
-function abort(
-    message: string | null,
-    fileName: string | null,
-    lineNumber: u32,
-    columnNumber: u32
-): void
-{
-    // Nothing to do
+if (result != null) {
+    Console.log("Received: " + result.toString());
 }
