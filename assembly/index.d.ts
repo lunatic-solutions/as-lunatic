@@ -1,4 +1,10 @@
 declare module lunatic {
+  /** The threading namespace. Used for creating goroutine-like processes. */
+  export namespace Thread {
+    /** A function used to make the thread spin for a while. */
+    export function sleep(ms: u64): void;
+  }
+
   // put lunatic types here
   /** The channel namespace, used for creating communication channels between threads. */
   export namespace Channel {
