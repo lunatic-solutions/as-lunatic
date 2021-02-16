@@ -15,7 +15,7 @@ const enum ChannelSendResult {
 
 // @ts-ignore: valid decorator here
 @external("lunatic", "channel")
-declare function channel(bound: usize, receiver: usize): usize;
+declare function channel(bound: usize, receiver: usize): u32;
 
 // @ts-ignore: valid decorator here
 @external("lunatic", "channel_receive_prepare")
