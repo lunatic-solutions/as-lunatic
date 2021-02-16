@@ -4,13 +4,14 @@ import { Channel } from "lunatic";
 
 const data = [137, 42, 123, 86, 34, 72, 21] as StaticArray<u8>;
 
+// create an unbounded channel
 let c = Channel.create();
+// send some data
 c.send(data);
-let result  = c.receive()!; // runtime assertion
+// runtime assertion that it comes back
+let result  = c.receive()!;
 
 for (let i = 0; i < data.length; i++) {
     assert(data[i] == result[i]);
 }
-if (result != null) {
-    Console.log("Received: " + result.toString());
-}
+Console.log("[Pass] Basic Send/Receive");
