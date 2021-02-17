@@ -40,7 +40,10 @@ declare module "lunatic" {
      * @param {T} value - A given workload value for this Process.
      * @param {(value: T) => void} callback - A callback to be called on the Process thread.
      */
-    public static start<T>(value: T, callback: (val: T) => void): Process;
+    public static spawn<T>(value: T, callback: (val: T) => void): Process;
+
+    /** Cause the current process to sleep. */
+    public static sleep(ms: u64): void;
 
     /** Wait for the process to finish executing. */
     public join(): bool;

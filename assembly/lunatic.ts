@@ -1,3 +1,4 @@
+import { Console } from "as-wasi";
 
 const enum ChannelReceivePrepareResult {
   Success = 0,
@@ -121,48 +122,59 @@ declare function spawn_with_context(
 
 const CHANNEL_INITIAL_PAYLOAD: u32 = 0;
 
+// @ts-ignore: valid external reference
+@external("lunatic", "sleep_ms")
+declare function sleep(ms: u64): void;
+
+
 @final export class Process {
   private _pid: u32 = 0;
   public get pid(): u32 { return this._pid; }
 
-  // @ts-ignore: valid external reference
-  @external("lunatic", "sleep_ms")
-  declare public static sleep(ms: u64): void;
+  public static sleep(ms: u64): void {
+    sleep(ms);
+  }
+
+  private static spawnWithBox<T>(val: T, callback: (val: T) => void): Process {
+    // static memory location beneath __heap_base. no heap allocations necessary
+    let ptr = memory.data(offsetof<BoxWithCallback<T>>());
+    // we need to put the value on the heap, so box the value and the callback together
+    let box = changetype<BoxWithCallback<T>>(ptr);
+    Console.log(ptr.toString() + "\r\n");
+    box.val = val;
+    box.callback = callback;
+    console.log(changetype<usize>(callback).toString() + "\r\n")
+    let t = new Process();
+    // send the box to the new thread
+    t._pid = spawn_with_context(() => {
+      Console.log("Inside spawned process.\r\n");
+      // Get the payload from channel 0
+      let prepareResult = channel_receive_prepare(CHANNEL_INITIAL_PAYLOAD, receive_length_pointer);
+  
+      // get the payload length and assert it's the correct size
+      let length = load<u32>(receive_length_pointer);
+      if (prepareResult == ChannelReceivePrepareResult.Fail) return;
+      assert(length == offsetof<BoxWithCallback<T>>());
+      // obtain the static segment just for this box, store the result
+      let result = changetype<BoxWithCallback<T>>(memory.data(offsetof<BoxWithCallback<T>>()));
+      channel_receive(changetype<usize>(result), length);
+
+      // start the thread
+      result.callback(result.val);
+    }, ptr, offsetof<BoxWithCallback<T>>());
+    Console.log(t._pid.toString() + "\r\n");
+    return t;
+  }
 
   public static spawn<T>(val: T, callback: (val: T) => void): Process {
     // All of the following are inlined compile time checks, no performance loss
     if (isInteger<T>() || isFloat<T>()) {
-      // static memory location beneath __heap_base. no heap allocations necessary
-      let ptr = memory.data(offsetof<BoxWithCallback<T>>());
-      // we need to put the value on the heap, so box the value and the callback together
-      let box = changetype<BoxWithCallback<T>>(ptr);
-      box.val = val;
-      box.callback = callback;
-      let t = new Process();
-      // send the box to the new thread
-      t._pid = spawn_with_context(() => {
-        // Get the payload from channel 0
-        let prepareResult = channel_receive_prepare(CHANNEL_INITIAL_PAYLOAD, receive_length_pointer);
-
-        // get the payload length and assert it's the correct size
-        let length = load<u32>(receive_length_pointer);
-        if (prepareResult == ChannelReceivePrepareResult.Fail) return;
-        assert(length == offsetof<BoxWithCallback<T>>());
-
-        // obtain the static segment just for this box, store the result
-        let result = changetype<BoxWithCallback<T>>(memory.data(offsetof<BoxWithCallback<T>>()));
-        channel_receive(changetype<usize>(result), length);
-
-        // start the thread
-        result.callback(result.val);
-      }, ptr, offsetof<BoxWithCallback<T>>());
-
-      return t;
+      return Process.spawnWithBox<T>(val, callback);
       // if T is an array, and the values are numbers
     } else if (isArray(val) && (isInteger<valueof<T>>() || isFloat<valueof<T>>())) {
       ERROR("NOT IMPLEMENTED"); // for now, compile time error
       // if the value is a typed array
-    } else if (val instanceof TypedArray) {
+    } else if (val instanceof ArrayBufferView) {
       // obtain buffer data properties
       let byteLength = <usize>val.byteLength;
       // @ts-ignore: unsafe, undocumented, but fastest way to obtain the data pointer
@@ -173,7 +185,7 @@ const CHANNEL_INITIAL_PAYLOAD: u32 = 0;
       // store the callback pointer and message contents
       store<usize>(messagePtr, changetype<usize>(callback));
       memory.copy(messagePtr + sizeof<usize>(), dataStart, byteLength);
-
+      Console.log("Memory copied.\r\n");
       // spawn the thread
       let t = new Process();
       t._pid = spawn_with_context(() => {
@@ -191,10 +203,10 @@ const CHANNEL_INITIAL_PAYLOAD: u32 = 0;
         let callback = changetype<(val: T) => void>(load<usize>(messagePtr));
         let byteLength = length - sizeof<usize>();
         // @ts-ignore: __pin is global but hidden
-        let buffPtr = __pin(__new(byteLength, idof<ArrayBuffer>()));
+        let buffPtr = __new(byteLength, idof<ArrayBuffer>());
         // @ts-ignore: __pin is global but hidden
-        let resultPtr = __pin(__new(offsetof<T>(), idof<T>()));
-
+        let resultPtr = __new(offsetof<T>(), idof<T>());
+        __link(resultPtr, buffPtr, false);
         // set the dataview properties
         store<usize>(resultPtr, buffPtr, offsetof<T>("dataStart"));
         store<i32>(resultPtr, <i32>byteLength, offsetof<T>("byteLength"));
@@ -203,16 +215,13 @@ const CHANNEL_INITIAL_PAYLOAD: u32 = 0;
         // copy the data to the buffer
         memory.copy(buffPtr, messagePtr + sizeof<usize>(), byteLength);
 
-        // free the message
-        __free(messagePtr);
-
         // start the thread
         callback(changetype<T>(resultPtr));
-        // @ts-ignore: unpin is global, but hidden
-        __unpin(buffPtr);
-        // @ts-ignore: unpin is global, but hidden
-        __unpin(resultPtr)
+
       }, messagePtr, messageLength);
+
+      // free the message
+      __free(messagePtr);
       return t;
     } else if (isArrayLike(val)) {
       ERROR("NOT IMPLEMENTED"); // for now, compile time error

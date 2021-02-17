@@ -5,9 +5,11 @@
   "description": "Bindings for lunatic imports",
   "main": "index.js",
   "scripts": {
-    "test": "run-s asbuild:channels test:channels",
-    "test:channels": "lunatic build/test.wasm",
-    "asbuild:channels": "asc test/channels.ts --target debug"
+    "test": "run-s asbuild:channels asbuild:process test:channels test:process",
+    "test:channels": "lunatic build/channels.wasm",
+    "asbuild:channels": "asc test/channels.ts --target debug --binaryFile build/channels.wasm --textFile build/channels.wat",
+    "test:process": "lunatic build/process.wasm",
+    "asbuild:process": "asc test/process.ts --target debug --binaryFile build/process.wasm --textFile build/process.wat"
   },
   "repository": {
     "type": "git",
