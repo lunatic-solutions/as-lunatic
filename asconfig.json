@@ -7,7 +7,6 @@
     }
   },
   "options": {
-    "shrinkLevel": 3,
-    "optimizeLevel": 2
+    "optimize": true
   }
 }
