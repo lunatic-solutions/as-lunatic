@@ -6,5 +6,8 @@
       "debug": true
     }
   },
-  "options": {}
+  "options": {
+    "shrinkLevel": 3,
+    "optimizeLevel": 2
+  }
 }
