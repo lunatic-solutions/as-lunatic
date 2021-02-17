@@ -124,10 +124,6 @@ const CHANNEL_INITIAL_PAYLOAD: u32 = 0;
 @external("lunatic", "sleep_ms")
 declare function sleep(ms: u64): void;
 
-@unmanaged class FunctionReference {
-  functionIndex: u32;
-  tableEnvironmentPointer: usize;
-}
 
 @final export class Process {
   private _pid: u32 = 0;
@@ -161,7 +157,7 @@ declare function sleep(ms: u64): void;
     };
     // send the box to the new thread
     t._pid = spawn_with_context(
-      changetype<FunctionReference>(threadCallback).functionIndex,
+      threadCallback.index,
       ptr,
       offsetof<BoxWithCallback<T>>()
     );
@@ -225,7 +221,7 @@ declare function sleep(ms: u64): void;
       // spawn the thread
       let t = new Process();
       t._pid = spawn_with_context(
-        changetype<FunctionReference>(threadCallback).functionIndex,
+        threadCallback.index,
         messagePtr,
         messageLength,
       );
