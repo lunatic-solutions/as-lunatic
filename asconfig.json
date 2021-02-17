@@ -1,12 +1,11 @@
 {
   "targets": {
     "debug": {
-      "lib": ["assembly/"],
-      "sourceMap": true,
       "debug": true
     }
   },
   "options": {
-    "optimize": true
+    "lib": ["assembly/"],
+    "exportTable": true
   }
 }

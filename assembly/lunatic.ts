@@ -1,5 +1,3 @@
-import { Console } from "as-wasi";
-
 const enum ChannelReceivePrepareResult {
   Success = 0,
   Fail = 1,
@@ -109,7 +107,7 @@ const receive_length_pointer = memory.data(sizeof<u32>());
 // @ts-ignore: valid decorator
 @external("lunatic", "spawn_with_context")
 declare function spawn_with_context(
-  func: () => void,
+  func: u32,
   buf_ptr: usize,
   buf_len: usize,
 ): u32;
@@ -126,6 +124,10 @@ const CHANNEL_INITIAL_PAYLOAD: u32 = 0;
 @external("lunatic", "sleep_ms")
 declare function sleep(ms: u64): void;
 
+@unmanaged class FunctionReference {
+  functionIndex: u32;
+  tableEnvironmentPointer: usize;
+}
 
 @final export class Process {
   private _pid: u32 = 0;
@@ -140,17 +142,12 @@ declare function sleep(ms: u64): void;
     let ptr = memory.data(offsetof<BoxWithCallback<T>>());
     // we need to put the value on the heap, so box the value and the callback together
     let box = changetype<BoxWithCallback<T>>(ptr);
-    Console.log(ptr.toString() + "\r\n");
     box.val = val;
     box.callback = callback;
-    console.log(changetype<usize>(callback).toString() + "\r\n")
     let t = new Process();
-    // send the box to the new thread
-    t._pid = spawn_with_context(() => {
-      Console.log("Inside spawned process.\r\n");
+    let threadCallback = (): void => {
       // Get the payload from channel 0
       let prepareResult = channel_receive_prepare(CHANNEL_INITIAL_PAYLOAD, receive_length_pointer);
-  
       // get the payload length and assert it's the correct size
       let length = load<u32>(receive_length_pointer);
       if (prepareResult == ChannelReceivePrepareResult.Fail) return;
@@ -161,8 +158,13 @@ declare function sleep(ms: u64): void;
 
       // start the thread
       result.callback(result.val);
-    }, ptr, offsetof<BoxWithCallback<T>>());
-    Console.log(t._pid.toString() + "\r\n");
+    };
+    // send the box to the new thread
+    t._pid = spawn_with_context(
+      changetype<FunctionReference>(threadCallback).functionIndex,
+      ptr,
+      offsetof<BoxWithCallback<T>>()
+    );
     return t;
   }
 
@@ -171,11 +173,14 @@ declare function sleep(ms: u64): void;
     if (isInteger<T>() || isFloat<T>()) {
       return Process.spawnWithBox<T>(val, callback);
       // if T is an array, and the values are numbers
+      // @ts-ignore: valueof<T> returns the propert type
     } else if (isArray(val) && (isInteger<valueof<T>>() || isFloat<valueof<T>>())) {
       ERROR("NOT IMPLEMENTED"); // for now, compile time error
       // if the value is a typed array
+      // @ts-ignore: ArrayBufferView is a global concrete class
     } else if (val instanceof ArrayBufferView) {
       // obtain buffer data properties
+      // @ts-ignore: byteLength is a valid property on ArrayBufferView
       let byteLength = <usize>val.byteLength;
       // @ts-ignore: unsafe, undocumented, but fastest way to obtain the data pointer
       let dataStart = val.dataStart;
@@ -185,10 +190,8 @@ declare function sleep(ms: u64): void;
       // store the callback pointer and message contents
       store<usize>(messagePtr, changetype<usize>(callback));
       memory.copy(messagePtr + sizeof<usize>(), dataStart, byteLength);
-      Console.log("Memory copied.\r\n");
-      // spawn the thread
-      let t = new Process();
-      t._pid = spawn_with_context(() => {
+
+      let threadCallback = (): void => {
         // Get the payload from channel 0
         let prepareResult = channel_receive_prepare(CHANNEL_INITIAL_PAYLOAD, receive_length_pointer);
 
@@ -218,7 +221,14 @@ declare function sleep(ms: u64): void;
         // start the thread
         callback(changetype<T>(resultPtr));
 
-      }, messagePtr, messageLength);
+      };
+      // spawn the thread
+      let t = new Process();
+      t._pid = spawn_with_context(
+        changetype<FunctionReference>(threadCallback).functionIndex,
+        messagePtr,
+        messageLength,
+      );
 
       // free the message
       __free(messagePtr);
