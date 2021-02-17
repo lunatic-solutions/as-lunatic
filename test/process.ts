@@ -21,14 +21,16 @@ import "wasi";
 
 // @ts-ignore
 @external("lunatic", "spawn_with_context")
-declare function spawn_with_context(callback: () => void, ptr: usize, size: usize): u32;
+declare function spawn_with_context(callback: u32, ptr: usize, size: usize): u32;
 // @ts-ignore
 @external("lunatic", "join")
 declare function join(pid: u32): u32;
 
-let pid = spawn_with_context(() => {
+let closure = (): void => {
   Console.log("Hello thread!\r\n");
-}, 0, 0);
+};
+let table_index = load<u32>(<u32>changetype<usize>(closure));
+let pid = spawn_with_context(table_index, 0, 0);
 
 Console.log("Pid: " + pid.toString());
 join(pid);
