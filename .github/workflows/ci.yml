@@ -4,29 +4,29 @@ on:
     branches:
     - master
   pull_request:
-
-test:
-  name: "as-lunatic (Linux, node latest)"
-  runs-on: ubuntu-latest
-  steps:
-    - name: "Check out repository"
-      uses: actions/checkout@v1
-    - name: "Setup node"
-      uses: actions/setup-node@v2
-      with:
-        node-version: latest
-    - name: "Install rust nightly"
-      uses: actions-rs/toolchain@v1
-      with:
-        toolchain: nightly
-        override: true
-    - name: "Install lunatic"
-      run: |
-        git clone --recurse-submodules https://github.com/lunatic-solutions/lunatic.git
-        cd lunatic
-        cargo +nightly install --path .
-        cd ..
-    - name: "Install Assemblyscript and Test"
-      run: |
-        npm install
-        npm test
+jobs:
+  test:
+    name: "as-lunatic (Linux, node latest)"
+    runs-on: ubuntu-latest
+    steps:
+      - name: "Check out repository"
+        uses: actions/checkout@v1
+      - name: "Setup node"
+        uses: actions/setup-node@v2
+        with:
+          node-version: latest
+      - name: "Install rust nightly"
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: nightly
+          override: true
+      - name: "Install lunatic"
+        run: |
+          git clone --recurse-submodules https://github.com/lunatic-solutions/lunatic.git
+          cd lunatic
+          cargo +nightly install --path .
+          cd ..
+      - name: "Install Assemblyscript and Test"
+        run: |
+          npm install
+          npm test
