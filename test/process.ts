@@ -15,8 +15,7 @@ let p = Process.spawn<u64>(numbers.serialize(), (val: u64) => {
   numbers.send([42]);
 });
 
-// assert(p.join());
-p.join();
+assert(p.join());
 let b = numbers.receive()!;
 assert(b.length == 1); // assertion fails, because it receives the first reference
 assert(b[0] == 42);

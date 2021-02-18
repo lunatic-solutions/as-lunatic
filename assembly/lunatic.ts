@@ -1,3 +1,4 @@
+
 const enum ChannelReceivePrepareResult {
   Success = 0,
   Fail = 1,
@@ -38,7 +39,7 @@ declare function channel_send(channel: u32, buffer: StaticArray<u8>, length: usi
 @external("lunatic", "sender_serialize")
 declare function sender_serialize(channel_id: u32): u32;
 // @ts-ignore: valid decorator ehre
-@external("lunatic", "sender_serialize")
+@external("lunatic", "sender_deserialize")
 declare function sender_deserialize(channel_id: u32): u32;
 
 // @ts-ignore: valid decorator ehre
@@ -46,7 +47,7 @@ declare function sender_deserialize(channel_id: u32): u32;
 declare function receiver_serialize(channel_id: u32): u32;
 
 // @ts-ignore: valid decorator ehre
-@external("lunatic", "receiver_serialize")
+@external("lunatic", "receiver_deserialize")
 declare function receiver_deserialize(channel_id: u32): u32;
 
 // @ts-ignore: valid decorator
@@ -79,14 +80,18 @@ const receive_length_pointer = memory.data(sizeof<u32>());
   // turns the u64 serialized ids into a Channel for sending and receiving
   public static deserialize(value: u64): Channel {
     let result = new Channel();
-    result.sender = sender_deserialize(<u32>(u32.MAX_VALUE & value));
-    result.receiver = receiver_deserialize(<u32>(u32.MAX_VALUE & (value >>> 32)));
+    let sender = <u32>(<u64>u32.MAX_VALUE & value);
+    result.sender = sender_deserialize(sender);
+    let receiver = <u32>(<u64>u32.MAX_VALUE & (value >>> 32));
+    result.receiver = receiver_deserialize(receiver);
     return result;
   }
 
   // the sender_serialize and receiver_serialize methods are host methods, used to encode channel ids
   public serialize(): u64 {
-    return (<u64>sender_serialize(this.sender)) | (<u64>receiver_serialize(this.receiver) << 32);
+    let sender = sender_serialize(this.sender);
+    let receiver = receiver_serialize(this.receiver);
+    return (<u64>sender) | (<u64>receiver << <u64>32);
   }
 
   // send some data
