@@ -2,6 +2,12 @@ import "wasi";
 import { Process, Channel } from "lunatic";
 import { Console } from "as-wasi";
 
+let simpleValueProcess = Process.spawn(42, (val: i32) => {
+  assert(val == 42);
+});
+assert(simpleValueProcess.join());
+Console.log("[Pass] Thread with simple value\r\n");
+
 let numbers = Channel.create(0);
 numbers.send([0, 1, 2]);
 
@@ -19,4 +25,44 @@ assert(p.join());
 let b = numbers.receive()!;
 assert(b.length == 1);
 assert(b[0] == 42);
-Console.log("[Pass] Simple thread with channel pass");
+Console.log("[Pass] Simple thread with channel pass\n");
+
+class Vec3 {
+  constructor(
+    public x: f32,
+    public y: f32,
+    public z: f32,
+  ) {}
+}
+
+let vector = new Vec3(1, 2, 3);
+
+let vecProcess = Process.spawn<Vec3>(vector, (vec: Vec3) => {
+  assert(vec.x == 1);
+  assert(vec.y == 2);
+  assert(vec.z == 3);
+});
+assert(vecProcess.join());
+Console.log("[Pass] Thread with flat reference\r\n");
+
+
+let arrayProcess = Process.spawn<Array<f32>>([24, 6, 9], (val: Array<f32>) => {
+  assert(val[0] == 24);
+  assert(val[1] == 6);
+  assert(val[2] == 9);
+});
+assert(arrayProcess.join());
+Console.log("[Pass] Thread with array\r\n");
+
+let typedArray = new Uint32Array(3);
+typedArray[0] = 1000;
+typedArray[1] = 255;
+typedArray[2] = 9001;
+
+let typedArrayProcess = Process.spawn<Uint32Array>(typedArray, (val: Uint32Array) => {
+  assert(val[0] == 1000);
+  assert(val[1] == 255);
+  assert(val[2] == 9001);
+});
+assert(typedArrayProcess.join());
+Console.log("[Pass] Thread with typedarray\r\n");

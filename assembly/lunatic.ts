@@ -1,4 +1,5 @@
 import { Console } from "as-wasi";
+import { BLOCK, BLOCK_OVERHEAD, OBJECT, TOTAL_OVERHEAD } from "rt/common";
 
 const enum ChannelReceivePrepareResult {
   Success = 0,
@@ -196,7 +197,7 @@ declare function sleep(ms: u64): void;
   }
 
   /** This method spawns a process that receives an array. T is the value type, to aid in type detection. */
-  private static spawnWithArray<T>(val: Array<T>, callback: (val: T) => void): Process {
+  private static spawnWithArray<T>(val: Array<T>, callback: (val: Array<T>) => void): Process {
     // private buffer: ArrayBuffer;
     // private dataStart: usize;
     // private byteLength: i32;
@@ -315,26 +316,97 @@ declare function sleep(ms: u64): void;
     return t;
   }
 
+  /** Spawn a process with reference data. */
+  private static spawnWithReference<T>(val: T, callback: (val: T) => void): Process {
+    if (!isReference(val)) ERROR("Cannot spawn Process with type T, because T is not a reference.");
+    // Even though we can confirm the offset of `T` at compile time, it's best to inspect the runtime size
+    let valPtr = changetype<usize>(val);
+    let size: usize;
+    /**
+     * If the reference is a static reference, best we can do perform a runtime check
+     * and assume the size of T which can be obtained with offsetof<T>().
+     */
+    if (valPtr < __heap_base) {
+      size = offsetof<T>();
+    } else {
+      // If the reference is managed, we can actually obtain the rtSize
+      if (isManaged(val)) {
+        let obj = changetype<OBJECT>(valPtr - TOTAL_OVERHEAD);
+        size = <usize>obj.rtSize;
+        // unmanaged, no rt information, use offsetof<T>()
+      } else {
+        size = offsetof<T>();
+      }
+    }
+
+    // Pack the data into a buffer
+    let messagePtr = packCallbackWithDataUnsafe(
+      changetype<usize>(callback),
+      valPtr,
+      size,
+    );
+
+    let threadCallback = (): void => {
+      // Get the payload from channel 0
+      let prepareResult = channel_receive_prepare(CHANNEL_INITIAL_PAYLOAD, receive_length_pointer);
+      if (prepareResult == ChannelReceivePrepareResult.Fail) return;
+
+      // get the length, and allocate a location on the heap
+      let length = load<u32>(receive_length_pointer);
+      let messagePointer = heap.alloc(length);
+      channel_receive(messagePointer, length);
+
+      // obtain the callback, bytelength, and memcopy the data
+      let callback = changetype<(val: T) => void>(load<usize>(messagePointer));
+      let size = length - sizeof<usize>();
+
+      // If the object is managed, we need to use __new()
+      let result = isManaged<T>()
+        ? __new(size, idof<T>())
+        : heap.alloc(size);
+
+      // copy the remaining bytes into a reference
+      memory.copy(result, messagePointer + sizeof<usize>(), size);
+
+      // we've unpacked the data into the correct format
+      heap.free(messagePointer);
+
+      // start the thread
+      callback(changetype<T>(result));
+    };
+
+    // spawn the thread
+    let t = new Process();
+    t._pid = spawn_with_context(
+      threadCallback.index,
+      messagePtr,
+      size + sizeof<usize>(),
+    );
+
+    // free the message
+    heap.free(messagePtr);
+    return t;
+  }
+
   public static spawn<T>(val: T, callback: (val: T) => void): Process {
     // All of the following are inlined compile time checks, no performance loss
     if (isInteger(val) || isFloat(val)) {
       return Process.spawnWithBox(val, callback);
       // if T is an array, and the values are numbers
-      // @ts-ignore: valueof<T> returns the propert type
+      // @ts-ignore: ArrayBufferView is a concrete global
     } else if (val instanceof ArrayBufferView) {
       return Process.spawnWithTypedArray<T>(val, callback);
-    } else if (val instanceof Array && (isInteger<valueof<T>>() || isFloat<valueof<T>>())) {
-      // @ts-ignore: valueof<T> returns the propert type
+      // @ts-ignore: valueof<T> returns the property type
+    } else if (val instanceof Array) {
+      // @ts-ignore: valueof<T> returns the property type
       return Process.spawnWithArray<valueof<T>>(val, callback);
-      // @ts-ignore: ArrayBufferView is a global concrete class
     } else if (isArrayLike(val)) {
-      ERROR("NOT IMPLEMENTED"); // for now, compile time error
+      ERROR("Not Implement: Thread spawn with ArrayLike value."); // for now, compile time error
       // flat reference, perform a memcopy
+      return new Process();
     } else {
-      ERROR("NOT IMPLEMENTED"); // for now, compile time error
+      return Process.spawnWithReference(val, callback);
     }
-    ERROR("NOT IMPLEMENTED");
-    return new Process();
   }
 
   public drop(): void {
