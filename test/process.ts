@@ -66,3 +66,23 @@ let typedArrayProcess = Process.spawn<Uint32Array>(typedArray, (val: Uint32Array
 });
 assert(typedArrayProcess.join());
 Console.log("[Pass] Thread with typedarray\r\n");
+
+// inlined static memory segment
+let staticArray = [300, 1000, -42] as StaticArray<i16>;
+let staticArrayProcess = Process.spawn(staticArray, (val: StaticArray<i16>) => {
+  assert(val[0] == 300);
+  assert(val[1] == 1000);
+  assert(val[2] == -42);
+});
+assert(staticArrayProcess.join());
+Console.log("[Pass] Thread with static staticarray segment\r\n");
+
+// dynamic allocation static array
+let allocatedStaticArray = new StaticArray<u8>(5);
+for (let i = 0; i < 5; i++) allocatedStaticArray[i] = <u8>i;
+
+let allocatedStaticArrayProcess = Process.spawn(allocatedStaticArray, (val: StaticArray<u8>) => {
+  for (let i = 0; i < 5; i++) assert(val[i] == <u8>i);
+});
+assert(allocatedStaticArrayProcess.join());
+Console.log("[Pass] Thread with allocated staticarray segment\r\n");

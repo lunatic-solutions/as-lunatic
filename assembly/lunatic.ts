@@ -326,14 +326,14 @@ declare function sleep(ms: u64): void;
      * If the reference is a static reference, best we can do perform a runtime check
      * and assume the size of T which can be obtained with offsetof<T>().
      */
-    if (valPtr < __heap_base) {
+    if (!(val instanceof StaticArray) && valPtr < __heap_base) {
       size = offsetof<T>();
     } else {
       // If the reference is managed, we can actually obtain the rtSize
-      if (isManaged(val)) {
+      if (isManaged(val) || val instanceof StaticArray) {
         let obj = changetype<OBJECT>(valPtr - TOTAL_OVERHEAD);
         size = <usize>obj.rtSize;
-        // unmanaged, no rt information, use offsetof<T>()
+        // unmanaged, no rt information, use offsetof<T>(), unsafe depending on T
       } else {
         size = offsetof<T>();
       }
@@ -400,6 +400,8 @@ declare function sleep(ms: u64): void;
     } else if (val instanceof Array) {
       // @ts-ignore: valueof<T> returns the property type
       return Process.spawnWithArray<valueof<T>>(val, callback);
+    } else if (val instanceof StaticArray) {
+      return Process.spawnWithReference(val, callback);
     } else if (isArrayLike(val)) {
       ERROR("Not Implement: Thread spawn with ArrayLike value."); // for now, compile time error
       // flat reference, perform a memcopy
