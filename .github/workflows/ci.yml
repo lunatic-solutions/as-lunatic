@@ -6,16 +6,20 @@ on:
   pull_request:
 
 test:
-  name: "as-lunatic (Linux, node ${{ matrix.node_version }})"
+  name: "as-lunatic (Linux, node latest)"
   runs-on: ubuntu-latest
   steps:
   - name: Check out repository
       uses: actions/checkout@v1
-  - name: Install latest nightly
+  - name: Setup node
+      uses: actions/setup-node@v2
+      with:
+        node-version: latest
+  - name: Install rust nightly
       uses: actions-rs/toolchain@v1
       with:
-          toolchain: nightly
-          override: true
+        toolchain: nightly
+        override: true
   - name: Install lunatic
     run: |
       git clone --recurse-submodules https://github.com/lunatic-solutions/lunatic.git
@@ -23,4 +27,6 @@ test:
       cargo +nightly install --path .
       cd ..
   - name: Install Assemblyscript and Test
-    run: npm install && npm test
+    run: |
+      npm install
+      npm test
