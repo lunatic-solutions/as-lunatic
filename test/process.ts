@@ -17,6 +17,6 @@ let p = Process.spawn<u64>(numbers.serialize(), (val: u64) => {
 
 assert(p.join());
 let b = numbers.receive()!;
-assert(b.length == 1); // assertion fails, because it receives the first reference
+assert(b.length == 1);
 assert(b[0] == 42);
 Console.log("[Pass] Simple thread with channel pass");
