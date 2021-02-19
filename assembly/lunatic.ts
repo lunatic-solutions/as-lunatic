@@ -205,7 +205,7 @@ declare function sleep(ms: u64): void;
 
     // we can obtain the dataStart and byteLength value doing a manual load here
     let dataStart = load<usize>(changetype<usize>(val), offsetof<Array<T>>("dataStart"));
-    let byteLength = load<i32>(changetype<usize>(val), offsetof<Array<T>>("byteLength"));
+    let byteLength = load<i32>(changetype<usize>(val), offsetof<Array<T>>("length_")) << alignof<T>();
 
     let threadCallback = (): void => {
       // Get the payload and the length
