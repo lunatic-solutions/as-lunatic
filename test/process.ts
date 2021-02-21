@@ -1,6 +1,3 @@
-import "wasi";
-import { Console } from "as-wasi";
-
 // @ts-ignore: valid decorator
 @external("lunatic", "spawn_with_context")
 declare function spawn_with_context(
@@ -53,13 +50,15 @@ class Process {
 
   public static spawnWithBox<T>(val: T, callback: (val: T) => void): Process {
     let box = new BoxWithCallback<T>(callback.index, val);
-    Console.log("It ran\r\n");
+    // Console.log("It ran\r\n");
     let threadCallback = (): void => {
-      Console.log("I'm running on another thread.\r\n");
-      let box = new BoxWithCallback<T>();
+      // Console.log("I'm running on another thread.\r\n");
+      trace("I'm already tracer!");
       // Get the payload from channel 0
       let prepareResult = channel_receive_prepare(CHANNEL_INITIAL_PAYLOAD, receive_length_pointer);
-
+      
+      let box = new BoxWithCallback<T>();
+      trace("On another thread!", 3, <f64>changetype<usize>(box), <f64>box.callback, <f64>box.value);
       // get the payload length and assert it's the correct size
       let length = load<u32>(receive_length_pointer);
       if (prepareResult == ChannelReceivePrepareResult.Fail) return;
@@ -73,7 +72,6 @@ class Process {
       call_indirect(box.callback, box.value);
     };
     // send the box to the new thread
-    Console.log("It created\r\n");
     let pid = spawn_with_context(
       threadCallback.index,
       changetype<usize>(box),
@@ -82,7 +80,7 @@ class Process {
     );
     let t = new Process();
     t._pid = pid;
-    Console.log(t._pid.toString() + "\r\n");
+    // Console.log(t._pid.toString() + "\r\n");
     // Console.log("It's running.\r\n");
     return t;
   }
@@ -92,10 +90,13 @@ class Process {
   }
 }
 
-let simpleValueProcess = Process.spawnWithBox(42, (val: i32) => {
-  assert(val == 42);
-});
-assert(simpleValueProcess.join());
+export function _start(): void {
+  let simpleValueProcess = Process.spawnWithBox(42, (val: i32) => {
+    assert(val == 42);
+  });
+  assert(simpleValueProcess.join());
+}
+
 // Console.log("[Pass] Thread with simple value\r\n");
 
 

@@ -5,6 +5,7 @@
     }
   },
   "options": {
+    "use": ["abort=abort","trace=trace","seed=seed"],
     "lib": ["assembly/"],
     "exportTable": true
   }
