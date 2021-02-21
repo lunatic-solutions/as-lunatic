@@ -1,6 +1,7 @@
 import "wasi";
 import { Console } from "as-wasi";
 import { Channel } from "lunatic";
+import { getIP, tryParseIPV4 } from "../assembly/lunatic-util/string";
 
 const data = [137, 42, 123, 86, 34, 72, 21] as StaticArray<u8>;
 

@@ -1,5 +1,5 @@
-import { Console } from "as-wasi";
-import { BLOCK, BLOCK_OVERHEAD, OBJECT, TOTAL_OVERHEAD } from "rt/common";
+import { OBJECT, TOTAL_OVERHEAD } from "rt/common";
+import { getIP, IP, tryParseIPV4 } from "./lunatic-util/string";
 
 const enum ChannelReceivePrepareResult {
   Success = 0,
@@ -419,5 +419,45 @@ declare function sleep(ms: u64): void;
   }
   public join(): bool {
     return join(this._pid) == JoinResult.Success;
+  }
+}
+
+// @ts-ignore
+@external("lunatic", "tcp_bind")
+declare function tcp_bind(
+  addr_ptr: usize, // *u8
+  addr_len: usize,
+  port: u16,
+  listener_id: usize, // *mut u32,
+): u32;
+
+const listenerPointer = memory.data(sizeof<u32>());
+
+export namespace TCP {
+  export class Server {
+    private listener: u32;
+    private ip: IP;
+  
+    constructor(
+      public readonly host: string,
+    ) {
+      let ip: IP;
+      if (host === "localhost") {
+        ip = this.ip = new IP(false, [127, 0, 0, 1], 23);
+      } else if (tryParseIPV4(changetype<usize>(host), <usize>host.length << 2)) {
+        ip = this.ip = getIP(false);
+      } else {
+        assert(false, "invalid host");
+        // just to hush typescript
+        ip = this.ip;
+      }
+
+      let result = tcp_bind(
+        changetype<usize>(ip.bytes),
+        ip.isv6 ? 16 : 4,
+        ip.port,
+        listenerPointer,
+      );
+    }
   }
 }
