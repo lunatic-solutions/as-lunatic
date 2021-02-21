@@ -146,6 +146,14 @@ const CHANNEL_INITIAL_PAYLOAD: u32 = 0;
 @external("lunatic", "sleep_ms")
 declare function sleep(ms: u64): void;
 
+export class BoxWithCallback<T> {
+  constructor(
+    public callback: (val: T ) => void = (_val: T) => {},
+    // T will always be a number value
+    public value: T = 0,
+  ) {}
+}
+
 
 @final export class Process {
   private _pid: u32 = 0;
@@ -157,42 +165,34 @@ declare function sleep(ms: u64): void;
 
   /** This helper method spawns a Process with a simple boxed value of type T, must be integer or array. */
   private static spawnWithBox<T>(val: T, callback: (val: T) => void): Process {
-
-    // box the callback and the value
-    let ptr = packCallbackWithValue(changetype<usize>(callback), val);
+    let box = new BoxWithCallback<T>(callback, val);
 
     let threadCallback = (): void => {
+      let box = new BoxWithCallback<T>();
       // Get the payload from channel 0
       let prepareResult = channel_receive_prepare(CHANNEL_INITIAL_PAYLOAD, receive_length_pointer);
 
       // get the payload length and assert it's the correct size
       let length = load<u32>(receive_length_pointer);
       if (prepareResult == ChannelReceivePrepareResult.Fail) return;
-      assert(length == (sizeof<usize>() + sizeof<T>()));
-
-      // this is a static memory segment, allocated below __heap_base
-      let result = memory.data(sizeof<usize>() + sizeof<T>());
+      assert(length == offsetof<BoxWithCallback<T>>());
 
       // obtain the static segment, callback, and val
-      channel_receive(result, length);
-      let callback = changetype<(val: T) => void>(load<usize>(result));
-      let val = load<T>(result, sizeof<usize>());
+      channel_receive(changetype<usize>(box), length);
 
       // start the thread
-      callback(val);
+      box.callback(box.value);
     };
 
     // send the box to the new thread
     let t = new Process();
     t._pid = spawn_with_context(
       threadCallback.index,
-      ptr,
+      changetype<usize>(box),
       // packed message is the size of T + usize
-      sizeof<usize>() + sizeof<T>(),
+      offsetof<BoxWithCallback<T>>(),
     );
-
-    // free the message pointer
-    heap.free(ptr);
+    Console.log("It's running.");
     return t;
   }
 
