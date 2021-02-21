@@ -1,4 +1,5 @@
 import "wasi";
+import { Console } from "as-wasi";
 
 // @ts-ignore: valid decorator
 @external("lunatic", "spawn_with_context")
@@ -30,7 +31,7 @@ declare function channel_receive_prepare(channel: u32, rec: usize): ChannelRecei
 
 export class BoxWithCallback<T> {
   constructor(
-    public callback: (val: T ) => void = (_val: T) => {},
+    public callback: i32 = -1,
     // @ts-ignore: T will always be a number value
     public value: T = 0,
   ) {}
@@ -51,9 +52,10 @@ class Process {
   _pid: u32 = 0;
 
   public static spawnWithBox<T>(val: T, callback: (val: T) => void): Process {
-    let box = new BoxWithCallback<T>(callback, val);
-
+    let box = new BoxWithCallback<T>(callback.index, val);
+    Console.log("It ran\r\n");
     let threadCallback = (): void => {
+      Console.log("I'm running on another thread.\r\n");
       let box = new BoxWithCallback<T>();
       // Get the payload from channel 0
       let prepareResult = channel_receive_prepare(CHANNEL_INITIAL_PAYLOAD, receive_length_pointer);
@@ -66,18 +68,21 @@ class Process {
       // obtain the static segment, callback, and val
       channel_receive(changetype<usize>(box), length);
 
+      assert(box.callback != -1);
       // start the thread
-      box.callback(box.value);
+      call_indirect(box.callback, box.value);
     };
-
     // send the box to the new thread
-    let t = new Process();
-    t._pid = spawn_with_context(
+    Console.log("It created\r\n");
+    let pid = spawn_with_context(
       threadCallback.index,
       changetype<usize>(box),
       // packed message is the size of T + usize
       offsetof<BoxWithCallback<T>>(),
     );
+    let t = new Process();
+    t._pid = pid;
+    Console.log(t._pid.toString() + "\r\n");
     // Console.log("It's running.\r\n");
     return t;
   }
@@ -89,7 +94,6 @@ class Process {
 
 let simpleValueProcess = Process.spawnWithBox(42, (val: i32) => {
   assert(val == 42);
-  // Console.log("It ran\r\n");
 });
 assert(simpleValueProcess.join());
 // Console.log("[Pass] Thread with simple value\r\n");
