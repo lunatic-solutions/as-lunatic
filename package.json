@@ -7,9 +7,9 @@
   "scripts": {
     "test": "run-s asbuild:channels asbuild:process test:channels test:process",
     "test:channels": "lunatic build/channels.wasm",
-    "asbuild:channels": "asc test/channels.ts --target debug --exportTable --binaryFile build/channels.wasm --textFile build/channels.wat",
+    "asbuild:channels": "asc test/channels.ts --target debug --binaryFile build/channels.wasm --textFile build/channels.wat",
     "test:process": "lunatic build/process.wasm",
-    "asbuild:process": "asc test/process.ts --target debug --exportTable --binaryFile build/process.wasm --textFile build/process.wat"
+    "asbuild:process": "asc test/process.ts --target debug --binaryFile build/process.wasm --textFile build/process.wat"
   },
   "repository": {
     "type": "git",
@@ -28,10 +28,10 @@
   "homepage": "https://github.com/lunatic-solutions/as-lunatic#readme",
   "devDependencies": {
     "as-wasi": "^0.4.4",
-    "assemblyscript": "^0.18.9",
+    "assemblyscript": "^0.18.10",
     "npm-run-all": "^4.1.5"
   },
   "dependencies": {
-    "@assemblyscript/loader": "^0.18.9"
+    "@assemblyscript/loader": "^0.18.10"
   }
 }
