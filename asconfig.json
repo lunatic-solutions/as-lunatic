@@ -5,6 +5,7 @@
     }
   },
   "options": {
+    "use": ["abort=__lunatic_abort","trace=__lunatic_trace","seed=__lunatic_seed"],
     "lib": ["assembly/"],
     "exportTable": true
   }
