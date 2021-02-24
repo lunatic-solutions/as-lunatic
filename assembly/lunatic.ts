@@ -330,8 +330,8 @@ export class BoxWithCallback<T> {
       if (prepareResult == ChannelReceivePrepareResult.Fail) return;
       let length = load<u32>(receive_length_pointer);
 
+      // allocate space to receive the message, and receive it
       let messagePointer = heap.alloc(length);
-      // __pin(messagePointer);
       channel_receive(messagePointer, length);
 
       // obtain the payload
@@ -360,8 +360,6 @@ export class BoxWithCallback<T> {
       dataStart,
       <usize>byteLength,
     );
-    // we may want to pin it, todo: check with dcode
-    // __pin(ptr);
 
     // spawn a new process
     let t = new Process();
@@ -372,8 +370,7 @@ export class BoxWithCallback<T> {
       sizeof<i32>() + byteLength,
     );
 
-    // memory is sent, free heap memory, potentially unpin first
-    // __unpin(ptr);
+    // memory is sent, free heap memory
     heap.free(ptr);
     return t;
   }
@@ -393,17 +390,15 @@ export class BoxWithCallback<T> {
       dataStart,
       byteLength,
     );
-    // __pin(messagePtr)
 
     let threadCallback = (): void => {
       // Get the payload from channel 0
       let prepareResult = channel_receive_prepare(CHANNEL_INITIAL_PAYLOAD, receive_length_pointer);
       if (prepareResult == ChannelReceivePrepareResult.Fail) return;
 
-      // get the length, and allocate a location on the heap
+      // get the length, and allocate a location on the heap, and receive the message
       let length = load<u32>(receive_length_pointer);
       let messagePointer = heap.alloc(length);
-      // __pin(messagePointer)
       channel_receive(messagePointer, length);
 
       // obtain the callback, bytelength, and memcopy the data
@@ -429,8 +424,7 @@ export class BoxWithCallback<T> {
       // readonly byteLength: i32;
       store<i32>(result, <i32>byteLength, offsetof<ArrayBufferView>("byteLength"));
 
-      // we've unpacked the data into the correct format
-      // __unpin(messagePointer)
+      // we've unpacked the data into the correct format, free the allocation
       heap.free(messagePointer);
       // start the thread
       call_indirect(callback, result);
@@ -447,7 +441,6 @@ export class BoxWithCallback<T> {
     );
 
     // free the message
-    // __unpin(messagePtr);
     heap.free(messagePtr);
     return t;
   }
@@ -482,7 +475,6 @@ export class BoxWithCallback<T> {
       valPtr,
       size,
     );
-    // __pin(messagePtr)
 
     let threadCallback = (): void => {
       // Get the payload from channel 0
@@ -514,7 +506,6 @@ export class BoxWithCallback<T> {
 
       // we've unpacked the data into the correct format
       heap.free(messagePointer);
-      // __unpin(messagePointer)
 
       // start the thread
       call_indirect(callback, result);
@@ -587,7 +578,7 @@ export namespace TCP {
   export class Server {
     private listener: u32;
     private ip: IP;
-  
+
     constructor(
       public readonly host: string,
     ) {
@@ -611,3 +602,5 @@ export namespace TCP {
     }
   }
 }
+
+export * from "./tcp/index";

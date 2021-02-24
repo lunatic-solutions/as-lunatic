@@ -5,7 +5,13 @@
     }
   },
   "options": {
-    "use": ["abort=__lunatic_abort","trace=__lunatic_trace","seed=__lunatic_seed"],
+    "use": [
+      "abort=__lunatic_abort",
+      "trace=__lunatic_trace",
+      "seed=__lunatic_seed",
+      "TCP_READ_BUFFER_COUNT=4",
+      "TCP_READ_BUFFER_SIZE=10000"
+    ],
     "lib": ["assembly/"],
     "exportTable": true
   }
