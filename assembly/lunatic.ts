@@ -127,6 +127,6 @@ export function __lunatic_seed(): f64 { // eslint-disable-line @typescript-eslin
   return reinterpret<f64>(rand);
 }
 
-export * from "./tcp/index";
+export * from "./net/index";
 export * from "./process/index";
 export * from "./channel/index";
