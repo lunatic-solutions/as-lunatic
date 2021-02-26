@@ -1,4 +1,40 @@
-import { iovec } from "bindings/wasi";
+
+// @ts-ignore: valid decorator
+@external("lunatic", "resolve")
+declare function lunatic_resolve(
+  name_ptr: usize /* *const u8 */,
+  name_len: usize,
+  resolver_id: usize /* *mut u32 */
+): ResolveResult;
+
+const enum ResolveNextResult {
+  Success = 0,
+  Done = 1,
+}
+
+export const enum ResolveResult {
+  Success = 0,
+  Fail = 1,
+}
+
+// @ts-ignore: valid decorator
+@external("lunatic", "resolve_next")
+declare function resolve_next(
+  resolver_id: u32,
+  addr: usize /* *mut u8 */,
+  addr_len: usize /* *mut usize */,
+  port: usize /* *mut u16 */,
+  flowinfo: usize /* *mut u32 */,
+  scope_id: usize /* *mut u32 */,
+): ResolveNextResult;
+
+export class IPResolution {
+  address: StaticArray<u8>;
+  length: usize;
+  port: u16;
+  flowinfo: u32;
+  scope_id: u32;
+}
 
 export const enum TCPConnectResult {
   Success = 0,
@@ -28,9 +64,11 @@ declare function tcp_connect(
   port: u16,
   listener_id: usize, // *mut u32,
 ): TCPConnectResult;
+
 // @ts-ignore: valid decorator
 @external("lunatic", "close_tcp_stream")
 declare function close_tcp_stream(listener: u32): void;
+
 // @ts-ignore: valid decorator
 @external("lunatic", "tcp_write_vectored")
 declare function tcp_write_vectored(
@@ -39,9 +77,11 @@ declare function tcp_write_vectored(
   data_len: usize,
   nwritten: usize // *mut usize,
 ): TCPWriteResult;
+
 // @ts-ignore: valid decorator
 @external("lunatic", "tcp_flush")
 declare function tcp_flush(tcp_stream: u32): TCPFlushResult;
+
 // @ts-ignore: valid decorator
 @external("lunatic", "tcp_read_vectored")
 declare function tcp_read_vectored(
@@ -89,6 +129,7 @@ declare function tcp_listener_serialize(tcp_stream: u32): u32;
 @external("lunatic", "tcp_listener_deserialize")
 declare function tcp_listener_deserialize(tcp_stream: u32): u32;
 
+/** This pointer is for standard reads, configured by the compile time read and count tcp read buffer constants. */
 const tcpReadDataPointer = memory.data(TCP_READ_BUFFER_SIZE * TCP_READ_BUFFER_COUNT);
 const tcpReadVecs = memory.data(TCP_READ_BUFFER_COUNT * sizeof<usize>() * 2);
 const readCountPtr = memory.data(sizeof<u32>());
@@ -136,10 +177,10 @@ export class TCPSocket {
     let buffersLength = <usize>buffers.length;
     let vecs = heap.alloc(
       // adding 1 to align of usize effectively doubles the heap allocation size
-      buffersLength << (alignof<usize>() + 1)
+      buffersLength << (usize(alignof<usize>()) + 1)
     );
     for (let i = <usize>0; i < buffersLength; i++) {
-      let ptr = vecs + i << (alignof<usize>() + 1);
+      let ptr = vecs + (i << (usize(alignof<usize>()) + 1));
       let buffer = unchecked(buffers[i]);
       store<usize>(ptr, changetype<usize>(buffer));
       store<usize>(ptr, <usize>buffer.length, sizeof<usize>());
@@ -179,4 +220,46 @@ export class TCPServer {
   public close(): void {
     close_tcp_listener(this.listener);
   }
+}
+
+const resolverIdPtr = memory.data(sizeof<u32>());
+
+export function resolve(ip: string): IPResolution[] | null {
+  // encode the ip address to utf8
+  let ipBuffer = String.UTF8.encode(ip);
+  // call the host to resolve the IP address
+  let resolveResult = lunatic_resolve(
+    changetype<usize>(ipBuffer),
+    ipBuffer.byteLength,
+    // write the resolver to memory
+    resolverIdPtr
+  );
+  if (resolveResult == ResolveResult.Fail) return null;
+
+  // read the resolver id
+  let resolverId = load<u32>(resolverIdPtr);
+
+  // loop over each IPResolution and add it to the list
+  let result = new Array<IPResolution>(0);
+  let i = 0;
+  while (true) {
+    // must always allocate 16 bytes
+    let buffer = new StaticArray<u8>(16);
+    let resolution = new IPResolution();
+    resolution.address = buffer;
+
+    // the host iterates over each result until it returns Done
+    let resolutionResult = resolve_next(
+      resolverId,
+      changetype<usize>(buffer),
+      changetype<usize>(resolution) + offsetof<IPResolution>("addr_len"),
+      changetype<usize>(resolution) + offsetof<IPResolution>("port"),
+      changetype<usize>(resolution) + offsetof<IPResolution>("flowinfo"),
+      changetype<usize>(resolution) + offsetof<IPResolution>("scope_id"),
+    );
+    if (resolutionResult == ResolveNextResult.Done) break;
+    result.push(resolution);
+    i++;
+  }
+  return select(result, null, bool(i));
 }
