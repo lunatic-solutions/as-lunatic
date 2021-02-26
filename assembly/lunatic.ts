@@ -17,6 +17,9 @@ import {
 // https://github.com/AssemblyScript/assemblyscript/blob/master/std/assembly/wasi/index.ts
 // Apache License
 
+// TODO: Replace the following functions with the commented import
+// when import "wasi" no longer implies --explicitStart
+
 // @ts-ignore: decorator
 @global
 export function __lunatic_abort(
