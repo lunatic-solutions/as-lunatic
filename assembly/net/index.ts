@@ -216,6 +216,10 @@ export class TCPSocket {
   public flush(): bool {
     return tcp_flush(this.socket_id) == TCPFlushResult.Success;
   }
+
+  public close(): void {
+    close_tcp_stream(this.socket_id);
+  }
 }
 
 export class TCPServer {
