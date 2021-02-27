@@ -135,6 +135,8 @@ const tcpReadDataPointer = memory.data(TCP_READ_BUFFER_SIZE * TCP_READ_BUFFER_CO
 const tcpReadVecs = memory.data(TCP_READ_BUFFER_COUNT * sizeof<usize>() * 2);
 const readCountPtr = memory.data(sizeof<u32>());
 const writeCountPtr = memory.data(sizeof<usize>());
+
+
 // this is setup that configures the tcpReadVecs segment
 let tcpReadVecsTemp = tcpReadVecs;
 for (let i = <usize>0; i < <usize>TCP_READ_BUFFER_COUNT; i++) {
@@ -147,11 +149,28 @@ for (let i = <usize>0; i < <usize>TCP_READ_BUFFER_COUNT; i++) {
 
 export class TCPSocket {
   private socket_id: u32;
+
+  public static connect(ip: StaticArray<u8>, port: u16): TCPSocket | null {
+    let length = ip.length;
+    assert(length == 4 || length == 16);
+    let t = new TCPSocket();
+    let result = tcp_connect(
+      changetype<usize>(ip),
+      ip.length,
+      port,
+      changetype<usize>(t),
+    );
+    return result == TCPConnectResult.Success
+      ? t
+      : null;
+  }
+
   public static deserialize(value: u32): TCPSocket {
     let socket = new TCPSocket();
     socket.socket_id = tcp_listener_deserialize(value);
     return socket;
   }
+
   constructor() {}
 
   public serialize(): u32 {
@@ -210,7 +229,9 @@ export class TCPSocket {
       writeCountPtr,
     );
 
-    return select(load<usize>(writeCountPtr), 0, result == TCPWriteResult.Success);
+    return result == TCPWriteResult.Success
+      ? load<usize>(writeCountPtr)
+      : 0;
   }
 
   public flush(): bool {
@@ -289,5 +310,5 @@ export function resolve(ip: string): IPResolution[] | null {
     result.push(resolution);
     i++;
   }
-  return select(result, null, bool(i));
+  return bool(i) ? result : null;
 }
