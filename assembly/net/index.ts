@@ -1,3 +1,4 @@
+import { iovec } from "assemblyscript/std/assembly/wasi";
 
 // @ts-ignore: valid decorator
 @external("lunatic", "resolve")
@@ -133,7 +134,7 @@ declare function tcp_listener_deserialize(tcp_stream: u32): u32;
 const tcpReadDataPointer = memory.data(TCP_READ_BUFFER_SIZE * TCP_READ_BUFFER_COUNT);
 const tcpReadVecs = memory.data(TCP_READ_BUFFER_COUNT * sizeof<usize>() * 2);
 const readCountPtr = memory.data(sizeof<u32>());
-
+const writeCountPtr = memory.data(sizeof<usize>());
 // this is setup that configures the tcpReadVecs segment
 let tcpReadVecsTemp = tcpReadVecs;
 for (let i = <usize>0; i < <usize>TCP_READ_BUFFER_COUNT; i++) {
@@ -191,6 +192,29 @@ export class TCPSocket {
     if (readResult == TCPReadResult.Success) {
       return load<u32>(readCountPtr);
     } else return 0;
+  }
+
+  public writeBuffer(buffer: StaticArray<u8>): usize {
+    return this.writeUnsafe(changetype<usize>(buffer), buffer.length);
+  }
+
+  public writeUnsafe(ptr: usize, length: usize): usize {
+    let vec = changetype<iovec>(memory.data(offsetof<iovec>()));
+    vec.buf = ptr;
+    vec.buf_len = length;
+
+    let result = tcp_write_vectored(
+      this.socket_id,
+      changetype<usize>(vec),
+      1,
+      writeCountPtr,
+    );
+
+    return select(load<usize>(writeCountPtr), 0, result == TCPWriteResult.Success);
+  }
+
+  public flush(): bool {
+    return tcp_flush(this.socket_id) == TCPFlushResult.Success;
   }
 }
 
