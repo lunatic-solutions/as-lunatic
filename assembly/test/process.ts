@@ -1,5 +1,4 @@
-import { Process, Channel } from "lunatic";
-import { Console} from "as-wasi";
+import { Process, Channel } from "..";
 
 class Vec3 {
   constructor(
@@ -15,7 +14,7 @@ export function _start(): void {
     assert(val == 42);
   });
   assert(simpleValueProcess.join());
-  Console.log("[Pass] Thread with simple value\r\n");
+  console.log("[Pass] Thread with simple value\r\n");
 
   let numbers = Channel.create(0);
   numbers.send([0, 1, 2] as StaticArray<u8>);
@@ -35,7 +34,7 @@ export function _start(): void {
   let b = numbers.receive()!;
   assert(b.length == 1);
   assert(b[0] == 42);
-  Console.log("[Pass] Simple thread with channel pass\n");
+  console.log("[Pass] Simple thread with channel pass\n");
 
   let vector = new Vec3(1, 2, 3);
   let vecProcess = Process.spawn<Vec3>(vector, (vec: Vec3) => {
@@ -44,7 +43,7 @@ export function _start(): void {
     assert(vec.z == 3);
   });
   assert(vecProcess.join());
-  Console.log("[Pass] Thread with flat reference\r\n");
+  console.log("[Pass] Thread with flat reference\r\n");
 
 
   let arrayProcess = Process.spawn<Array<f32>>([24, 6, 9], (val: Array<f32>) => {
@@ -53,7 +52,7 @@ export function _start(): void {
     assert(val[2] == 9);
   });
   assert(arrayProcess.join());
-  Console.log("[Pass] Thread with array\r\n");
+  console.log("[Pass] Thread with array\r\n");
 
   let typedArray = new Uint32Array(3);
   typedArray[0] = 1000;
@@ -66,7 +65,7 @@ export function _start(): void {
     assert(val[2] == 9001);
   });
   assert(typedArrayProcess.join());
-  Console.log("[Pass] Thread with typedarray\r\n");
+  console.log("[Pass] Thread with typedarray\r\n");
 
   // inlined static memory segment
   let staticArray = [300, 1000, -42] as StaticArray<i16>;
@@ -76,7 +75,7 @@ export function _start(): void {
     assert(val[2] == -42);
   });
   assert(staticArrayProcess.join());
-  Console.log("[Pass] Thread with static staticarray segment\r\n");
+  console.log("[Pass] Thread with static staticarray segment\r\n");
 
   // dynamic allocation static array
   let allocatedStaticArray = new StaticArray<u8>(5);
@@ -86,5 +85,5 @@ export function _start(): void {
     for (let i = 0; i < 5; i++) assert(val[i] == <u8>i);
   });
   assert(allocatedStaticArrayProcess.join());
-  Console.log("[Pass] Thread with allocated staticarray segment\r\n");
+  console.log("[Pass] Thread with allocated staticarray segment\r\n");
 }

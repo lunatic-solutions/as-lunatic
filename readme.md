@@ -10,17 +10,15 @@ npm install --save-dev assemblyscript as-lunatic
 
 Then, install [lunatic](https://github.com/lunatic-solutions/lunatic).
 
-Next, modify your asconfig to include as-lunatic as a `lib`. If the `lib` option already exists, add it to the array.
+Next, modify your asconfig to extend as-lunatic,
 
 ```json
 {
-  "options": {
-    "lib": ["./node_modules/as-lunatic/assembly"]
-  }
+  "extends": "as-lunatic/asconfig.json"
 }
 ```
 
-Finally, import wasi into your module entry point.
+Finally, import Wasi into your module entry point.
 
 ```ts
 // assembly/index.ts

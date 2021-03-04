@@ -1,4 +1,4 @@
-import { iovec } from "assemblyscript/std/assembly/wasi";
+import { iovec } from "bindings/wasi";
 
 // @ts-ignore: valid decorator
 @external("lunatic", "resolve")
