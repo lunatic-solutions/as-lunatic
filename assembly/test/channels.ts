@@ -1,5 +1,4 @@
 import { Channel } from "..";
-import { getIP, tryParseIPV4 } from "..";
 
 const data = [137, 42, 123, 86, 34, 72, 21] as StaticArray<u8>;
 
@@ -16,5 +15,5 @@ export function _start(): void {
     for (let i = 0; i < data.length; i++) {
         assert(data[i] == result[i]);
     }
-    console.log("[Pass] Basic Send/Receive\r\n");
+    console.log("[Pass] Basic Send/Receive");
 }
