@@ -1,4 +1,4 @@
-import { getIP, IP, tryParseIPV4 } from "./lunatic-util/string";
+
 import {
   proc_exit,
   fd_write,
@@ -11,6 +11,7 @@ import {
   decimalCount32,
   dtoa_buffered
 } from "util/number";
+
 
 // All of the following wasi implementations for abort, trace and seed are
 // copied from:
@@ -129,7 +130,3 @@ export function __lunatic_seed(): f64 { // eslint-disable-line @typescript-eslin
   store<u64>(0, temp);
   return reinterpret<f64>(rand);
 }
-
-export * from "./net/index";
-export * from "./process/index";
-export * from "./channel/index";
