@@ -1,4 +1,5 @@
-import { Process, Channel } from "..";
+import { Process } from "thread";
+import { Channel } from "channel";
 
 class Vec3 {
   constructor(

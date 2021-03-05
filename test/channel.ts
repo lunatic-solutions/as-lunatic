@@ -1,4 +1,4 @@
-import { Channel } from "..";
+import { Channel } from "channel";
 
 const data = [137, 42, 123, 86, 34, 72, 21] as StaticArray<u8>;
 

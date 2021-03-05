@@ -23,18 +23,18 @@ function packCallbackWithDataUnsafe(callback: i32, data: usize, length: usize): 
 
 // @ts-ignore: valid decorator
 @external("lunatic", "detach_process")
-export declare function detach_process(pid: u32): void;
+declare function detach_process(pid: u32): void;
 
 // @ts-ignore: valid decorator
 @external("lunatic", "cancel_process")
-export declare function cancel_process(pid: u32): void;
+declare function cancel_process(pid: u32): void;
 
 // @ts-ignore: valid decorator
 @external("lunatic", "join")
-export declare function join(pid: u32): JoinResult;
+declare function join(pid: u32): JoinResult;
 
 @unmanaged
-export class BoxWithCallback<T> {
+class BoxWithCallback<T> {
   public callback: i32;
   // @ts-ignore: T will always be a number value
   public value: T = 0;
@@ -52,7 +52,7 @@ declare function spawn_with_context(
   buf_len: usize,
 ): u32;
 
-@final export class Process {
+export class Process {
   private _pid: u32 = 0;
   public get pid(): u32 { return this._pid; }
 

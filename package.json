@@ -1,17 +1,17 @@
 {
   "name": "as-lunatic",
   "version": "0.0.1",
-  "types": "assembly/index.ts",
+  "types": "assembly/index.d.ts",
   "description": "Bindings for lunatic imports",
   "main": "index.js",
   "scripts": {
-    "test": "run-s asbuild:channels asbuild:process asbuild:tcp test:channels test:process test:tcp",
-    "test:channels": "lunatic build/debug/channels.wasm",
-    "asbuild:channels": "asb assembly/test/channels.ts --target debug --wat",
-    "test:process": "lunatic build/debug/process.wasm",
-    "asbuild:process": "asb assembly/test/process.ts --target debug --wat",
-    "test:tcp": "lunatic build/debug/tcp.wasm",
-    "asbuild:tcp": "asb assembly/test/tcp.ts --target debug --wat"
+    "test": "run-s asbuild:channel asbuild:thread asbuild:tcp test:channel test:thread test:tcp",
+    "test:channel": "lunatic build/debug/channel.wasm",
+    "asbuild:channel": "asb test/channel.ts --target debug --wat",
+    "test:thread": "lunatic build/debug/thread.wasm",
+    "asbuild:thread": "asb test/thread.ts --target debug --wat",
+    "test:tcp": "lunatic build/debug/net.wasm",
+    "asbuild:tcp": "asb test/net.ts --target debug --wat"
   },
   "repository": {
     "type": "git",
@@ -30,7 +30,7 @@
   "homepage": "https://github.com/lunatic-solutions/as-lunatic#readme",
   "devDependencies": {
     "asbuild": "^0.0.11",
-    "assemblyscript": "^0.18.10",
+    "assemblyscript": "^0.18.12",
     "npm-run-all": "^4.1.5"
   }
 }
