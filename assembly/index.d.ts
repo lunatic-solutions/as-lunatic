@@ -96,6 +96,9 @@ declare module "net" {
   /** Represents a TCP server that accepts tcp socket connections. */
   export class TCPServer {
 
+    /** Deserialize a listener and return a TCPServer. */
+    public static deserialize(listener: u32): TCPServer;
+
     /** Bind a tcp server to a port to accept tcp socket connections. */
     public static bind(address: StaticArray<u8>, port: u16): TCPServer | null;
 
@@ -104,5 +107,8 @@ declare module "net" {
 
     /** Close the port, no longer accept connections. */
     public close(): void;
+
+    /** Serialize this listener for sending across Channels. */
+    public serialize(): u32;
   }
 }

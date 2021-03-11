@@ -92,6 +92,13 @@ declare function tcp_read_vectored(
   nwritten: usize, // *mut usize,
 ): TCPReadResult;
 
+// @ts-ignore: valid decorator
+@external()
+declare function tcp_stream_serialize(tcp_stream: u32): u32;
+// @ts-ignore: valid decorator
+@external()
+declare function tcp_stream_deserialize(tcp_stream: u32): u32;
+
 export const enum TCPBindResult {
   Success = 0,
   Fail = 1,
@@ -167,14 +174,14 @@ export class TCPSocket {
 
   public static deserialize(value: u32): TCPSocket {
     let socket = new TCPSocket();
-    socket.socket_id = tcp_listener_deserialize(value);
+    socket.socket_id = tcp_stream_deserialize(value);
     return socket;
   }
 
   constructor() {}
 
   public serialize(): u32 {
-    return tcp_listener_serialize(this.socket_id);
+    return tcp_stream_serialize(this.socket_id);
   }
 
   public read(): StaticArray<u8> | null {
@@ -246,6 +253,12 @@ export class TCPSocket {
 export class TCPServer {
   private listener: u32;
 
+  public static deserialize(serialized: u32): TCPServer {
+    let server = new TCPServer();
+    server.listener = tcp_listener_deserialize(serialized);
+    return server;
+  }
+
   public static bind(address: StaticArray<u8>, port: u16): TCPServer | null {
     let server = new TCPServer();
     assert(address.length == 4 || address.length == 16);
@@ -268,6 +281,10 @@ export class TCPServer {
 
   public close(): void {
     close_tcp_listener(this.listener);
+  }
+
+  public serialize(): u32 {
+    return tcp_listener_serialize(this.listener);
   }
 }
 
