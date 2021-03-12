@@ -5,7 +5,6 @@ import {
   ChannelReceivePrepareResult,
 } from "../channel/index";
 import { OBJECT, TOTAL_OVERHEAD } from "rt/common";
-import { iovec } from "assemblyscript/std/assembly/bindings/wasi_snapshot_preview1";
 
 const CHANNEL_INITIAL_PAYLOAD: u32 = 0;
 
