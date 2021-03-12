@@ -5,6 +5,7 @@ import {
   ChannelReceivePrepareResult,
 } from "../channel/index";
 import { OBJECT, TOTAL_OVERHEAD } from "rt/common";
+import { iovec } from "assemblyscript/std/assembly/bindings/wasi_snapshot_preview1";
 
 const CHANNEL_INITIAL_PAYLOAD: u32 = 0;
 
@@ -325,7 +326,7 @@ export class Process {
     } else if (val instanceof StaticArray) {
       return Process.spawnWithReference(val, callback);
     } else if (isArrayLike(val)) {
-      ERROR("Not Implement: Thread spawn with ArrayLike value."); // for now, compile time error
+      ERROR("Not Implemented: Thread spawn with ArrayLike value."); // for now, compile time error
       // flat reference, perform a memcopy
       return new Process();
     } else {

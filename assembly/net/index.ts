@@ -143,15 +143,18 @@ const tcpReadVecs = memory.data(TCP_READ_BUFFER_COUNT * sizeof<usize>() * 2);
 const readCountPtr = memory.data(sizeof<u32>());
 const writeCountPtr = memory.data(sizeof<usize>());
 
-
 // this is setup that configures the tcpReadVecs segment
 let tcpReadVecsTemp = tcpReadVecs;
 for (let i = <usize>0; i < <usize>TCP_READ_BUFFER_COUNT; i++) {
-  store<usize>(tcpReadVecsTemp, tcpReadDataPointer + <usize>TCP_READ_BUFFER_SIZE * <usize>i)
-  store<usize>(tcpReadVecsTemp, TCP_READ_BUFFER_SIZE, sizeof<usize>());
-  // tcpReadVecs[index] = tcpReadDataPointer + <usize>TCP_READ_BUFFER_SIZE * <usize>i;
-  // tcpReadVecs[index + 1] = <usize>;
-  tcpReadVecsTemp += sizeof<usize>() << 1;
+  // compile time free cast to iovec (will be optimized away)
+  let vec = changetype<iovec>(tcpReadVecsTemp);
+
+  // set the properties
+  vec.buf = tcpReadDataPointer + <usize>TCP_READ_BUFFER_SIZE * <usize>i;
+  vec.buf_len = <usize>TCP_READ_BUFFER_SIZE;
+
+  // advance to the next vec
+  tcpReadVecsTemp += offsetof<iovec>();
 }
 
 export class TCPSocket {
@@ -185,7 +188,7 @@ export class TCPSocket {
   }
 
   public read(): StaticArray<u8> | null {
-    // trace("readCount", 4, <f64>this.socket_id, <f64>readPtr, <f64>TCP_READ_BUFFER_SIZE, <f64>readCountPtr);
+    // default read uses TCP_READ_BUFFER_COUNT vectors all in the same segment
     let result = tcp_read_vectored(
       this.socket_id,
       changetype<usize>(tcpReadVecs),
@@ -224,7 +227,7 @@ export class TCPSocket {
     return this.writeUnsafe(changetype<usize>(buffer), buffer.length);
   }
 
-  public writeUnsafe(ptr: usize, length: usize): usize {
+  @unsafe public writeUnsafe(ptr: usize, length: usize): usize {
     let vec = changetype<iovec>(memory.data(offsetof<iovec>()));
     vec.buf = ptr;
     vec.buf_len = length;

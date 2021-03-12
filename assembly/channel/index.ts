@@ -81,7 +81,7 @@ export const receive_length_pointer = memory.data(sizeof<u32>());
     return this.sendUnsafe(changetype<usize>(bytes), <usize>bytes.length);
   }
 
-  public sendUnsafe(ptr: usize, length: usize): bool {
+  @unsafe public sendUnsafe(ptr: usize, length: usize): bool {
     return channel_send(this.sender, ptr, length) == ChannelSendResult.Success;
   }
 

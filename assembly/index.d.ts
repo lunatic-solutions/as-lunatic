@@ -68,16 +68,24 @@ declare module "net" {
     /** A method for connecting to a TCP server by it's IP address bytes. */
     public static connect(ip: StaticArray<u8>, port: u16): TCPSocket | null;
 
-    /** A method for deserializing a TCPSocket across channels.  */
+    /** A method for deserializing a TCPSocket across channels. */
     public static deserialize(value: u32): TCPSocket;
 
-    /** A method for serializing a tcp socket to be sent across channels. */
+    /** A method for serializing a TCPSocket to be sent across channels. */
     public serialize(): u32;
 
-    /** A method for reading a memory segment from the socket. Returns null */
+    /**
+     * A method for reading a memory segment from the socket. Returns null when
+     * the socket is closed.
+     */
     public read(): StaticArray<u8> | null;
 
-    /** A method for reading socket data into an array of static arrays. Returns 0 if no bytes were read. */
+    /**
+     * A method that reads the data into an array of buffers. It returns the
+     * number of bytes read. Returns 0 when the socket is closed.
+     *
+     * @param {Array<StaticArray<u8>>} buffers - The array of buffers to be read into.
+     */
     public readVectored(buffers: Array<StaticArray<u8>>): usize;
 
     /** Write a buffer of data to the tcp socket. */
