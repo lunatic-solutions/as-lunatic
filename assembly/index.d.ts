@@ -120,3 +120,6 @@ declare module "net" {
     public serialize(): u32;
   }
 }
+
+declare const TCP_READ_BUFFER_COUNT: i32;
+declare const TCP_READ_BUFFER_SIZE: i32;

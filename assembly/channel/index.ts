@@ -47,7 +47,7 @@ export declare function receiver_deserialize(channel_id: u32): u32;
 // a static heap location reserved just for receiving data from lunatic
 export const receive_length_pointer = memory.data(sizeof<u32>());
 
-// A message channel object
+// @ts-ignore: (final decorator) A message channel object
 @final export class Channel {
   public sender: u32 = 0;
   public receiver: u32 = 0;
@@ -59,21 +59,20 @@ export const receive_length_pointer = memory.data(sizeof<u32>());
     return result;
   }
 
-  // turns the u64 serialized ids into a Channel for sending and receiving
-  public static deserialize(value: u64): Channel {
-    let result = new Channel();
+  public __asonDeserialize(buffer: StaticArray<u8>): void {
+    let value = load<u64>(changetype<usize>(buffer));
     let sender = <u32>(<u64>u32.MAX_VALUE & value);
-    result.sender = sender_deserialize(sender);
+    this.sender = sender_deserialize(sender);
     let receiver = <u32>(<u64>u32.MAX_VALUE & (value >>> 32));
-    result.receiver = receiver_deserialize(receiver);
-    return result;
+    this.receiver = receiver_deserialize(receiver);
   }
 
-  // the sender_serialize and receiver_serialize methods are host methods, used to encode channel ids
-  public serialize(): u64 {
+  public __asonSerialize(): StaticArray<u8> {
+    let buffer = new StaticArray<u8>(sizeof<u64>());
     let sender = sender_serialize(this.sender);
     let receiver = receiver_serialize(this.receiver);
-    return (<u64>sender) | (<u64>receiver << <u64>32);
+    store<u64>(changetype<usize>(buffer), (<u64>sender) | (<u64>receiver << <u64>32));
+    return buffer;
   }
 
   // send some data
@@ -81,6 +80,7 @@ export const receive_length_pointer = memory.data(sizeof<u32>());
     return this.sendUnsafe(changetype<usize>(bytes), <usize>bytes.length);
   }
 
+  // @ts-ignore: @unsafe decorator
   @unsafe public sendUnsafe(ptr: usize, length: usize): bool {
     return channel_send(this.sender, ptr, length) == ChannelSendResult.Success;
   }
