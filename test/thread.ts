@@ -20,9 +20,8 @@ export function _start(): void {
   let numbers = Channel.create(0);
   numbers.send([0, 1, 2] as StaticArray<u8>);
 
-  let p = Process.spawn<u64>(numbers.serialize(), (val: u64) => {
-// let p = Process.spawn<u64>(0, (val: u64) => {
-    let numbers = Channel.deserialize(val);
+  // send a channel class
+  let p = Process.spawn<Channel>(numbers, (numbers: Channel) => {
     let a = numbers.receive()!;
     assert(a.length == 3);
     assert(a[0] == 0);

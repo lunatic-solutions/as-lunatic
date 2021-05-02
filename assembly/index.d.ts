@@ -11,16 +11,10 @@ declare module "channel" {
      */
     public static create(bound?: usize): Channel;
 
-    /** Deserialize a channel by it's serialized value, and obtain a reference to message and receive data through it. */
-    public static deserialize(value: u64): Channel;
-
     /** The channel id for the sender portion of this MessageChannel. */
     public sender: u32;
     /** The channel id for the receiver portion of this MessageChannel. */
     public receiver: u32;
-
-    /** Return a serialized value of this message channel. */
-    public serialize(): u64;
 
     /** A method for sending a data payload to a given MessageChannel object. */
     public send(bytes: StaticArray<u8>): bool;
@@ -68,12 +62,6 @@ declare module "net" {
     /** A method for connecting to a TCP server by it's IP address bytes. */
     public static connect(ip: StaticArray<u8>, port: u16): TCPSocket | null;
 
-    /** A method for deserializing a TCPSocket across channels. */
-    public static deserialize(value: u32): TCPSocket;
-
-    /** A method for serializing a TCPSocket to be sent across channels. */
-    public serialize(): u32;
-
     /**
      * A method for reading a memory segment from the socket. Returns null when
      * the socket is closed.
@@ -104,9 +92,6 @@ declare module "net" {
   /** Represents a TCP server that accepts tcp socket connections. */
   export class TCPServer {
 
-    /** Deserialize a listener and return a TCPServer. */
-    public static deserialize(listener: u32): TCPServer;
-
     /** Bind a tcp server to a port to accept tcp socket connections. */
     public static bind(address: StaticArray<u8>, port: u16): TCPServer | null;
 
@@ -115,9 +100,6 @@ declare module "net" {
 
     /** Close the port, no longer accept connections. */
     public close(): void;
-
-    /** Serialize this listener for sending across Channels. */
-    public serialize(): u32;
   }
 }
 
