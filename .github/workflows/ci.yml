@@ -2,7 +2,7 @@ name: CI Testing
 on:
   push:
     branches:
-    - master
+      - master
   pull_request:
 jobs:
   test:
@@ -15,17 +15,11 @@ jobs:
         uses: actions/setup-node@v2
         with:
           node-version: 15
-      - name: "Install rust nightly"
-        uses: actions-rs/toolchain@v1
-        with:
-          toolchain: nightly
-          override: true
       - name: "Install lunatic"
         run: |
-          git clone --recurse-submodules https://github.com/lunatic-solutions/lunatic.git
-          cd lunatic
-          cargo +nightly install --path .
-          cd ..
+          wget https://github.com/lunatic-solutions/lunatic/releases/download/v0.3.1/lunatic-linux-amd64.tar.gz
+          tar -xf archive.tar.gz
+          echo $PWD >> $GITHUB_PATH
       - name: "Install Assemblyscript and Test"
         run: |
           npm install
