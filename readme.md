@@ -35,18 +35,15 @@ Sending messages back and forth between threads uses `Channel` objects.
 import "wasi";
 import { Channel } from "lunatic";
 
-// send some work
-let work = Channel.create(0);
-
 // create a channel
-work.send([1, 2, 3, 4]);
-work.send([5, 6, 7, 8]);
-work.send([9, 10, 11, 12]);
+let workChannel = Channel.create<StaticArray<u8>>(0);
 
-let workChannelToken: u64 = work.serialize();
+// send some work
+workChannel.send([1, 2, 3, 4]);
+workChannel.send([5, 6, 7, 8]);
+workChannel.send([9, 10, 11, 12]);
 
-Thread.start<u64>(workChannelToken, (token: u64) => {
-  let workChannel = Channel.deserialize(token);
+Thread.start<Channel<StaticArray<u8>>>(workChannel, (workChannel: Channel<StaticArray<u8>>) => {
   workChannel.receive(); // [1, 2, 3, 4]
   workChannel.receive(); // [5, 6, 7, 8]
   workChannel.receive(); // [9, 10, 11, 12]
