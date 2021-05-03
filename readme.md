@@ -52,11 +52,11 @@ Lunatic will spin up another WebAssembly instance of your wasm module and execut
 To create a `Channel`, simply call `Channel.create<T>()` where `T` is an `ASON` serializable message.
 
 ```ts
-import { Channel } from "lunatic";
+import * as channel from "channel";
 
 export function _start(): void {
   // create a channel
-  let workChannel = Channel.create<StaticArray<u8>>(0);
+  let workChannel = channel.Channel.create<StaticArray<u8>>(0);
 
   // send some work
   workChannel.send([1, 2, 3, 4]);
@@ -64,9 +64,9 @@ export function _start(): void {
   workChannel.send([9, 10, 11, 12]);
 
   // Channels are serializable in ASON
-  Thread.start<Channel<StaticArray<u8>>>(
+  Thread.start<channel.Channel<StaticArray<u8>>>(
     workChannel,
-    (workChannel: Channel<StaticArray<u8>>) => {
+    (workChannel: channel.Channel<StaticArray<u8>>) => {
       workChannel.receive(); // [1, 2, 3, 4]
       workChannel.receive(); // [5, 6, 7, 8]
       workChannel.receive(); // [9, 10, 11, 12]
