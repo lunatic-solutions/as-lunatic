@@ -256,11 +256,11 @@ export class TCPSocket {
 export class TCPServer {
   private listener: u32;
 
-  __asonDeserialize(buffer: StaticArray<u8>): void {
+  public __asonDeserialize(buffer: StaticArray<u8>): void {
     this.listener = tcp_listener_deserialize(load<u32>(changetype<usize>(buffer)));
   }
 
-  __asonSerialize(): StaticArray<u8> {
+  public __asonSerialize(): StaticArray<u8> {
     let buffer = new StaticArray<u8>(sizeof<u32>());
     store<u32>(changetype<usize>(buffer), tcp_listener_serialize(this.listener));
     return buffer;
