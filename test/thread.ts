@@ -17,12 +17,14 @@ export function _start(): void {
   assert(simpleValueProcess.join());
   console.log("[Pass] Thread with simple value");
 
-  let numbers = Channel.create(0);
+  let numbers = Channel.create<StaticArray<u8>>(0);
   numbers.send([0, 1, 2] as StaticArray<u8>);
 
   // send a channel class
-  let p = Process.spawn<Channel>(numbers, (numbers: Channel) => {
-    let a = numbers.receive()!;
+  let p = Process.spawn<Channel<StaticArray<u8>>>(numbers, (numbers: Channel<StaticArray<u8>>) => {
+    assert(numbers.receive());
+
+    let a = numbers.value;
     assert(a.length == 3);
     assert(a[0] == 0);
     assert(a[1] == 1);
@@ -31,7 +33,8 @@ export function _start(): void {
   });
 
   assert(p.join());
-  let b = numbers.receive()!;
+  assert(numbers.receive());
+  let b = numbers.value;
   assert(b.length == 1);
   assert(b[0] == 42);
   console.log("[Pass] Simple thread with channel pass\n");

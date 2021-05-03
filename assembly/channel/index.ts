@@ -1,3 +1,5 @@
+import { ASON } from "@ason/assembly";
+
 export const enum ChannelReceivePrepareResult {
   Success = 0,
   Fail = 1,
@@ -48,14 +50,18 @@ export declare function receiver_deserialize(channel_id: u32): u32;
 export const receive_length_pointer = memory.data(sizeof<u32>());
 
 // @ts-ignore: (final decorator) A message channel object
-@final export class Channel {
+@final export class Channel<T> {
   public sender: u32 = 0;
   public receiver: u32 = 0;
+  public value: T = changetype<T>(0);
+  private serializer: ASON.Serializer<T> = new ASON.Serializer<T>();
+  private deserializer: ASON.Deserializer<T> = new ASON.Deserializer<T>();
+
 
   // create a brand new message channel
-  public static create(bound: usize = 0): Channel {
-    let result = new Channel();
-    result.sender = channel(bound, changetype<usize>(result) + offsetof<Channel>("receiver"));
+  public static create<U>(bound: usize = 0): Channel<U> {
+    let result = new Channel<U>();
+    result.sender = channel(bound, changetype<usize>(result) + offsetof<Channel<U>>("receiver"));
     return result;
   }
 
@@ -65,6 +71,8 @@ export const receive_length_pointer = memory.data(sizeof<u32>());
     this.sender = sender_deserialize(sender);
     let receiver = <u32>(<u64>u32.MAX_VALUE & (value >>> 32));
     this.receiver = receiver_deserialize(receiver);
+    this.deserializer = new ASON.Deserializer<T>();
+    this.serializer = new ASON.Serializer<T>();
   }
 
   public __asonSerialize(): StaticArray<u8> {
@@ -76,21 +84,20 @@ export const receive_length_pointer = memory.data(sizeof<u32>());
   }
 
   // send some data
-  public send(bytes: StaticArray<u8>): bool {
-    return this.sendUnsafe(changetype<usize>(bytes), <usize>bytes.length);
+  public send(value: T): bool {
+    let buffer = this.serializer.serialize(value);
+    return channel_send(this.sender, changetype<usize>(buffer), buffer.length) == ChannelSendResult.Success;
   }
 
-  // @ts-ignore: @unsafe decorator
-  @unsafe public sendUnsafe(ptr: usize, length: usize): bool {
-    return channel_send(this.sender, ptr, length) == ChannelSendResult.Success;
-  }
-
-  public receive(): StaticArray<u8> | null {
+  public receive(): bool {
     let prepareResult = channel_receive_prepare(this.receiver, receive_length_pointer);
     let length = load<u32>(receive_length_pointer);
-    if (prepareResult == ChannelReceivePrepareResult.Fail) return null;
-    let result = new StaticArray<u8>(length);
-    channel_receive(changetype<usize>(result), length);
-    return result;
+    if (prepareResult == ChannelReceivePrepareResult.Success) {
+      let result = new StaticArray<u8>(length);
+      channel_receive(changetype<usize>(result), length);
+      this.value = this.deserializer.deserialize(result);
+      return true;
+    }
+    return false;
   }
 }

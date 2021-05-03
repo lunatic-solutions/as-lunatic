@@ -1,19 +1,28 @@
 import { Channel } from "channel";
 
-const data = [137, 42, 123, 86, 34, 72, 21] as StaticArray<u8>;
+class Vec3 {
+    constructor(
+        public x: f32,
+        public y: f32,
+        public z: f32,
+    ) {}
+}
 
 export function _start(): void {
+    let a = new Vec3(3.14, 100, 99);
     // create an unbounded channel
-    let c = Channel.create();
+    let c = Channel.create<Vec3>();
     // send some data
-    c.send(data);
+    c.send(a);
     // runtime assertion that the reference comes back
-    let result  = c.receive()!;
+    assert(c.receive());
 
-    // assert the length and values of the data is correct
-    assert(data.length == result.length);
-    for (let i = 0; i < data.length; i++) {
-        assert(data[i] == result[i]);
-    }
+    // obtain it
+    let result = c.value;
+
+    // assert the returned reference is correct
+    assert(result.x == a.x);
+    assert(result.y == a.y);
+    assert(result.z == a.z);
     console.log("[Pass] Basic Send/Receive");
 }
