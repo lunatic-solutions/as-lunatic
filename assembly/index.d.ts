@@ -2,34 +2,27 @@
 
 declare module "channel" {
   /** The channel namespace and Class, used for creating communication channels between threads. */
-  export class Channel {
+  export class Channel<T> {
     /**
      * A method for creating a brand new message channel with a message
      * count limit equal to the bound.
      *
      * @param {usize} bound - Default is [0], which provides an unbounded Message channel.
      */
-    public static create(bound?: usize): Channel;
-
-    /** Deserialize a channel by it's serialized value, and obtain a reference to message and receive data through it. */
-    public static deserialize(value: u64): Channel;
+    public static create<U>(bound?: usize): Channel<U>;
 
     /** The channel id for the sender portion of this MessageChannel. */
     public sender: u32;
     /** The channel id for the receiver portion of this MessageChannel. */
     public receiver: u32;
-
-    /** Return a serialized value of this message channel. */
-    public serialize(): u64;
+    /** If the channel received a `T`, after calling `channel.receive()`, it's located here */
+    public value: T;
 
     /** A method for sending a data payload to a given MessageChannel object. */
-    public send(bytes: StaticArray<u8>): bool;
-
-    /** A method for sending data by simply referencing a pointer to memory and the bytelength, considdered unsafe. */
-    public sendUnsafe(ptr: usize, length: usize): bool;
+    public send(bytes: T): bool;
 
     /** A method for receiving a payload from a channel, returns null when there are no messages to recieve. */
-    public receive(): StaticArray<u8> | null;
+    public receive(): bool;
   }
 }
 
@@ -68,12 +61,6 @@ declare module "net" {
     /** A method for connecting to a TCP server by it's IP address bytes. */
     public static connect(ip: StaticArray<u8>, port: u16): TCPSocket | null;
 
-    /** A method for deserializing a TCPSocket across channels. */
-    public static deserialize(value: u32): TCPSocket;
-
-    /** A method for serializing a TCPSocket to be sent across channels. */
-    public serialize(): u32;
-
     /**
      * A method for reading a memory segment from the socket. Returns null when
      * the socket is closed.
@@ -104,9 +91,6 @@ declare module "net" {
   /** Represents a TCP server that accepts tcp socket connections. */
   export class TCPServer {
 
-    /** Deserialize a listener and return a TCPServer. */
-    public static deserialize(listener: u32): TCPServer;
-
     /** Bind a tcp server to a port to accept tcp socket connections. */
     public static bind(address: StaticArray<u8>, port: u16): TCPServer | null;
 
@@ -115,8 +99,8 @@ declare module "net" {
 
     /** Close the port, no longer accept connections. */
     public close(): void;
-
-    /** Serialize this listener for sending across Channels. */
-    public serialize(): u32;
   }
 }
+
+declare const TCP_READ_BUFFER_COUNT: i32;
+declare const TCP_READ_BUFFER_SIZE: i32;

@@ -175,17 +175,17 @@ export class TCPSocket {
       : null;
   }
 
-  public static deserialize(value: u32): TCPSocket {
-    let socket = new TCPSocket();
-    socket.socket_id = tcp_stream_deserialize(value);
-    return socket;
+  public __asonSerialize(): StaticArray<u8> {
+    let buffer = new StaticArray<u8>(sizeof<u32>());
+    store<u32>(changetype<usize>(buffer), tcp_stream_serialize(this.socket_id));
+    return buffer;
+  }
+
+  public __asonDeserialize(buffer: StaticArray<u8>): void {
+    this.socket_id = tcp_stream_deserialize(load<u32>(changetype<usize>(buffer)))
   }
 
   constructor() {}
-
-  public serialize(): u32 {
-    return tcp_stream_serialize(this.socket_id);
-  }
 
   public read(): StaticArray<u8> | null {
     // default read uses TCP_READ_BUFFER_COUNT vectors all in the same segment
@@ -256,10 +256,14 @@ export class TCPSocket {
 export class TCPServer {
   private listener: u32;
 
-  public static deserialize(serialized: u32): TCPServer {
-    let server = new TCPServer();
-    server.listener = tcp_listener_deserialize(serialized);
-    return server;
+  public __asonDeserialize(buffer: StaticArray<u8>): void {
+    this.listener = tcp_listener_deserialize(load<u32>(changetype<usize>(buffer)));
+  }
+
+  public __asonSerialize(): StaticArray<u8> {
+    let buffer = new StaticArray<u8>(sizeof<u32>());
+    store<u32>(changetype<usize>(buffer), tcp_listener_serialize(this.listener));
+    return buffer;
   }
 
   public static bind(address: StaticArray<u8>, port: u16): TCPServer | null {
@@ -284,10 +288,6 @@ export class TCPServer {
 
   public close(): void {
     close_tcp_listener(this.listener);
-  }
-
-  public serialize(): u32 {
-    return tcp_listener_serialize(this.listener);
   }
 }
 
