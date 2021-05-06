@@ -31,7 +31,7 @@ declare function resolve_next(
 
 export class IPResolution {
   address: StaticArray<u8>;
-  length: usize;
+  addr_len: usize;
   port: u16;
   flowinfo: u32;
   scope_id: u32;
@@ -93,10 +93,10 @@ declare function tcp_read_vectored(
 ): TCPReadResult;
 
 // @ts-ignore: valid decorator
-@external()
+@external("lunatic", "tcp_stream_serialize")
 declare function tcp_stream_serialize(tcp_stream: u32): u32;
 // @ts-ignore: valid decorator
-@external()
+@external("lunatic", "tcp_stream_serialize")
 declare function tcp_stream_deserialize(tcp_stream: u32): u32;
 
 export const enum TCPBindResult {

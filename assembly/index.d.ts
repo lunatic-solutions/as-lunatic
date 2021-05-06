@@ -100,6 +100,22 @@ declare module "net" {
     /** Close the port, no longer accept connections. */
     public close(): void;
   }
+
+  export class IPResolution {
+    /** The address. */
+    address: StaticArray<u8>;
+    /** The length. */
+    addr_len: usize;
+    /** The port. */
+    port: u16;
+    /** IPV6 flow info */
+    flowinfo: u32;
+    /** IPV6 scope id */
+    scope_id: u32;
+  }
+
+  /** Resolve a hostname to an array of IPResolutions. */
+  export function resolve(ip: string): IPResolution[] | null
 }
 
 declare const TCP_READ_BUFFER_COUNT: i32;
