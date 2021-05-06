@@ -30,7 +30,7 @@ declare function resolve_next(
 ): ResolveNextResult;
 
 export class IPResolution {
-  address: StaticArray<u8>;
+  address: StaticArray<u8> | null = null;
   addr_len: usize;
   port: u16;
   flowinfo: u32;
