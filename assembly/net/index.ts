@@ -96,7 +96,7 @@ declare function tcp_read_vectored(
 @external("lunatic", "tcp_stream_serialize")
 declare function tcp_stream_serialize(tcp_stream: u32): u32;
 // @ts-ignore: valid decorator
-@external("lunatic", "tcp_stream_serialize")
+@external("lunatic", "tcp_stream_deserialize")
 declare function tcp_stream_deserialize(tcp_stream: u32): u32;
 
 export const enum TCPBindResult {
