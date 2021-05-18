@@ -72,7 +72,7 @@ export class Process {
   public drop(): void {
     cancel_process(this._pid);
   }
-  public detatch(): void {
+  public detach(): void {
     detach_process(this._pid);
   }
   public join(): bool {
