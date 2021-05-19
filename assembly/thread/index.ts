@@ -1,4 +1,5 @@
 import { ASON } from "@ason/assembly";
+import { Channel } from "channel";
 import {
   ChannelReceivePrepareResult,
   channel_receive,
@@ -77,5 +78,23 @@ export class Process {
   }
   public join(): bool {
     return join(this._pid) == JoinResult.Success;
+  }
+}
+
+export class WorkQueue<T> {
+  callbackIndex: i32;
+  queue: Channel<T>;
+
+  constructor(callback: (val: T) => bool, limit: i32 = 0) {
+    this.callbackIndex = callback.index;
+    this.queue = Channel.create<T>(limit);
+    Process.spawn(this, (self: WorkQueue<T>): void => {
+      let queue = self.queue;
+      let callbackIndex = self.callbackIndex;
+      while (queue.receive()) {
+        let result: bool = call_indirect(callbackIndex, queue.value);
+        if (!result) break;
+      }
+    });
   }
 }
