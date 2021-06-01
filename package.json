@@ -1,9 +1,9 @@
 {
   "name": "as-lunatic",
   "version": "0.0.1",
-  "types": "assembly/index.d.ts",
+  "types": "assembly/index.ts",
+  "asMain": "assembly/index.ts",
   "description": "Bindings for lunatic imports",
-  "main": "index.js",
   "scripts": {
     "test": "run-s asbuild:channel asbuild:thread asbuild:tcp test:channel test:thread test:tcp",
     "test:channel": "lunatic build/channel.wasm",

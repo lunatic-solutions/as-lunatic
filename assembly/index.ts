@@ -130,3 +130,7 @@ export function __lunatic_seed(): f64 { // eslint-disable-line @typescript-eslin
   store<u64>(0, temp);
   return reinterpret<f64>(rand);
 }
+
+export * from "./channel";
+export * from "./process";
+export * from "./net";
