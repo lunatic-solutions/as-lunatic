@@ -57,11 +57,13 @@ export const receive_length_pointer = memory.data(sizeof<u32>());
   private serializer: ASON.Serializer<T> = new ASON.Serializer<T>();
   private deserializer: ASON.Deserializer<T> = new ASON.Deserializer<T>();
 
+  public constructor(bound: usize = 0) {
+    this.sender = channel(bound, changetype<usize>(this) + offsetof<Channel<T>>("receiver"));
+  }
 
   // create a brand new message channel
   public static create<U>(bound: usize = 0): Channel<U> {
-    let result = new Channel<U>();
-    result.sender = channel(bound, changetype<usize>(result) + offsetof<Channel<U>>("receiver"));
+    let result = new Channel<U>(bound);
     return result;
   }
 
