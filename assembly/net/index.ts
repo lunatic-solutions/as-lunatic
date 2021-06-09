@@ -487,7 +487,7 @@ const resolverIdPtr = memory.data(sizeof<u32>());
  */
 export function resolve(host: string): IPResolution[] | null {
   // encode the ip address to utf8
-  let ipBuffer = String.UTF8.encode(ip);
+  let ipBuffer = String.UTF8.encode(host);
   // call the host to resolve the IP address
   let resolveResult = lunatic_resolve(
     changetype<usize>(ipBuffer),
