@@ -84,7 +84,7 @@ export class Process<T> {
    * @returns The started process.
    */
   public static spawn<U>(val: U, callback: (val: U) => void): Process<U> {
-    let process = new Process(val, callback);
+    let process = new Process<U>(val, callback);
     return process;
   }
 
