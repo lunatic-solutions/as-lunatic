@@ -1,5 +1,5 @@
 // import "wasi";
-import { TCPServer } from "net";
+import { TCPServer } from "../assembly";
 
 export function _start(): void {
   let server = TCPServer.bind([127, 0, 0, 1], 10000)!;

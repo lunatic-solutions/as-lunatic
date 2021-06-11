@@ -1,5 +1,4 @@
-import { Process } from "thread";
-import { Channel } from "channel";
+import { Channel, Process } from "../assembly";
 
 class Vec3 {
   constructor(
