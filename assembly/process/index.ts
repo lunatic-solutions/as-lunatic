@@ -7,11 +7,15 @@ import {
   receive_length_pointer,
 } from "../channel";
 
+/** The result of joining a process. */
 const enum JoinResult {
+  /** The join was successful, process exited cleanly. */
   Success = 0,
+  /** The process errored. */
   Fail = 1,
 }
 
+/** This external method detatches a given process. */
 // @ts-ignore: valid decorator
 @external("lunatic", "detach_process")
 declare function detach_process(pid: u32): void;
@@ -24,9 +28,12 @@ declare function cancel_process(pid: u32): void;
 @external("lunatic", "join")
 declare function join(pid: u32): JoinResult;
 
+/** This is an internal class for helping deal with process payloads. */
 class ProcessPayload<T> {
   constructor(
+    /** This is a callback index on the WebAssembly.Table */
     public callback: i32,
+    /** The payload is the initial value for the process. */
     // @ts-ignore: T will always be a number value
     public payload: T,
   ) {}
@@ -44,17 +51,17 @@ declare function spawn_with_context(
   buf_len: usize,
 ): u32;
 
-export class Process {
+/** A spawned process. */
+export class Process<T> {
   private _pid: u32 = 0;
   public get pid(): u32 { return this._pid; }
 
+  /** Sleep the current process for a given number of milliseconds. */
   public static sleep(ms: u64): void {
     sleep(ms);
   }
 
-
-  public static spawn<T>(val: T, callback: (val: T) => void): Process {
-    let process = new Process();
+  constructor(val: T, callback: (val: T) => void) {
     let processCallback = (): void => {
       if (channel_receive_prepare(0, receive_length_pointer) == ChannelReceivePrepareResult.Success) {
         let length = <usize>load<u32>(receive_length_pointer);
@@ -66,29 +73,48 @@ export class Process {
     };
     let payload = new ProcessPayload<T>(callback.index, val);
     let buffer = ASON.serialize(payload);
-    process._pid = spawn_with_context(processCallback.index, changetype<usize>(buffer), <usize>buffer.length);
+    this._pid = spawn_with_context(processCallback.index, changetype<usize>(buffer), <usize>buffer.length);
+  }
+
+  /**
+   * Spawn a process.
+   *
+   * @param {T} val - The initial process value.
+   * @param {(val: T) => void} callback - The process callback.
+   * @returns The started process.
+   */
+  public static spawn<U>(val: U, callback: (val: U) => void): Process<U> {
+    let process = new Process(val, callback);
     return process;
   }
 
+  /** Drop the process. */
   public drop(): void {
     cancel_process(this._pid);
   }
+  /** Detatch the process and let it keep running. */
   public detach(): void {
     detach_process(this._pid);
   }
+  /** Block the current process until the child process is finished executing. */
   public join(): bool {
     return join(this._pid) == JoinResult.Success;
   }
 }
 
+/** A work queue. A simple process with a single channel */
 export class WorkQueue<T> {
-  callbackIndex: i32;
-  queue: Channel<T>;
+  /** The callback index on the WebAssembly.Table */
+  private callbackIndex: i32;
+  /** The message channel that accepts and receives work items. */
+  private queue: Channel<T>;
+  /** The underlying work process. */
+  private process: Process<WorkQueue<T>>;
 
   constructor(callback: (val: T) => bool, limit: i32 = 0) {
     this.callbackIndex = callback.index;
     this.queue = Channel.create<T>(limit);
-    Process.spawn(this, (self: WorkQueue<T>): void => {
+    this.process = Process.spawn(this, (self: WorkQueue<T>): void => {
       let queue = self.queue;
       let callbackIndex = self.callbackIndex;
       while (queue.receive()) {
@@ -96,5 +122,24 @@ export class WorkQueue<T> {
         if (!result) break;
       }
     });
+  }
+
+  /**
+   * Join the current process.
+   *
+   * @returns {bool} True if successful.
+   */
+  public join(): bool {
+    return this.process.join()
+  }
+
+  /** Detatch the process. */
+  public detatch(): void {
+    this.process.detach();
+  }
+
+  /** Drop the process. */
+  public drop(): void {
+    this.process.drop();
   }
 }
