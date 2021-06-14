@@ -1,6 +1,6 @@
 {
   "name": "as-lunatic",
-  "version": "0.0.1",
+  "version": "0.1.0",
   "types": "assembly/index.ts",
   "asMain": "assembly/index.ts",
   "description": "Bindings for lunatic imports",
@@ -29,10 +29,10 @@
   },
   "homepage": "https://github.com/lunatic-solutions/as-lunatic#readme",
   "dependencies": {
-    "@ason/assembly": "0.1.1"
+    "@ason/assembly": "0.1.2"
   },
   "devDependencies": {
-    "assemblyscript": "^0.18.30",
+    "assemblyscript": "^0.19.2",
     "npm-run-all": "^4.1.5"
   }
 }

@@ -14,12 +14,12 @@ export function _start(): void {
   let buff = socket.read()!;
   assert(memory.compare(
     changetype<usize>(buff),
-    changetype<usize>([1, 2, 3, 4]),
+    changetype<usize>([1, 2, 3, 4] as StaticArray<u8>),
     4,
   ) == 0);
   socket.writeBuffer([1]);
-  server.close();
+  server.drop();
   assert(p.join());
-  server.close();
+  server.drop();
   console.log("[Pass] Server created, sent data, then closed.");
 }
