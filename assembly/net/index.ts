@@ -407,11 +407,12 @@ export class TCPSocket {
   }
 
   /**
-   * This method dereferences a socket. It does not explicitly close the socket.
-   * Once a socket has been dereferenced on every Process it has been sent to,
-   * it will be closed by lunatic internally.
+   * TCP streams are reference counted. Every time a TCP stream is sent through a
+   * channel to another process it's duplicated and the reference count incremented.
+   * Every time drop() is called, lunatic will decrement the the reference count. Once
+   * this reference count reaches 0, the stream is closed.
    */
-  public close(): void {
+  public drop(): void {
     close_tcp_stream(this.socket_id);
   }
 }

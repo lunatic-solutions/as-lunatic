@@ -188,7 +188,8 @@ export const receive_length_pointer = memory.data(sizeof<u32>());
   }
 
   /**
-   * Send a given T to the Channel to be received elsewhere.
+   * Send a given T to the Channel to be received elsewhere. If the Channel is
+   * bounded, and it's full, this will block current Process execution.
    *
    * @param {T} value - The value to serialize and send.
    * @returns {bool} `true` if the send was successful.
