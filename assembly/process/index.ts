@@ -92,10 +92,7 @@ export class Process<T> {
   public cancel(): void {
     cancel_process(this._pid);
   }
-  /** Detatch the process and let it keep running. */
-  public detach(): void {
-    detach_process(this._pid);
-  }
+
   /** Block the current process until the child process is finished executing. */
   public join(): bool {
     return join(this._pid) == JoinResult.Success;
