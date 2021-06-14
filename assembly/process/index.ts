@@ -88,8 +88,8 @@ export class Process<T> {
     return process;
   }
 
-  /** Drop the process. */
-  public drop(): void {
+  /** Cancel the process and halt execution. */
+  public cancel(): void {
     cancel_process(this._pid);
   }
   /** Detatch the process and let it keep running. */
@@ -138,8 +138,8 @@ export class WorkQueue<T> {
     this.process.detach();
   }
 
-  /** Drop the process. */
-  public drop(): void {
-    this.process.drop();
+  /** Cancel the process and halt exeution. */
+  public cancel(): void {
+    this.process.cancel();
   }
 }
