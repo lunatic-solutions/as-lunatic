@@ -290,15 +290,15 @@ for (let i = <usize>0; i < <usize>TCP_READ_BUFFER_COUNT; i++) {
    *
    * @param {u32} socket_id - The host's socket_id.
    */
-export class TCPSocket {
+export class TCPStream {
 
   constructor(private socket_id: u32) {}
 
   /** Connect to a given IP address and port. Returns `null` if the connection wasn't successful. */
-  public static connect(ip: StaticArray<u8>, port: u16): TCPSocket | null {
+  public static connect(ip: StaticArray<u8>, port: u16): TCPStream | null {
     let length = ip.length;
     assert(length == 4 || length == 16);
-    let t = new TCPSocket(0);
+    let t = new TCPStream(0);
     let result = tcp_connect(
       changetype<usize>(ip),
       ip.length,
@@ -457,10 +457,10 @@ export class TCPServer {
 
   /**
    * Block the current process and accept a TCPSocket if it was succesfully obtained.
-   * @returns {TCPSocket | null} null if the tcp server errored.
+   * @returns {TCPStream | null} null if the tcp server errored.
    */
-  public accept(): TCPSocket | null {
-    let socket = new TCPSocket(0);
+  public accept(): TCPStream | null {
+    let socket = new TCPStream(0);
     if (tcp_accept(this.listener, changetype<usize>(socket)) == TCPAcceptResult.Success) {
       return socket;
     } else {
@@ -469,10 +469,12 @@ export class TCPServer {
   }
 
   /**
-   * Dereference the TCPServer. If a TCPServer was accepted in another process, it will
-   * need to be `close()`ed there too to unbind the server.
+   * TCP servers are reference counted. Every time a TCP server is sent through a
+   * channel to another process it's duplicated and the reference count incremented.
+   * Every time drop() is called, lunatic will decrement the the reference count. Once
+   * this reference count reaches 0, the server is closed.
    */
-  public close(): void {
+  public drop(): void {
     close_tcp_listener(this.listener);
   }
 }
