@@ -22,12 +22,10 @@ Import a lunatic library.
 
 ```ts
 // assembly/index.ts
-import * as channel from "channel";
-import * as net from "net";
-import * as thread from "thread";
+import * as lunatic from "as-lunatic";
 ```
 
-Finally, create `_start()` function so that the main thread knows what function to execute when lunatic starts up.
+Finally, export a `_start()` function so that the main thread knows what function to execute when lunatic starts up.
 
 > Note: any code that does not reside in the _start() method will execute every time a new `thread.Process` is created.
 
@@ -42,6 +40,7 @@ A simple process might look like this:
   let simpleValueProcess = Process.spawn(42, (val: i32) => {
     assert(val == 42);
   });
+  // make sure the process is finished
   assert(simpleValueProcess.join());
 ```
 
@@ -52,11 +51,11 @@ Lunatic will spin up another WebAssembly instance of your wasm module and execut
 To create a `Channel`, simply call `Channel.create<T>()` where `T` is an `ASON` serializable message.
 
 ```ts
-import * as channel from "channel";
+import { Channel } from "as-lunatic";
 
 export function _start(): void {
   // create a channel
-  let workChannel = channel.Channel.create<StaticArray<u8>>(0);
+  let workChannel = Channel.create<StaticArray<u8>>(0);
 
   // send some work
   workChannel.send([1, 2, 3, 4]);
@@ -64,9 +63,9 @@ export function _start(): void {
   workChannel.send([9, 10, 11, 12]);
 
   // Channels are serializable in ASON
-  Thread.start<channel.Channel<StaticArray<u8>>>(
+  Thread.start(
     workChannel,
-    (workChannel: channel.Channel<StaticArray<u8>>) => {
+    (workChannel: Channel<StaticArray<u8>>) => {
       workChannel.receive(); // [1, 2, 3, 4]
       workChannel.receive(); // [5, 6, 7, 8]
       workChannel.receive(); // [9, 10, 11, 12]
@@ -80,47 +79,47 @@ export function _start(): void {
 To open a TCP server, use the net module.
 
 ```ts
-import * as net from "net";
-import * as channel from "channel";
+import { TCPServer, TCPStream } from "as-lunatic";
 
 // bind the server to an ip address and a port
-let server = net.TCPServer.bind([127, 0, 0, 1], TCP_PORT);
+let server = TCPServer.bind([127, 0, 0, 1], TCP_PORT);
 
 
-function processSocket(socket: net.TCPSocket): void {
+function processSocket(socket: TCPStream): void {
   // do something with the accepted tcp socket here
 }
 
-let socket: net.TCPSocket;
+let stream: TCPStream;
 
 // blocks until a socket is accepted
-while (socket = server.accept()) {
+while (stream = server.accept()) {
   // pass the socket off to another process
-  Thread.start<net.TCPSocket>(socket, processSocket);
+  Thread.start<TCPStream>(stream, processThisStream);
+  stream.drop(); // when passing a stream off to another process, always drop it
 }
 ```
 
 To open a TCP connection, use a `TCPSocket`.
 
 ```ts
-import * as net from "net";
+import { TCPStream } from "net";
 
-let socket = net.TCPSocket.connect([192, 168, 1, 1], PORT);
+let stream = TCPStream.connect([192, 168, 1, 1], PORT);
 let buffer: StaticArray<u8>;
 
 // socket.read() blocks until bytes are read
-while (buffer = socket.read()) {
+while (buffer = stream.read()) {
   // echo the result back to the socket until it's closed
-  socket.writeBuffer(buffer);
+  stream.writeBuffer(buffer);
 }
 ```
 
 It's also possible to resolve an IP address from a domain.
 
 ```ts
-import * as net from "net";
+import { resolve } from "as-lunatic";
 // blocks thread execution
-let ip: StaticArray<u8> = net.resolve("mydomain.com");
+let ip: StaticArray<u8> = resolve("mydomain.com");
 ```
 # License
 

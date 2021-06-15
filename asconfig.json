@@ -12,7 +12,6 @@
       "TCP_READ_BUFFER_COUNT=4",
       "TCP_READ_BUFFER_SIZE=10000"
     ],
-    "lib": ["./assembly/"],
     "transform": ["@ason/transform"],
     "exportTable": true
   }

@@ -1,4 +1,4 @@
-import { Channel } from "channel";
+import { Channel } from "../assembly";
 
 class Vec3 {
     constructor(
