@@ -15,7 +15,7 @@ declare function lunatic_resolve(
   name_ptr: usize /* *const u8 */,
   name_len: usize,
   resolver_id: usize /* *mut u32 */
-): ResolveResult;
+): TCPErrorCode;
 
 /**
  * The iterator result.
@@ -28,13 +28,73 @@ const enum ResolveNextResult {
 }
 
 /**
- * The result of resolving a host name.
+ * The result of a TCP request of some kind.
  */
-export const enum ResolveResult {
+export const enum TCPErrorCode {
   /** A succesful result. */
   Success = 0,
-  /** The host could not resolve the given hostname. */
-  Fail = 1,
+  /** An entity was not found, often a file. */
+  NotFound = 1,
+  /** The operation lacked the necessary privileges to complete. */
+  PermissionDenied = 2,
+  /** The connection was refused by the remote server. */
+  ConnectionRefused = 3,
+  /** The connection was reset by the remote server. */
+  ConnectionReset = 4,
+  /** The connection was aborted (terminated) by the remote server. */
+  ConnectionAborted = 5,
+  /** The network operation failed because it was not connected yet. */
+  NotConnected = 6,
+  /** A socket address could not be bound because the address is already in use elsewhere. */
+  AddrInUse = 7,
+  /** A nonexistent interface was requested or the requested address was not local. */
+  AddrNotAvailable = 8,
+  /** The connection pipe is broken. */
+  BrokenPipe = 9,
+  /** An entity already exists, often a file. */
+  AlreadyExists = 10,
+  /** The operation needs to block to complete, but the blocking operation was requested to not occur. */
+  WouldBlock = 11,
+  /** A parameter was incorrect. */
+  InvalidInput = 12,
+  /**
+   * Data not valid for the operation were encountered.
+   *
+   * Unlike InvalidInput, this typically means that the operation parameters were valid, however the error was caused by malformed input data.
+   *
+   * For example, a function that reads a file into a string will error with InvalidData if the file’s contents are not valid UTF-8.
+   */
+  InvalidData = 13,
+  /** The I/O operation’s timeout expired, causing it to be canceled. */
+  TimedOut = 14,
+  /**
+   * An error returned when an operation could not be completed because a call to write returned Ok(0).
+   *
+   * This typically means that an operation could only succeed if it wrote a particular number of bytes but only a smaller number of bytes could be written.
+   */
+  WriteZero = 15,
+  /**
+   * This operation was interrupted.
+   *
+   * Interrupted operations can typically be retried.
+   */
+  Interrupted = 16,
+  /**
+   * An error returned when an operation could not be completed because an “end of file” was reached prematurely.
+   *
+   * This typically means that an operation could only succeed if it read a particular number of bytes but only a smaller number of bytes could be read.
+   */
+  UnexpectedEof = 17,
+  /**
+   * This operation is unsupported on this platform.
+   *
+   * This means that the operation can never succeed.
+   */
+  Unsupported = 18,
+  /** The system is out of memory. */
+  OutOfMemory = 19,
+  /** Some other kind of error has occurred. */
+  Other = 20,
 }
 
 /**
@@ -59,6 +119,15 @@ declare function resolve_next(
   flowinfo: usize /* *mut u32 */,
   scope_id: usize /* *mut u32 */,
 ): ResolveNextResult;
+
+/** Represents the result of an operation. */
+export class TCPResult<T> {
+  constructor(
+    public code: TCPErrorCode,
+    public value: T | null,
+  ) {}
+}
+
 /**
  * A resulting IPResolution.
  */
@@ -498,7 +567,7 @@ export function resolve(host: string): IPResolution[] | null {
     // write the resolver to memory
     resolverIdPtr
   );
-  if (resolveResult == ResolveResult.Fail) return null;
+  if (resolveResult != TCPErrorCode.Success) return null;
 
   // read the resolver id
   let resolverId = load<u32>(resolverIdPtr);
