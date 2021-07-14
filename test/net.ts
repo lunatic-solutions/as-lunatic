@@ -2,22 +2,22 @@
 import { TCPServer, TCPStream, Process } from "../assembly";
 
 export function _start(): void {
-  let server = TCPServer.bind([127, 0, 0, 1], 10000)!;
+  let server = TCPServer.bind([127, 0, 0, 1], 10000).value!;
 
   let p = Process.spawn(0, (val: i32) => {
-    let socket = TCPStream.connect([127, 0, 0, 1], 10000)!;
+    let socket = TCPStream.connect([127, 0, 0, 1], 10000).value!;
     socket.writeBuffer([1, 2, 3, 4]);
-    assert(socket.read());
+    assert(socket.read().value);
     socket.drop();
   });
-  let socket = server.accept()!;
-  let buff = socket.read()!;
+  let socket = server.accept().value!;
+  let buff = socket.read().value!;
   assert(memory.compare(
     changetype<usize>(buff),
     changetype<usize>([1, 2, 3, 4] as StaticArray<u8>),
     4,
   ) == 0);
-  socket.writeBuffer([1]);
+  assert(socket.writeBuffer([1]).value);
   server.drop();
   assert(p.join());
   server.drop();
