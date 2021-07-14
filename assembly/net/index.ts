@@ -547,7 +547,6 @@ export function resolve(host: string): TCPResult<IPResolution[] | null> {
 
     // loop over each IPResolution and add it to the list
     let ipArray = new Array<IPResolution>(0);
-    let i = 0;
     while (true) {
       // must always allocate 16 bytes
       let buffer = new StaticArray<u8>(16);
@@ -565,7 +564,6 @@ export function resolve(host: string): TCPResult<IPResolution[] | null> {
       );
       if (resolutionResult == ResolveNextResult.Done) break;
       ipArray.push(resolution);
-      i++;
     }
 
     result.value = ipArray;
