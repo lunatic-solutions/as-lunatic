@@ -15,7 +15,7 @@ declare function lunatic_resolve(
   name_ptr: usize /* *const u8 */,
   name_len: usize,
   resolver_id: usize /* *mut u32 */
-): ResolveResult;
+): TCPErrorCode;
 
 /**
  * The iterator result.
@@ -28,13 +28,73 @@ const enum ResolveNextResult {
 }
 
 /**
- * The result of resolving a host name.
+ * The result of a TCP request of some kind.
  */
-export const enum ResolveResult {
+export const enum TCPErrorCode {
   /** A succesful result. */
   Success = 0,
-  /** The host could not resolve the given hostname. */
-  Fail = 1,
+  /** An entity was not found, often a file. */
+  NotFound = 1,
+  /** The operation lacked the necessary privileges to complete. */
+  PermissionDenied = 2,
+  /** The connection was refused by the remote server. */
+  ConnectionRefused = 3,
+  /** The connection was reset by the remote server. */
+  ConnectionReset = 4,
+  /** The connection was aborted (terminated) by the remote server. */
+  ConnectionAborted = 5,
+  /** The network operation failed because it was not connected yet. */
+  NotConnected = 6,
+  /** A socket address could not be bound because the address is already in use elsewhere. */
+  AddrInUse = 7,
+  /** A nonexistent interface was requested or the requested address was not local. */
+  AddrNotAvailable = 8,
+  /** The connection pipe is broken. */
+  BrokenPipe = 9,
+  /** An entity already exists, often a file. */
+  AlreadyExists = 10,
+  /** The operation needs to block to complete, but the blocking operation was requested to not occur. */
+  WouldBlock = 11,
+  /** A parameter was incorrect. */
+  InvalidInput = 12,
+  /**
+   * Data not valid for the operation were encountered.
+   *
+   * Unlike InvalidInput, this typically means that the operation parameters were valid, however the error was caused by malformed input data.
+   *
+   * For example, a function that reads a file into a string will error with InvalidData if the file’s contents are not valid UTF-8.
+   */
+  InvalidData = 13,
+  /** The I/O operation’s timeout expired, causing it to be canceled. */
+  TimedOut = 14,
+  /**
+   * An error returned when an operation could not be completed because a call to write returned Ok(0).
+   *
+   * This typically means that an operation could only succeed if it wrote a particular number of bytes but only a smaller number of bytes could be written.
+   */
+  WriteZero = 15,
+  /**
+   * This operation was interrupted.
+   *
+   * Interrupted operations can typically be retried.
+   */
+  Interrupted = 16,
+  /**
+   * An error returned when an operation could not be completed because an “end of file” was reached prematurely.
+   *
+   * This typically means that an operation could only succeed if it read a particular number of bytes but only a smaller number of bytes could be read.
+   */
+  UnexpectedEof = 17,
+  /**
+   * This operation is unsupported on this platform.
+   *
+   * This means that the operation can never succeed.
+   */
+  Unsupported = 18,
+  /** The system is out of memory. */
+  OutOfMemory = 19,
+  /** Some other kind of error has occurred. */
+  Other = 20,
 }
 
 /**
@@ -59,6 +119,15 @@ declare function resolve_next(
   flowinfo: usize /* *mut u32 */,
   scope_id: usize /* *mut u32 */,
 ): ResolveNextResult;
+
+/** Represents the result of an operation. */
+export class TCPResult<T> {
+  constructor(
+    public code: TCPErrorCode,
+    public value: T,
+  ) {}
+}
+
 /**
  * A resulting IPResolution.
  */
@@ -75,38 +144,6 @@ export class IPResolution {
   scope_id: u32;
 }
 
-/** The result of initiating a tcp connection. */
-export const enum TCPConnectResult {
-  /** The connection was successful. */
-  Success = 0,
-  /** The connection failed. */
-  Fail = 1,
-}
-
-/** The result of writing to a TCPSocket. */
-export const enum TCPWriteResult {
-  /** The write was successful. */
-  Success = 0,
-  /** The write failed. */
-  Fail = 1,
-}
-
-/** The result of flushing the TCPSocket. */
-export const enum TCPFlushResult {
-  /** The flush was successful. */
-  Success = 0,
-  /** The flush failed. */
-  Fail = 1,
-}
-
-/** The result of reading from a TCPSocket. */
-export const enum TCPReadResult {
-  /** The read was successful, the bytes were written to the module. */
-  Success = 0,
-  /** The read failed. */
-  Fail = 1,
-}
-
 /**
  * Initiate a TCP connection.
  *
@@ -115,7 +152,7 @@ export const enum TCPReadResult {
  * @param {u16} port - The port.
  * @param {usize} listener_id - A pointer to a u32 where the listener_id will be written if
  * the connection was successful.
- * @returns {TCPConnectResult} The result of initiating a TCP connection.
+ * @returns {TCPErrorCode} The result of initiating a TCP connection.
  */
 // @ts-ignore: valid decorator
 @external("lunatic", "tcp_connect")
@@ -124,7 +161,7 @@ declare function tcp_connect(
   addr_len: usize,
   port: u16,
   listener_id: usize, // *mut u32,
-): TCPConnectResult;
+): TCPErrorCode;
 
 /**
  * Dereference a given TCP stream. Once a stream has been dererferenced
@@ -143,6 +180,7 @@ declare function close_tcp_stream(listener: u32): void;
  * @param {usize} data - A pointer to the data.
  * @param {usize} data_len - How many bytes to write.
  * @param {usize} nwritten - A pointer to a usize that will contain how many bytes were written.
+ * @returns The error code if there was a problem.
  */
 // @ts-ignore: valid decorator
 @external("lunatic", "tcp_write_vectored")
@@ -151,12 +189,12 @@ declare function tcp_write_vectored(
   data: usize, // *const c_void,
   data_len: usize,
   nwritten: usize // *mut usize,
-): TCPWriteResult;
+): TCPErrorCode;
 
 /** Flush a tcp stream. */
 // @ts-ignore: valid decorator
 @external("lunatic", "tcp_flush")
-declare function tcp_flush(tcp_stream: u32): TCPFlushResult;
+declare function tcp_flush(tcp_stream: u32): TCPErrorCode;
 
 /**
  * Block the current process and wait for bytes to come in on the stream.
@@ -165,6 +203,7 @@ declare function tcp_flush(tcp_stream: u32): TCPFlushResult;
  * @param {usize} data - A pointer to write the bytes to.
  * @param {usize} data_len - How many bytes should be read.
  * @param {usize} nread - A pointer to a usize that is the of bytes read from the stream.
+ * @returns An error code if there was a problem.
  */
 // @ts-ignore: valid decorator
 @external("lunatic", "tcp_read_vectored")
@@ -173,7 +212,7 @@ declare function tcp_read_vectored(
   data: usize, // *mut c_void,
   data_len: usize,
   nread: usize, // *mut usize,
-): TCPReadResult;
+): TCPErrorCode;
 
 /** Serialize a tcp stream. */
 // @ts-ignore: valid decorator
@@ -184,17 +223,6 @@ declare function tcp_stream_serialize(tcp_stream: u32): u32;
 @external("lunatic", "tcp_stream_deserialize")
 declare function tcp_stream_deserialize(tcp_stream: u32): u32;
 
-/** The result of binding a TCPServer to an IP address. */
-export const enum TCPBindResult {
-  Success = 0,
-  Fail = 1,
-}
-
-/** The result of accepting a TCPSocket from a TCPServer. */
-export const enum TCPAcceptResult {
-  Success = 0,
-  Fail = 1,
-}
 
 /**
  * Bind a TCPServer to an IP Address and port.
@@ -204,7 +232,7 @@ export const enum TCPAcceptResult {
  * @param {u16} port - The port.
  * @param {usize} listener_id - A pointer to a u32 that will be the TCPServer
  * listener ID.
- * @returns {TCPBindResult} The result of binding to an IP address.
+ * @returns {TCPErrorCode} The result of binding to an IP address.
  */
 // @ts-ignore: valid decorator
 @external("lunatic", "tcp_bind")
@@ -213,7 +241,7 @@ declare function tcp_bind(
   addr_len: usize,
   port: u16,
   listener_id: usize, //*mut u32,
-): TCPBindResult;
+): TCPErrorCode;
 
 /**
  * Close a tcp server.
@@ -236,7 +264,7 @@ declare function close_tcp_listener(listener: u32): void;
 declare function tcp_accept(
   listener: u32,
   tcp_socket: usize, //*mut u32
-): TCPAcceptResult;
+): TCPErrorCode;
 
 /**
  * Serialize a TCPServer.
@@ -295,19 +323,18 @@ export class TCPStream {
   constructor(private socket_id: u32) {}
 
   /** Connect to a given IP address and port. Returns `null` if the connection wasn't successful. */
-  public static connect(ip: StaticArray<u8>, port: u16): TCPStream | null {
+  public static connect(ip: StaticArray<u8>, port: u16): TCPResult<TCPStream | null> {
     let length = ip.length;
     assert(length == 4 || length == 16);
-    let t = new TCPStream(0);
-    let result = tcp_connect(
+    let stream = new TCPStream(0);
+    let code = tcp_connect(
       changetype<usize>(ip),
       ip.length,
       port,
-      changetype<usize>(t),
+      changetype<usize>(stream),
     );
-    return result == TCPConnectResult.Success
-      ? t
-      : null;
+    if (code == TCPErrorCode.Success) return new TCPResult<TCPStream | null>(code, stream);
+    return new TCPResult<TCPStream | null>(code, null)
   }
 
   /** Public ason serialization method for transfering a TCPSocket through a channel. */
@@ -326,23 +353,25 @@ export class TCPStream {
    * Block the current process to read the data from the TCPSocket using the default
    * static memory locations provided by the as-lunatic asconfig properties.
    *
-   * @returns {StaticArray<u8> | null} `null`
-   * if the read was unsuccessful because the socket closed, or there was an error.
+   * @returns {TCPResult<StaticArray<u8> | null>} The error code if the read was unsuccesful,
+   * and also the data if the read was successful.
    */
-  public read(): StaticArray<u8> | null {
+  public read(): TCPResult<StaticArray<u8> | null> {
     // default read uses TCP_READ_BUFFER_COUNT vectors all in the same segment
-    let result = tcp_read_vectored(
+    let code = tcp_read_vectored(
       this.socket_id,
       changetype<usize>(tcpReadVecs),
       <usize>TCP_READ_BUFFER_COUNT,
       readCountPtr,
     );
 
-    if (result != TCPReadResult.Success) return null;
-    let readCount = load<u32>(readCountPtr);
-    let array = new StaticArray<u8>(readCount);
-    memory.copy(changetype<usize>(array), tcpReadDataPointer, readCount);
-    return array;
+    if (code == TCPErrorCode.Success) {
+      let readCount = load<u32>(readCountPtr);
+      let array = new StaticArray<u8>(readCount);
+      memory.copy(changetype<usize>(array), tcpReadDataPointer, readCount);
+      return new TCPResult<StaticArray<u8> | null>(code, array);
+    }
+    return new TCPResult<StaticArray<u8> | null>(code, null);
   }
 
   /**
@@ -352,7 +381,7 @@ export class TCPStream {
    * @param {Array<StaticArray<u8>>} buffers - The buffers to be read into.
    * @returns {usize} - The number of bytes written into the buffers.
    */
-  public readVectored(buffers: Array<StaticArray<u8>>): usize {
+  public readVectored(buffers: Array<StaticArray<u8>>): TCPResult<usize> {
     let buffersLength = <usize>buffers.length;
     let vecs = heap.alloc(
       // adding 1 to align of usize effectively doubles the heap allocation size
@@ -367,13 +396,14 @@ export class TCPStream {
 
     let readResult = tcp_read_vectored(this.socket_id, vecs, buffersLength, readCountPtr);
     heap.free(vecs);
-    if (readResult == TCPReadResult.Success) {
-      return load<u32>(readCountPtr);
-    } else return 0;
+    let count = readResult == TCPErrorCode.Success
+      ? <usize>load<u32>(readCountPtr)
+      : <usize>0;
+    return new TCPResult<usize>(readResult, count);
   }
 
   /** Write a buffer to the TCPSocket stream. */
-  public writeBuffer(buffer: StaticArray<u8>): usize {
+  public writeBuffer(buffer: StaticArray<u8>): TCPResult<usize> {
     return this.writeUnsafe(changetype<usize>(buffer), buffer.length);
   }
 
@@ -382,28 +412,32 @@ export class TCPStream {
    *
    * @param {usize} ptr - A pointer `void*` which points to the data being written.
    * @param {usize} length - The number of bytes to be written to the socket.
-   * @returns {usize} The number of bytes written.
+   * @returns {TCPResult<usize>} The number of bytes written and the error code if any.
    */
-  @unsafe public writeUnsafe(ptr: usize, length: usize): usize {
+  @unsafe public writeUnsafe(ptr: usize, length: usize): TCPResult<usize> {
     let vec = changetype<iovec>(memory.data(offsetof<iovec>()));
     vec.buf = ptr;
     vec.buf_len = length;
 
-    let result = tcp_write_vectored(
+    let code = tcp_write_vectored(
       this.socket_id,
       changetype<usize>(vec),
       1,
       writeCountPtr,
     );
-
-    return result == TCPWriteResult.Success
-      ? load<usize>(writeCountPtr)
-      : 0;
+    let count = code == TCPErrorCode.Success
+      ? <usize>load<u32>(writeCountPtr)
+      : <usize>0;
+    return new TCPResult<usize>(code, count);
   }
 
   /** Flush the socket. Returns true if the operation was successful. */
-  public flush(): bool {
-    return tcp_flush(this.socket_id) == TCPFlushResult.Success;
+  public flush(): TCPResult<bool> {
+    let code = tcp_flush(this.socket_id);
+    return new TCPResult<bool>(
+      code,
+      code == TCPErrorCode.Success,
+    );
   }
 
   /**
@@ -442,30 +476,34 @@ export class TCPServer {
    *
    * @param {StaticArray<u8>} address - The address in an array of bytes.
    * @param {u16} port - The port.
-   * @returns {TCPServer | null} Null if the server could not be bound.
+   * @returns {TCPResult<TCPServer | null>} The error code and TCPServer if the error code was 0
    */
-  public static bind(address: StaticArray<u8>, port: u16): TCPServer | null {
+  public static bind(address: StaticArray<u8>, port: u16): TCPResult<TCPServer | null> {
     let server = new TCPServer(0);
     assert(address.length == 4 || address.length == 16);
     // tcp_bind writes the listener id here
-    if (tcp_bind(changetype<usize>(address), <usize>address.length, port, changetype<usize>(server)) == TCPBindResult.Success) {
-      return server;
-    } else {
-      return null;
-    }
+    let code = tcp_bind(changetype<usize>(address), <usize>address.length, port, changetype<usize>(server));
+    return new TCPResult<TCPServer | null>(
+      code,
+      code == TCPErrorCode.Success
+        ? server
+        : null,
+    );
   }
 
   /**
    * Block the current process and accept a TCPSocket if it was succesfully obtained.
    * @returns {TCPStream | null} null if the tcp server errored.
    */
-  public accept(): TCPStream | null {
-    let socket = new TCPStream(0);
-    if (tcp_accept(this.listener, changetype<usize>(socket)) == TCPAcceptResult.Success) {
-      return socket;
-    } else {
-      return null;
-    }
+  public accept(): TCPResult<TCPStream | null> {
+    let stream = new TCPStream(0);
+    let code = tcp_accept(this.listener, changetype<usize>(stream));
+    return new TCPResult<TCPStream | null>(
+      code,
+      code == TCPErrorCode.Success
+        ? stream
+        : null,
+    );
   }
 
   /**
@@ -488,7 +526,7 @@ const resolverIdPtr = memory.data(sizeof<u32>());
  * @param {string} host - The host or ip address name that should be resolved.
  * @returns {IPResolution[] | null} null if the IP could not be resolved.
  */
-export function resolve(host: string): IPResolution[] | null {
+export function resolve(host: string): TCPResult<IPResolution[] | null> {
   // encode the ip address to utf8
   let ipBuffer = String.UTF8.encode(host);
   // call the host to resolve the IP address
@@ -498,32 +536,38 @@ export function resolve(host: string): IPResolution[] | null {
     // write the resolver to memory
     resolverIdPtr
   );
-  if (resolveResult == ResolveResult.Fail) return null;
 
-  // read the resolver id
-  let resolverId = load<u32>(resolverIdPtr);
+  let result = new TCPResult<IPResolution[] | null>(
+    resolveResult,
+    null,
+  );
+  if (resolveResult == TCPErrorCode.Success) {
+    // read the resolver id
+    let resolverId = load<u32>(resolverIdPtr);
 
-  // loop over each IPResolution and add it to the list
-  let result = new Array<IPResolution>(0);
-  let i = 0;
-  while (true) {
-    // must always allocate 16 bytes
-    let buffer = new StaticArray<u8>(16);
-    let resolution = new IPResolution();
-    resolution.address = buffer;
+    // loop over each IPResolution and add it to the list
+    let ipArray = new Array<IPResolution>(0);
+    while (true) {
+      // must always allocate 16 bytes
+      let buffer = new StaticArray<u8>(16);
+      let resolution = new IPResolution();
+      resolution.address = buffer;
 
-    // the host iterates over each result until it returns Done
-    let resolutionResult = resolve_next(
-      resolverId,
-      changetype<usize>(buffer),
-      changetype<usize>(resolution) + offsetof<IPResolution>("addr_len"),
-      changetype<usize>(resolution) + offsetof<IPResolution>("port"),
-      changetype<usize>(resolution) + offsetof<IPResolution>("flowinfo"),
-      changetype<usize>(resolution) + offsetof<IPResolution>("scope_id"),
-    );
-    if (resolutionResult == ResolveNextResult.Done) break;
-    result.push(resolution);
-    i++;
+      // the host iterates over each result until it returns Done
+      let resolutionResult = resolve_next(
+        resolverId,
+        changetype<usize>(buffer),
+        changetype<usize>(resolution) + offsetof<IPResolution>("addr_len"),
+        changetype<usize>(resolution) + offsetof<IPResolution>("port"),
+        changetype<usize>(resolution) + offsetof<IPResolution>("flowinfo"),
+        changetype<usize>(resolution) + offsetof<IPResolution>("scope_id"),
+      );
+      if (resolutionResult == ResolveNextResult.Done) break;
+      ipArray.push(resolution);
+    }
+
+    result.value = ipArray;
   }
-  return bool(i) ? result : null;
+
+  return result;
 }
