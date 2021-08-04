@@ -108,20 +108,6 @@ declare function tcp_bind(
 declare function close_tcp_listener(listener: u32): void;
 
 /**
- * Block the current thread to accept a socket from the TCPServer.
- *
- * @param {u32} listener - The listener.
- * @param {usize} tcp_socket - A pointer to a u32 that will contain the socket id.
- * @returns {TCPAcceptResult} The result of accepting a tcp socket.
- */
-// @ts-ignore: valid decorator
-@external("lunatic", "tcp_accept")
-declare function tcp_accept(
-  listener: u32,
-  tcp_socket: usize, //*mut u32
-): TCPErrorCode;
-
-/**
  * Serialize a TCPServer.
  *
  * @param {u32} tcp_listener - The listener to serialize
@@ -303,71 +289,5 @@ export class TCPStream {
    */
   public drop(): void {
     close_tcp_stream(this.socket_id);
-  }
-}
-
-/**
- * This class represents a TCPServer. In order to obtain a reference to a TCPServer,
- * lunatic must provide a `listener_id` by calling the lunatic.tcp_bind method. Typical
- * end users will call the `TCPServer.bind(ip, port)` method to obtain a reference.
- */
-export class TCPServer {
-  constructor(private listener: u32) {}
-
-  /** Public ason deserialize method. */
-  public __asonDeserialize(buffer: StaticArray<u8>): void {
-    this.listener = tcp_listener_deserialize(load<u32>(changetype<usize>(buffer)));
-  }
-
-  /** Public ason serialize method. */
-  public __asonSerialize(): StaticArray<u8> {
-    let buffer = new StaticArray<u8>(sizeof<u32>());
-    store<u32>(changetype<usize>(buffer), tcp_listener_serialize(this.listener));
-    return buffer;
-  }
-
-  /**
-   * Bind a TCPServer to an address and a port.
-   *
-   * @param {StaticArray<u8>} address - The address in an array of bytes.
-   * @param {u16} port - The port.
-   * @returns {TCPResult<TCPServer | null>} The error code and TCPServer if the error code was 0
-   */
-  public static bind(address: StaticArray<u8>, port: u16): TCPResult<TCPServer | null> {
-    let server = new TCPServer(0);
-    assert(address.length == 4 || address.length == 16);
-    // tcp_bind writes the listener id here
-    let code = tcp_bind(changetype<usize>(address), <usize>address.length, port, changetype<usize>(server));
-    return new TCPResult<TCPServer | null>(
-      code,
-      code == TCPErrorCode.Success
-        ? server
-        : null,
-    );
-  }
-
-  /**
-   * Block the current process and accept a TCPSocket if it was succesfully obtained.
-   * @returns {TCPStream | null} null if the tcp server errored.
-   */
-  public accept(): TCPResult<TCPStream | null> {
-    let stream = new TCPStream(0);
-    let code = tcp_accept(this.listener, changetype<usize>(stream));
-    return new TCPResult<TCPStream | null>(
-      code,
-      code == TCPErrorCode.Success
-        ? stream
-        : null,
-    );
-  }
-
-  /**
-   * TCP servers are reference counted. Every time a TCP server is sent through a
-   * channel to another process it's duplicated and the reference count incremented.
-   * Every time drop() is called, lunatic will decrement the the reference count. Once
-   * this reference count reaches 0, the server is closed.
-   */
-  public drop(): void {
-    close_tcp_listener(this.listener);
   }
 }
