@@ -55,6 +55,7 @@ declare function resolve_next(
  *
  * @param {u64} id - The iterator id.
  */
+// @ts-ignore: valid decorator
 @external("lunatic", "drop_dns_iterator")
 declare function drop_dns_iterator(id: u64): void;
 
