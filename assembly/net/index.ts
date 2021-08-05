@@ -1,4 +1,7 @@
 import { err_code, getError } from "../error";
+import { iovec } from "bindings/wasi";
+import { TOTAL_OVERHEAD, OBJECT } from "rt/common";
+const writeVec = changetype<iovec>(memory.data(offsetof<iovec>()));
 
 /**
  * Resolve a hostname to an array of ip addresses.
@@ -125,8 +128,21 @@ declare function clone_tcp_stream(stream: u64): u64;
 @external("lunatic", "tcp_read")
 declare function tcp_read(stream: u64, ptr: usize, len: usize, opaque: usize): err_code;
 
+/**
+ * Write a clike array of iovecs to a given TCPStream.
+ *
+ * @param {u64} stream - The stream id.
+ * @param {usize} ciovec_array_ptr - [*iovec] The array of iovecs to be written.
+ * @param {usize} ciovec_array_len - The length of the iovec array.
+ * @param {usize} opaqueu64Ptr - A pointer to a *u64 that will contain either the number of bytes written,
+ * or the error code.
+ */
+// @ts-ignore: valid decorator
+@external("lunatic", "tcp_write_vectored")
+declare function tcp_write_vectored(stream: u64, ciovec_array_ptr: usize, ciovec_array_len: usize, opaqueu64Ptr: usize): err_code;
+
 /** A pointer to an ip resolution iterator. */
-const resolverIdPtr = memory.data(sizeof<u64>());
+const resolver_id_ptr = memory.data(sizeof<u64>());
 
 /**
  * Resolve an ip address from a host name.
@@ -142,17 +158,17 @@ export function resolve(host: string): TCPResult<IPAddress[] | null> {
     changetype<usize>(ipBuffer),
     ipBuffer.byteLength,
     // write the resolver to memory
-    resolverIdPtr
+    resolver_id_ptr
   );
 
   if (resolveResult == err_code.Success) {
     // read the resolver id
-    let resolverId = load<u64>(resolverIdPtr);
+    let resolverId = load<u64>(resolver_id_ptr);
 
     return new TCPResult<IPAddress[] | null>(null, dns_iterator_to_array(resolverId));
   } else {
     return new TCPResult<IPAddress[] | null>(
-      getError(load<u64>(resolverIdPtr)),
+      getError(load<u64>(resolver_id_ptr)),
       null,
     );
   }
@@ -281,11 +297,11 @@ const opaqueu64Ptr = memory.data(sizeof<u64>());
    * @returns {TCPStream | null} null if the tcp server errored.
    */
   public accept(): TCPResult<TCPStream | null> {
-    let code = tcp_accept(this.listener, opaqueu64Ptr, resolverIdPtr);
+    let code = tcp_accept(this.listener, opaqueu64Ptr, resolver_id_ptr);
     let tcpStreamId = load<u64>(opaqueu64Ptr);
 
     if (code == err_code.Success) {
-      let resolution = dns_iterator_to_array(load<u64>(resolverIdPtr));
+      let resolution = dns_iterator_to_array(load<u64>(resolver_id_ptr));
       assert(resolution.length == 1);
       return new TCPResult<TCPStream | null>(
         null,
@@ -498,6 +514,80 @@ export class TCPStream {
         getError(load<u64>(opaqueu64Ptr)),
         0,
       );
+    }
+  }
+
+  /**
+   * Write a typed array's data to this TCPStream.
+   *
+   * @param {U} buffer - The array buffer to be written.
+   * @returns The number of bytes written.
+   */
+  write_typed_array<U extends ArrayBufferView>(buffer: U): TCPResult<usize> {
+    return this.write_unsafe(
+      changetype<usize>(buffer.buffer) + <usize>buffer.byteOffset,
+      <usize>buffer.byteLength,
+    );
+  }
+
+  /**
+   * Write a string to the buffer, writing bytes in utf16le format.
+   *
+   * @param {string} str - The string to be written.
+   * @returns The number of bytes written.
+   */
+  write_string_utf16le(str: string): TCPResult<usize> {
+    return this.write_unsafe(
+      changetype<usize>(str),
+      changetype<OBJECT>(changetype<usize>(str) - TOTAL_OVERHEAD).rtSize,
+    );
+  }
+
+  /**
+   * Write a string to the buffer, converting to utf8 first.
+   *
+   * @param {string} str - The string to be written.
+   * @returns The number of bytes written.
+   */
+  write_string(str: string): TCPResult<usize> {
+    let converted = String.UTF8.encode(str);
+    return this.write_array_buffer(converted);
+  }
+
+  /**
+   * Write an ArrayBuffer of data to the tcp stream.
+   *
+   * @param {ArrayBuffer} buffer - The buffer to be written.
+   * @returns The number of bytes written.
+   */
+  write_array_buffer(buffer: ArrayBuffer): TCPResult<usize> {
+    return this.write_unsafe(changetype<usize>(buffer), <usize>buffer.byteLength);
+  }
+
+  /**
+   * Write a static array of data to the tcp stream.
+   *
+   * @param {StaticArray<u8>} buffer - The buffer to be written.
+   * @returns The number of bytes written.
+   */
+  write_static_array(buffer: StaticArray<u8>): TCPResult<usize> {
+    return this.write_unsafe(changetype<usize>(buffer), <usize>buffer.length);
+  }
+
+  /**
+   * Write a vector of bytes to a tcp stream.
+   *
+   * @param {usize} ptr - [*u8] The array of bytes to write.
+   * @param {usize} len - The number of bytes to be written.
+   */
+  write_unsafe(ptr: usize, len: usize): TCPResult<usize> {
+    writeVec.buf = ptr;
+    writeVec.buf_len = len;
+    let result = tcp_write_vectored(this.listener, changetype<usize>(writeVec), 1, opaqueu64Ptr);
+    if (result == err_code.Success) {
+      return new TCPResult<usize>(null, <usize>load<u64>(opaqueu64Ptr));
+    } else {
+      return new TCPResult<usize>(getError(load<u64>(opaqueu64Ptr)), 0);
     }
   }
 }
