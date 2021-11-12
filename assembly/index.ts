@@ -132,5 +132,5 @@ export function __lunatic_seed(): f64 { // eslint-disable-line @typescript-eslin
 }
 
 export * from "./channel";
-export * from "./process";
+export * from "./process/index-old";
 export * from "./net";
