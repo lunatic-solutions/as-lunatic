@@ -20,7 +20,7 @@ export declare function create_environment(config_id: u64, id_ptr: usize): error
 export declare function drop_environment(env_id: u64): void
 // @ts-ignore
 @external("lunatic::process", "add_plugin")
-export declare function add_plugin(config_id: u64, plugin_data_ptr: usize, plugin_data_len: u32, id_ptr: usize): usize
+export declare function add_plugin(config_id: u64, plugin_data_ptr: usize, plugin_data_len: u32, id_ptr: usize): error.err_code;
     // @ts-ignore
 @external("lunatic::process", "add_module")
 export declare function add_module(env_id: u64, module_data_ptr: usize, module_data_len: u32, id_ptr: usize): usize
@@ -75,6 +75,12 @@ export declare function lookup(name_ptr: usize, name_len: u32, query_ptr: usize,
 
 /** A predefined location to store id output. */
 const id_ptr = memory.data(sizeof<u64>());
+
+export class Plugin {
+    constructor(
+        public id: u64,
+    ) {}
+}
 
 export class Environment {
     constructor(
@@ -150,6 +156,20 @@ export class Config {
             return new Environment(id);
         }
         error.err_str = error.getError(id);
+        return null;
+    }
+
+    addPluginStaticArray(array: StaticArray<u8>): Plugin | null {
+        return this.addPluginUnsafe(changetype<usize>(array), <usize>array.length);
+    }
+
+    addPluginUnsafe(bytes: usize, len: usize): Plugin | null {
+        let result = add_plugin(this.id, bytes, len, id_ptr);
+        let pluginId = load<u64>(id_ptr);
+        if (result == error.err_code.Success) {
+            return new Plugin(pluginId);
+        }
+        error.err_str = error.getError(pluginId);
         return null;
     }
 }
