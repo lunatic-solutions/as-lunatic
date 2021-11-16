@@ -82,12 +82,6 @@ export class Module {
     ) {}
 }
 
-export class Plugin {
-    constructor(
-        public id: u64,
-    ) {}
-}
-
 export class Environment {
     constructor(
         public id: u64,
@@ -170,9 +164,9 @@ export class Config {
      * fails, the `error.err_str` global will contain the error string.
      *
      * @param {Uint8Array} array The web assembly plugin.
-     * @returns {Plugin | null} the plugin if it was successful.
+     * @returns {bool} true if it was successful.
      */
-    addPluginBuffer(array: ArrayBuffer): Plugin | null {
+    addPluginBuffer(array: ArrayBuffer): bool {
         return this.addPluginUnsafe(changetype<usize>(array), <usize>array.byteLength);
     }
 
@@ -181,9 +175,9 @@ export class Config {
      * the `error.err_str` global will contain the error string.
      *
      * @param {Uint8Array} array The web assembly plugin.
-     * @returns {Plugin | null} the plugin if it was successful.
+     * @returns {bool} true if it was successful.
      */
-    addPluginArray(array: Uint8Array): Plugin | null {
+    addPluginArray(array: Uint8Array): bool {
         return this.addPluginUnsafe(array.dataStart, <usize>array.byteLength);
     }
 
@@ -192,9 +186,9 @@ export class Config {
      * the `error.err_str` global will contain the error string.
      *
      * @param {StaticArray<u8>} array The web assembly plugin.
-     * @returns {Plugin | null} the plugin if it was successful.
+     * @returns {bool} true if it was successful.
      */
-    addPluginStaticArray(array: StaticArray<u8>): Plugin | null {
+    addPluginStaticArray(array: StaticArray<u8>): bool {
         return this.addPluginUnsafe(changetype<usize>(array), <usize>array.length);
     }
 
@@ -203,16 +197,16 @@ export class Config {
      * fails, the `error.err_str` global will contain the error string.
      *
      * @param {StaticArray<u8>} array The web assembly plugin.
-     * @returns {Plugin | null} the plugin if it was successful.
+     * @returns {bool} the plugin if it was successful.
      */
-    addPluginUnsafe(bytes: usize, len: usize): Plugin | null {
+    addPluginUnsafe(bytes: usize, len: usize): bool {
         let result = add_plugin(this.id, bytes, len, id_ptr);
         let pluginId = load<u64>(id_ptr);
         if (result == error.err_code.Success) {
-            return new Plugin(pluginId);
+            return true;
         }
         error.err_str = error.getError(pluginId);
-        return null;
+        return false;
     }
 
     /**
@@ -220,9 +214,9 @@ export class Config {
      * fails, the `error.err_str` global will contain the error string.
      *
      * @param {Uint8Array} array The web assembly module.
-     * @returns {Plugin | null} the module if it was successful.
+     * @returns {Module | null} the module if it was successful.
      */
-    addModuleBuffer(array: ArrayBuffer): Plugin | null {
+    addModuleBuffer(array: ArrayBuffer): Module | null {
         return this.addModuleUnsafe(changetype<usize>(array), <usize>array.byteLength);
     }
 
@@ -231,10 +225,10 @@ export class Config {
      * the `error.err_str` global will contain the error string.
      *
      * @param {Uint8Array} array The web assembly module.
-     * @returns {Plugin | null} the module if it was successful.
+     * @returns {Module | null} the module if it was successful.
      */
-    addModuleArray(array: Uint8Array): Plugin | null {
-        return this.addPluginUnsafe(array.dataStart, <usize>array.byteLength);
+    addModuleArray(array: Uint8Array): Module | null {
+        return this.addModuleUnsafe(array.dataStart, <usize>array.byteLength);
     }
 
     /**
@@ -242,10 +236,10 @@ export class Config {
      * the `error.err_str` global will contain the error string.
      *
      * @param {StaticArray<u8>} array The web assembly module.
-     * @returns {Plugin | null} the module if it was successful.
+     * @returns {Module | null} the module if it was successful.
      */
-    addModuleStaticArray(array: StaticArray<u8>): Plugin | null {
-        return this.addPluginUnsafe(changetype<usize>(array), <usize>array.length);
+    addModuleStaticArray(array: StaticArray<u8>): Module | null {
+        return this.addModuleUnsafe(changetype<usize>(array), <usize>array.length);
     }
 
     /**
@@ -253,7 +247,7 @@ export class Config {
      * fails, the `error.err_str` global will contain the error string.
      *
      * @param {StaticArray<u8>} array The web assembly plugin.
-     * @returns {Plugin | null} the plugin if it was successful.
+     * @returns {Module | null} the plugin if it was successful.
      */
     addModuleUnsafe(bytes: usize, len: usize): Module | null {
         let result = add_module(this.id, bytes, len, id_ptr);
