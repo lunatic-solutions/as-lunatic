@@ -166,6 +166,17 @@ export class Config {
     }
 
     /**
+     * Add a plugin from an ArrayBuffer that represents a wasm module. If adding the plugin
+     * fails, the `error.err_str` global will contain the error string.
+     *
+     * @param {Uint8Array} array The web assembly plugin.
+     * @returns {Plugin | null} the plugin if it was successful.
+     */
+    addPluginBuffer(array: ArrayBuffer): Plugin | null {
+        return this.addPluginUnsafe(changetype<usize>(array), <usize>array.byteLength);
+    }
+
+    /**
      * Add a plugin from a Uint8Array that represents a wasm module. If adding the plugin fails,
      * the `error.err_str` global will contain the error string.
      *
@@ -205,13 +216,24 @@ export class Config {
     }
 
     /**
+     * Add a module from an ArrayBuffer that represents a wasm module. If adding the module
+     * fails, the `error.err_str` global will contain the error string.
+     *
+     * @param {Uint8Array} array The web assembly module.
+     * @returns {Plugin | null} the module if it was successful.
+     */
+    addModuleBuffer(array: ArrayBuffer): Plugin | null {
+        return this.addModuleUnsafe(changetype<usize>(array), <usize>array.byteLength);
+    }
+
+    /**
      * Add a module from a Uint8Array that represents a wasm module. If adding the module fails,
      * the `error.err_str` global will contain the error string.
      *
      * @param {Uint8Array} array The web assembly module.
      * @returns {Plugin | null} the module if it was successful.
      */
-     addModuleArray(array: Uint8Array): Plugin | null {
+    addModuleArray(array: Uint8Array): Plugin | null {
         return this.addPluginUnsafe(array.dataStart, <usize>array.byteLength);
     }
 
