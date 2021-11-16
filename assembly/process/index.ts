@@ -197,7 +197,7 @@ export class Config {
      * fails, the `error.err_str` global will contain the error string.
      *
      * @param {StaticArray<u8>} array The web assembly plugin.
-     * @returns {bool} the plugin if it was successful.
+     * @returns {bool} true if it was successful.
      */
     addPluginUnsafe(bytes: usize, len: usize): bool {
         let result = add_plugin(this.id, bytes, len, id_ptr);
@@ -247,7 +247,7 @@ export class Config {
      * fails, the `error.err_str` global will contain the error string.
      *
      * @param {StaticArray<u8>} array The web assembly plugin.
-     * @returns {Module | null} the plugin if it was successful.
+     * @returns {Module | null} the module if it was successful.
      */
     addModuleUnsafe(bytes: usize, len: usize): Module | null {
         let result = add_module(this.id, bytes, len, id_ptr);
