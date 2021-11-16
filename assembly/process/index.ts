@@ -14,7 +14,7 @@ export declare function allow_namespace(config_id: u64, namespace_str_ptr: usize
 export declare function preopen_dir(config_id: u64, dir_str_ptr: usize, dir_str_len: usize, id_ptr: usize): error.err_code;
 // @ts-ignore
 @external("lunatic::process", "create_environment")
-export declare function create_environment(config_id: u64, id_ptr: usize): usize
+export declare function create_environment(config_id: u64, id_ptr: usize): error.err_code;
 // @ts-ignore
 @external("lunatic::process", "drop_environment")
 export declare function drop_environment(env_id: u64): usize
@@ -76,9 +76,16 @@ export declare function lookup(name_ptr: usize, name_len: u32, query_ptr: usize,
 /** A predefined location to store id output. */
 const id_ptr = memory.data(sizeof<u64>());
 
+export class Environment {
+    constructor(
+        public id: u64,
+    ) {}
+}
+
+
 // Configurations help create environments
 export class Config {
-    private id: u64
+    private id: u64 = 0;
     private directories = new Map<string, u64>();
 
     constructor(max_memory: u64, max_fuel: u64) {
@@ -121,5 +128,21 @@ export class Config {
         }
         error.err_str = error.getError(dirId);
         return false;
+    }
+
+    /**
+     * Create an environment from the given configuration. If an environment cannot be created,
+     * it will return `null` and write the error description to `error.err_str`.
+     * 
+     * @returns {Environment | null} The environment if it was successful.
+     */
+    createEnvironment(): Environment | null {
+        let result = create_environment(this.id, id_ptr);
+        let id = load<u64>(id_ptr);
+        if (result == error.err_code.Success) {
+            return new Environment(id);
+        }
+        error.err_str = error.getError(id);
+        return null;
     }
 }
