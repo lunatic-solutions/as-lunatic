@@ -159,14 +159,35 @@ export class Config {
         return null;
     }
 
+    /**
+     * Add a plugin from a Uint8Array that represents a wasm module. If adding the module fails,
+     * the `error.err_str` global will contain the error string.
+     *
+     * @param {Uint8Array} array The web assembly module.
+     * @returns {Plugin | null} the plugin if it was successful.
+     */
     addPluginArray(array: Uint8Array): Plugin | null {
         return this.addPluginUnsafe(array.dataStart, <usize>array.byteLength);
     }
 
+    /**
+     * Add a plugin from a StaticArray<u8> that represents a wasm module. If adding the module fails,
+     * the `error.err_str` global will contain the error string.
+     *
+     * @param {StaticArray<u8>} array The web assembly module.
+     * @returns {Plugin | null} the plugin if it was successful.
+     */
     addPluginStaticArray(array: StaticArray<u8>): Plugin | null {
         return this.addPluginUnsafe(changetype<usize>(array), <usize>array.length);
     }
 
+    /**
+     * Add a plugin from a pointer and a length that represents a wasm module. If adding the module
+     * fails, the `error.err_str` global will contain the error string.
+     *
+     * @param {StaticArray<u8>} array The web assembly module.
+     * @returns {Plugin | null} the plugin if it was successful.
+     */
     addPluginUnsafe(bytes: usize, len: usize): Plugin | null {
         let result = add_plugin(this.id, bytes, len, id_ptr);
         let pluginId = load<u64>(id_ptr);
