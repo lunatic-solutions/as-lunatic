@@ -23,7 +23,7 @@ export declare function drop_environment(env_id: u64): void
 export declare function add_plugin(config_id: u64, plugin_data_ptr: usize, plugin_data_len: u32, id_ptr: usize): error.err_code;
     // @ts-ignore
 @external("lunatic::process", "add_module")
-export declare function add_module(env_id: u64, module_data_ptr: usize, module_data_len: u32, id_ptr: usize): usize
+export declare function add_module(env_id: u64, module_data_ptr: usize, module_data_len: u32, id_ptr: usize): error.err_code;
     // @ts-ignore
 @external("lunatic::process", "add_this_module")
 export declare function add_this_module(env_id: u64, id_ptr: usize): usize
@@ -75,6 +75,12 @@ export declare function lookup(name_ptr: usize, name_len: u32, query_ptr: usize,
 
 /** A predefined location to store id output. */
 const id_ptr = memory.data(sizeof<u64>());
+
+export class Module {
+    constructor(
+        public id: u64,
+    ) {}
+}
 
 export class Plugin {
     constructor(
@@ -160,10 +166,10 @@ export class Config {
     }
 
     /**
-     * Add a plugin from a Uint8Array that represents a wasm module. If adding the module fails,
+     * Add a plugin from a Uint8Array that represents a wasm module. If adding the plugin fails,
      * the `error.err_str` global will contain the error string.
      *
-     * @param {Uint8Array} array The web assembly module.
+     * @param {Uint8Array} array The web assembly plugin.
      * @returns {Plugin | null} the plugin if it was successful.
      */
     addPluginArray(array: Uint8Array): Plugin | null {
@@ -171,10 +177,10 @@ export class Config {
     }
 
     /**
-     * Add a plugin from a StaticArray<u8> that represents a wasm module. If adding the module fails,
+     * Add a plugin from a StaticArray<u8> that represents a wasm module. If adding the plugin fails,
      * the `error.err_str` global will contain the error string.
      *
-     * @param {StaticArray<u8>} array The web assembly module.
+     * @param {StaticArray<u8>} array The web assembly plugin.
      * @returns {Plugin | null} the plugin if it was successful.
      */
     addPluginStaticArray(array: StaticArray<u8>): Plugin | null {
@@ -182,10 +188,10 @@ export class Config {
     }
 
     /**
-     * Add a plugin from a pointer and a length that represents a wasm module. If adding the module
+     * Add a plugin from a pointer and a length that represents a wasm module. If adding the plugin
      * fails, the `error.err_str` global will contain the error string.
      *
-     * @param {StaticArray<u8>} array The web assembly module.
+     * @param {StaticArray<u8>} array The web assembly plugin.
      * @returns {Plugin | null} the plugin if it was successful.
      */
     addPluginUnsafe(bytes: usize, len: usize): Plugin | null {
@@ -193,6 +199,45 @@ export class Config {
         let pluginId = load<u64>(id_ptr);
         if (result == error.err_code.Success) {
             return new Plugin(pluginId);
+        }
+        error.err_str = error.getError(pluginId);
+        return null;
+    }
+
+    /**
+     * Add a module from a Uint8Array that represents a wasm module. If adding the module fails,
+     * the `error.err_str` global will contain the error string.
+     *
+     * @param {Uint8Array} array The web assembly module.
+     * @returns {Plugin | null} the module if it was successful.
+     */
+     addModuleArray(array: Uint8Array): Plugin | null {
+        return this.addPluginUnsafe(array.dataStart, <usize>array.byteLength);
+    }
+
+    /**
+     * Add a module from a StaticArray<u8> that represents a wasm module. If adding the module fails,
+     * the `error.err_str` global will contain the error string.
+     *
+     * @param {StaticArray<u8>} array The web assembly module.
+     * @returns {Plugin | null} the module if it was successful.
+     */
+    addModuleStaticArray(array: StaticArray<u8>): Plugin | null {
+        return this.addPluginUnsafe(changetype<usize>(array), <usize>array.length);
+    }
+
+    /**
+     * Add a plugin from a pointer and a length that represents a wasm module. If adding the Module
+     * fails, the `error.err_str` global will contain the error string.
+     *
+     * @param {StaticArray<u8>} array The web assembly plugin.
+     * @returns {Plugin | null} the plugin if it was successful.
+     */
+    addModuleUnsafe(bytes: usize, len: usize): Module | null {
+        let result = add_module(this.id, bytes, len, id_ptr);
+        let pluginId = load<u64>(id_ptr);
+        if (result == error.err_code.Success) {
+            return new Module(pluginId);
         }
         error.err_str = error.getError(pluginId);
         return null;
