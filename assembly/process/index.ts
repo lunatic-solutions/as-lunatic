@@ -26,7 +26,7 @@ export declare function add_plugin(config_id: u64, plugin_data_ptr: usize, plugi
 export declare function add_module(env_id: u64, module_data_ptr: usize, module_data_len: u32, id_ptr: usize): error.err_code;
     // @ts-ignore
 @external("lunatic::process", "add_this_module")
-export declare function add_this_module(env_id: u64, id_ptr: usize): usize
+export declare function add_this_module(env_id: u64, id_ptr: usize): error.err_code;
     // @ts-ignore
 @external("lunatic::process", "drop_module")
 export declare function drop_module(mod_id: u64): usize
@@ -136,11 +136,26 @@ export class Environment {
      */
     addModuleUnsafe(bytes: usize, len: usize): Module | null {
         let result = add_module(this.id, bytes, len, id_ptr);
-        let pluginId = load<u64>(id_ptr);
+        let moduleId = load<u64>(id_ptr);
         if (result == error.err_code.Success) {
-            return new Module(pluginId);
+            return new Module(moduleId);
         }
-        error.err_str = error.getError(pluginId);
+        error.err_str = error.getError(moduleId);
+        return null;
+    }
+
+    /**
+     * Add a module of the current kind to the environment.
+     * 
+     * @returns {Module | null} The module if it was successful.
+     */
+    addThisModule(): Module | null {
+        let result = add_this_module(this.id, id_ptr);
+        let moduleId = load<u64>(id_ptr);
+        if (result == error.err_code.Success) {
+            return new Module(moduleId);
+        }
+        error.err_str = error.getError(moduleId);
         return null;
     }
 }
