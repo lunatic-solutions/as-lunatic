@@ -17,7 +17,7 @@ export declare function preopen_dir(config_id: u64, dir_str_ptr: usize, dir_str_
 export declare function create_environment(config_id: u64, id_ptr: usize): error.err_code;
 // @ts-ignore
 @external("lunatic::process", "drop_environment")
-export declare function drop_environment(env_id: u64): usize
+export declare function drop_environment(env_id: u64): void
 // @ts-ignore
 @external("lunatic::process", "add_plugin")
 export declare function add_plugin(config_id: u64, plugin_data_ptr: usize, plugin_data_len: u32, id_ptr: usize): usize
@@ -80,6 +80,13 @@ export class Environment {
     constructor(
         public id: u64,
     ) {}
+
+    /**
+     * Drop an environment.
+     */
+    drop(): void {
+        drop_environment(this.id);
+    }
 }
 
 
