@@ -5,7 +5,7 @@ import { error } from "../error";
 export declare function create_config(max_memory: u64, max_fuel: u64): u64;
 // @ts-ignore
 @external("lunatic::process", "drop_config")
-export declare function drop_config(config_id: u64): usize;
+export declare function drop_config(config_id: u64): void;
 // @ts-ignore
 @external("lunatic::process", "allow_namespace")
 export declare function allow_namespace(config_id: u64, namespace_str_ptr: usize, namespace_str_len: u32): usize;
@@ -100,7 +100,7 @@ export class Config {
      * Drop a configuration
      */
     drop(): void {
-        drop_config(this.id)
+        drop_config(this.id);
     }
 
     /**
