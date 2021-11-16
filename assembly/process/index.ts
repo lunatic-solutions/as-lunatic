@@ -1,4 +1,4 @@
-import { err_code, Result } from "../error";
+import { error } from "../error";
 
 // @ts-ignore
 @external("lunatic::process", "create_config")
@@ -11,7 +11,7 @@ export declare function drop_config(config_id: u64): usize;
 export declare function allow_namespace(config_id: u64, namespace_str_ptr: usize, namespace_str_len: u32): usize;
 // @ts-ignore
 @external("lunatic::process", "preopen_dir")
-export declare function preopen_dir(config_id: u64, dir_str_ptr: usize, dir_str_len: u32, id_ptr: usize): usize
+export declare function preopen_dir(config_id: u64, dir_str_ptr: usize, dir_str_len: usize, id_ptr: usize): error.err_code;
 // @ts-ignore
 @external("lunatic::process", "create_environment")
 export declare function create_environment(config_id: u64, id_ptr: usize): usize
@@ -73,9 +73,14 @@ export declare function unregister(name_ptr: usize, name_len: u32, version_ptr: 
 @external("lunatic::process", "lookup")
 export declare function lookup(name_ptr: usize, name_len: u32, query_ptr: usize, query_len: u32, id_u64_ptr: usize): usize
 
+/** A predefined location to store id output. */
+const id_ptr = memory.data(sizeof<u64>());
+
 // Configurations help create environments
 export class Config {
-    public id: u64
+    private id: u64
+    private directories = new Map<string, u64>();
+
     constructor(max_memory: u64, max_fuel: u64) {
         this.id = create_config(max_memory, max_fuel)
     }
@@ -84,11 +89,11 @@ export class Config {
      * Allow a host namespace to be used.
      * 
      * @param {string} namespace - The lunatic namespace being allowed.
-     * @returns {bool} True if the namespace was allowed.
+     * @returns {bool} true if the namespace was allowed.
      */
     allowNamespace(namespace: string): bool {
         let buff = String.UTF8.encode(namespace);
-        return allow_namespace(this.id, changetype<usize>(buff), buff.byteLength) == err_code.Success;
+        return allow_namespace(this.id, changetype<usize>(buff), buff.byteLength) == error.err_code.Success;
     }
 
     /**
@@ -101,12 +106,20 @@ export class Config {
     /**
      * Preopen a directory for filesystem use.
      * 
-     * @param dir_str_ptr 
-     * @param dir_str_len 
-     * @returns 
+     * @param {string} directory
+     * @returns {bool} true if the directory was preopened, otherwise it sets the error.err_str variable with the reason for failure.
      */
-    preopenDir(dir_str_ptr: usize, dir_str_len: u32): Result<boolean, boolean> {
-        let opened = preopen_dir(this.id, dir_str_ptr, dir_str_len, this.id)
-        return new Result(true, false, opened ? true : false)
+    preopenDir(directory: string): bool {
+        // strings need to be encoded every time we pass them up to the host
+        let dirStr = String.UTF8.encode(directory);
+        // call preopen
+        let result = preopen_dir(this.id, changetype<usize>(dirStr), dirStr.byteLength, id_ptr);
+        let dirId  = load<u64>(id_ptr);
+        if (result == error.err_code.Success) {
+            this.directories.set(directory, dirId);
+            error.err_str = null;
+        }
+        error.err_str = error.getError(dirId);
+        return false;
     }
 }

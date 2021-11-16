@@ -1,15 +1,3 @@
-export class Result<SuccessT, FailT> {
-  public result: SuccessT | FailT
-  constructor(success: SuccessT, fail: FailT, succeeded: boolean) {
-    if (succeeded) this.result = success
-    else this.result = fail
-  }
-}
-
-export const enum err_code {
-  Success,
-  Fail,
-}
 
 /**
  * Obtain the length of an error string.
@@ -41,18 +29,28 @@ export declare function to_string(id: u64, ptr: usize): void;
 @external("lunatic", "drop")
 export declare function drop(id: u64): void;
 
-/**
- * Obtain an error string from an error id.
- *
- * @param {u64} id - The error id.
- * @returns The error string.
- */
-export function getError(id: u64): Result<string, null> {
-  let len = string_size(id);
-  let ptr = heap.alloc(len);
-  to_string(id, ptr);
-  drop(id);
-  let value = String.UTF8.decodeUnsafe(ptr, len, false);
-  heap.free(ptr);
-  return new Result(value, null, value.length ? false : true);
+export namespace error {
+  export const enum err_code {
+    Success,
+    Fail,
+  }
+
+  export let err_str: string | null = "";
+
+  /**
+   * Obtain an error string from an error id. This function will trap if the
+   * error id is not found.
+   *
+   * @param {u64} id - The error id.
+   * @returns The error string.
+   */
+  export function getError(id: u64): string {
+    let len = string_size(id);
+    let ptr = heap.alloc(len);
+    to_string(id, ptr);
+    drop(id);
+    let value = String.UTF8.decodeUnsafe(ptr, len, false);
+    heap.free(ptr);
+    return value;
+  }
 }
