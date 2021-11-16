@@ -29,7 +29,7 @@ export declare function add_module(env_id: u64, module_data_ptr: usize, module_d
 export declare function add_this_module(env_id: u64, id_ptr: usize): error.err_code;
     // @ts-ignore
 @external("lunatic::process", "drop_module")
-export declare function drop_module(mod_id: u64): usize
+export declare function drop_module(mod_id: u64): void;
     // @ts-ignore
 @external("lunatic::process", "spawn")
 export declare function spawn(link: i64, module_id: u64, func_str_ptr: usize, func_str_len: u32, params_ptr: usize, params_len: u32, id_ptr: usize): usize
@@ -80,6 +80,11 @@ export class Module {
     constructor(
         public id: u64,
     ) {}
+
+    /** Drop the module. */
+    drop(): void {
+        drop_module(this.id);
+    }
 }
 
 export class Environment {
