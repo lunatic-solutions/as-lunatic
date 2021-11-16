@@ -93,6 +93,56 @@ export class Environment {
     drop(): void {
         drop_environment(this.id);
     }
+
+    /**
+     * Add a module from an ArrayBuffer that represents a wasm module. If adding the module
+     * fails, the `error.err_str` global will contain the error string.
+     *
+     * @param {Uint8Array} array The web assembly module.
+     * @returns {Module | null} the module if it was successful.
+     */
+    addModuleBuffer(array: ArrayBuffer): Module | null {
+        return this.addModuleUnsafe(changetype<usize>(array), <usize>array.byteLength);
+    }
+
+    /**
+     * Add a module from a Uint8Array that represents a wasm module. If adding the module fails,
+     * the `error.err_str` global will contain the error string.
+     *
+     * @param {Uint8Array} array The web assembly module.
+     * @returns {Module | null} the module if it was successful.
+     */
+    addModuleArray(array: Uint8Array): Module | null {
+        return this.addModuleUnsafe(array.dataStart, <usize>array.byteLength);
+    }
+
+    /**
+     * Add a module from a StaticArray<u8> that represents a wasm module. If adding the module fails,
+     * the `error.err_str` global will contain the error string.
+     *
+     * @param {StaticArray<u8>} array The web assembly module.
+     * @returns {Module | null} the module if it was successful.
+     */
+    addModuleStaticArray(array: StaticArray<u8>): Module | null {
+        return this.addModuleUnsafe(changetype<usize>(array), <usize>array.length);
+    }
+
+    /**
+     * Add a plugin from a pointer and a length that represents a wasm module. If adding the Module
+     * fails, the `error.err_str` global will contain the error string.
+     *
+     * @param {StaticArray<u8>} array The web assembly plugin.
+     * @returns {Module | null} the module if it was successful.
+     */
+    addModuleUnsafe(bytes: usize, len: usize): Module | null {
+        let result = add_module(this.id, bytes, len, id_ptr);
+        let pluginId = load<u64>(id_ptr);
+        if (result == error.err_code.Success) {
+            return new Module(pluginId);
+        }
+        error.err_str = error.getError(pluginId);
+        return null;
+    }
 }
 
 
@@ -207,55 +257,5 @@ export class Config {
         }
         error.err_str = error.getError(pluginId);
         return false;
-    }
-
-    /**
-     * Add a module from an ArrayBuffer that represents a wasm module. If adding the module
-     * fails, the `error.err_str` global will contain the error string.
-     *
-     * @param {Uint8Array} array The web assembly module.
-     * @returns {Module | null} the module if it was successful.
-     */
-    addModuleBuffer(array: ArrayBuffer): Module | null {
-        return this.addModuleUnsafe(changetype<usize>(array), <usize>array.byteLength);
-    }
-
-    /**
-     * Add a module from a Uint8Array that represents a wasm module. If adding the module fails,
-     * the `error.err_str` global will contain the error string.
-     *
-     * @param {Uint8Array} array The web assembly module.
-     * @returns {Module | null} the module if it was successful.
-     */
-    addModuleArray(array: Uint8Array): Module | null {
-        return this.addModuleUnsafe(array.dataStart, <usize>array.byteLength);
-    }
-
-    /**
-     * Add a module from a StaticArray<u8> that represents a wasm module. If adding the module fails,
-     * the `error.err_str` global will contain the error string.
-     *
-     * @param {StaticArray<u8>} array The web assembly module.
-     * @returns {Module | null} the module if it was successful.
-     */
-    addModuleStaticArray(array: StaticArray<u8>): Module | null {
-        return this.addModuleUnsafe(changetype<usize>(array), <usize>array.length);
-    }
-
-    /**
-     * Add a plugin from a pointer and a length that represents a wasm module. If adding the Module
-     * fails, the `error.err_str` global will contain the error string.
-     *
-     * @param {StaticArray<u8>} array The web assembly plugin.
-     * @returns {Module | null} the module if it was successful.
-     */
-    addModuleUnsafe(bytes: usize, len: usize): Module | null {
-        let result = add_module(this.id, bytes, len, id_ptr);
-        let pluginId = load<u64>(id_ptr);
-        if (result == error.err_code.Success) {
-            return new Module(pluginId);
-        }
-        error.err_str = error.getError(pluginId);
-        return null;
     }
 }
