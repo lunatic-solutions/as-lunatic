@@ -159,6 +159,10 @@ export class Config {
         return null;
     }
 
+    addPluginArray(array: Uint8Array): Plugin | null {
+        return this.addPluginUnsafe(array.dataStart, <usize>array.byteLength);
+    }
+
     addPluginStaticArray(array: StaticArray<u8>): Plugin | null {
         return this.addPluginUnsafe(changetype<usize>(array), <usize>array.length);
     }
