@@ -72,18 +72,39 @@ export declare function unregister(name_ptr: usize, name_len: u32, version_ptr: 
     // @ts-ignore
 @external("lunatic::process", "lookup")
 export declare function lookup(name_ptr: usize, name_len: u32, query_ptr: usize, query_len: u32, id_u64_ptr: usize): usize
-    export class Config {
+
+// Configurations help create environments
+export class Config {
     public id: u64
     constructor(max_memory: u64, max_fuel: u64) {
         this.id = create_config(max_memory, max_fuel)
     }
-    allowNamespace(name_space: string): bool {
-        let buff = String.UTF8.encode(name_space);
+
+    /**
+     * Allow a host namespace to be used.
+     * 
+     * @param {string} namespace - The lunatic namespace being allowed.
+     * @returns {bool} True if the namespace was allowed.
+     */
+    allowNamespace(namespace: string): bool {
+        let buff = String.UTF8.encode(namespace);
         return allow_namespace(this.id, changetype<usize>(buff), buff.byteLength) == err_code.Success;
     }
+
+    /**
+     * Drop a configuration
+     */
     drop(): void {
         drop_config(this.id)
     }
+
+    /**
+     * Preopen a directory for filesystem use.
+     * 
+     * @param dir_str_ptr 
+     * @param dir_str_len 
+     * @returns 
+     */
     preopenDir(dir_str_ptr: usize, dir_str_len: u32): Result<boolean, boolean> {
         let opened = preopen_dir(this.id, dir_str_ptr, dir_str_len, this.id)
         return new Result(true, false, opened ? true : false)
