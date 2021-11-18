@@ -8,7 +8,7 @@ export declare function create_config(max_memory: u64, max_fuel: u64): u64;
 export declare function drop_config(config_id: u64): void;
 // @ts-ignore
 @external("lunatic::process", "allow_namespace")
-export declare function allow_namespace(config_id: u64, namespace_str_ptr: usize, namespace_str_len: u32): usize;
+export declare function allow_namespace(config_id: u64, namespace_str_ptr: usize, namespace_str_len: u32): error.err_code;
 // @ts-ignore
 @external("lunatic::process", "preopen_dir")
 export declare function preopen_dir(config_id: u64, dir_str_ptr: usize, dir_str_len: usize, id_ptr: usize): error.err_code;
