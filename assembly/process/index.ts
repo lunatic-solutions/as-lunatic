@@ -127,9 +127,9 @@ export class Environment extends LunaticManaged {
      * fails, the `error.err_str` global will contain the error string.
      *
      * @param {Uint8Array} array The web assembly module.
-     * @returns {Module | null} the module if it was successful.
+     * @returns {error.Result<Module | null>} the module if it was successful.
      */
-    addModuleBuffer(array: ArrayBuffer): Module | null {
+    addModuleBuffer(array: ArrayBuffer): error.Result<Module | null> {
         return this.addModuleUnsafe(changetype<usize>(array), <usize>array.byteLength);
     }
 
@@ -138,9 +138,9 @@ export class Environment extends LunaticManaged {
      * the `error.err_str` global will contain the error string.
      *
      * @param {Uint8Array} array The web assembly module.
-     * @returns {Module | null} the module if it was successful.
+     * @returns {error.Result<Module | null>} the module if it was successful.
      */
-    addModuleArray(array: Uint8Array): Module | null {
+    addModuleArray(array: Uint8Array): error.Result<Module | null> {
         return this.addModuleUnsafe(array.dataStart, <usize>array.byteLength);
     }
 
@@ -149,9 +149,9 @@ export class Environment extends LunaticManaged {
      * the `error.err_str` global will contain the error string.
      *
      * @param {StaticArray<u8>} array The web assembly module.
-     * @returns {Module | null} the module if it was successful.
+     * @returns {error.Result<Module | null>} the module if it was successful.
      */
-    addModuleStaticArray(array: StaticArray<u8>): Module | null {
+    addModuleStaticArray(array: StaticArray<u8>): error.Result<Module | null> {
         return this.addModuleUnsafe(changetype<usize>(array), <usize>array.length);
     }
 
@@ -160,31 +160,29 @@ export class Environment extends LunaticManaged {
      * fails, the `error.err_str` global will contain the error string.
      *
      * @param {StaticArray<u8>} array The web assembly plugin.
-     * @returns {Module | null} the module if it was successful.
+     * @returns {error.Result<Module | null>} the module if it was successful.
      */
-    addModuleUnsafe(bytes: usize, len: usize): Module | null {
+    addModuleUnsafe(bytes: usize, len: usize): error.Result<Module | null> {
         let result = add_module(this.id, bytes, len, id_ptr);
         let moduleId = load<u64>(id_ptr);
         if (result == error.err_code.Success) {
-            return new Module(moduleId);
+            return new error.Result<Module | null>(new Module(moduleId));
         }
-        error.err_str = error.getError(moduleId);
-        return null;
+        return new error.Result<Module | null>(null, moduleId);
     }
 
     /**
      * Add a module of the current kind to the environment.
      * 
-     * @returns {Module | null} The module if it was successful.
+     * @returns {error.Result<Module | null>} The module if it was successful.
      */
-    addThisModule(): Module | null {
+    addThisModule(): error.Result<Module | null> {
         let result = add_this_module(this.id, id_ptr);
         let moduleId = load<u64>(id_ptr);
         if (result == error.err_code.Success) {
-            return new Module(moduleId);
+            return new error.Result<Module | null>(new Module(moduleId));
         }
-        error.err_str = error.getError(moduleId);
-        return null;
+        return new error.Result<Module | null>(null, moduleId);
     }
 }
 
