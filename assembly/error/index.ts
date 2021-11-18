@@ -9,7 +9,7 @@
 import { add_finalize, LunaticManaged } from "../util";
 
 // @ts-ignore: external is valid here
-@external("lunatic", "string_size")
+@external("lunatic::error", "string_size")
 export declare function string_size(id: u64): usize;
 
 
@@ -20,7 +20,7 @@ export declare function string_size(id: u64): usize;
  * @param {usize} ptr [*mut u8] The pointer to memory where it will be written.
  */
 // @ts-ignore
-@external("lunatic", "to_string")
+@external("lunatic::error", "to_string")
 export declare function to_string(id: u64, ptr: usize): void;
 
 /**
@@ -29,8 +29,8 @@ export declare function to_string(id: u64, ptr: usize): void;
  * @param {u64} id - The error id.
  */
 // @ts-ignore
-@external("lunatic", "drop")
-export declare function drop(id: u64): void;
+@external("lunatic::error", "drop")
+export declare function drop_error(id: u64): void;
 
 export namespace error {
   export const enum err_code {
@@ -51,7 +51,7 @@ export namespace error {
     let len = string_size(id);
     let ptr = heap.alloc(len);
     to_string(id, ptr);
-    drop(id);
+    drop_error(id);
     let value = String.UTF8.decodeUnsafe(ptr, len, false);
     heap.free(ptr);
     return value;
@@ -88,7 +88,7 @@ export namespace error {
     /** Dispose the error string if it was allocated. */
     dispose(): void {
       if (!this.dropped && this.errId != u64.MAX_VALUE) {
-        drop(this.errId);
+        drop_error(this.errId);
         this.dropped = true;
       }
     }
