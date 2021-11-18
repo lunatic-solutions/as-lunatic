@@ -248,16 +248,15 @@ export class Config extends LunaticManaged {
      * Create an environment from the given configuration. If an environment cannot be created,
      * it will return `null` and write the error description to `error.err_str`.
      * 
-     * @returns {Environment | null} The environment if it was successful.
+     * @returns {error.Result<Environment | null>} The environment if it was successful.
      */
-    createEnvironment(): Environment | null {
+    createEnvironment(): error.Result<Environment | null> {
         let result = create_environment(this.id, id_ptr);
         let id = load<u64>(id_ptr);
         if (result == error.err_code.Success) {
-            return new Environment(id);
+            return new error.Result<Environment | null>(new Environment(id));
         }
-        error.err_str = error.getError(id);
-        return null;
+        return new error.Result<Environment | null>(null, id);
     }
 
     /**
