@@ -265,9 +265,9 @@ export class Config extends LunaticManaged {
      * fails, the `error.err_str` global will contain the error string.
      *
      * @param {Uint8Array} array The web assembly plugin.
-     * @returns {bool} true if it was successful.
+     * @returns {error.Result<bool>} true if it was successful.
      */
-    addPluginBuffer(array: ArrayBuffer): bool {
+    addPluginBuffer(array: ArrayBuffer): error.Result<bool> {
         return this.addPluginUnsafe(changetype<usize>(array), <usize>array.byteLength);
     }
 
@@ -276,9 +276,9 @@ export class Config extends LunaticManaged {
      * the `error.err_str` global will contain the error string.
      *
      * @param {Uint8Array} array The web assembly plugin.
-     * @returns {bool} true if it was successful.
+     * @returns {error.Result<bool>} true if it was successful.
      */
-    addPluginArray(array: Uint8Array): bool {
+    addPluginArray(array: Uint8Array): error.Result<bool> {
         return this.addPluginUnsafe(array.dataStart, <usize>array.byteLength);
     }
 
@@ -287,9 +287,9 @@ export class Config extends LunaticManaged {
      * the `error.err_str` global will contain the error string.
      *
      * @param {StaticArray<u8>} array The web assembly plugin.
-     * @returns {bool} true if it was successful.
+     * @returns {error.Result<bool>} true if it was successful.
      */
-    addPluginStaticArray(array: StaticArray<u8>): bool {
+    addPluginStaticArray(array: StaticArray<u8>): error.Result<bool> {
         return this.addPluginUnsafe(changetype<usize>(array), <usize>array.length);
     }
 
@@ -298,15 +298,14 @@ export class Config extends LunaticManaged {
      * fails, the `error.err_str` global will contain the error string.
      *
      * @param {StaticArray<u8>} array The web assembly plugin.
-     * @returns {bool} true if it was successful.
+     * @returns {error.Result<bool>} true if it was successful.
      */
-    addPluginUnsafe(bytes: usize, len: usize): bool {
+    addPluginUnsafe(bytes: usize, len: usize): error.Result<bool> {
         let result = add_plugin(this.id, bytes, len, id_ptr);
         let pluginId = load<u64>(id_ptr);
         if (result == error.err_code.Success) {
-            return true;
+            return new error.Result<bool>(true);
         }
-        error.err_str = error.getError(pluginId);
-        return false;
+        return new error.Result<bool>(false, pluginId);
     }
 }
