@@ -228,9 +228,9 @@ export class Config extends LunaticManaged {
      * Preopen a directory for filesystem use.
      * 
      * @param {string} directory
-     * @returns {bool} true if the directory was preopened, otherwise it sets the error.err_str variable with the reason for failure.
+     * @returns {error.Result<bool>} true if the directory was preopened, otherwise it sets the error.err_str variable with the reason for failure.
      */
-    preopenDir(directory: string): bool {
+    preopenDir(directory: string): error.Result<bool> {
         // strings need to be encoded every time we pass them up to the host
         let dirStr = String.UTF8.encode(directory);
         // call preopen
@@ -238,10 +238,9 @@ export class Config extends LunaticManaged {
         let dirId  = load<u64>(id_ptr);
         if (result == error.err_code.Success) {
             this.directories.set(directory, dirId);
-            error.err_str = null;
+            return new error.Result<bool>(true);
         }
-        error.err_str = error.getError(dirId);
-        return false;
+        return new error.Result<bool>(false, dirId);
     }
 
     /**
