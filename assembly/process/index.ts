@@ -1,4 +1,5 @@
 import { error } from "../error";
+import { add_finalize, LunaticManaged } from "../util";
 
 // @ts-ignore
 @external("lunatic::process", "create_config")
@@ -17,7 +18,7 @@ export declare function preopen_dir(config_id: u64, dir_str_ptr: usize, dir_str_
 export declare function create_environment(config_id: u64, id_ptr: usize): error.err_code;
 // @ts-ignore
 @external("lunatic::process", "drop_environment")
-export declare function drop_environment(env_id: u64): void
+export declare function drop_environment(env_id: u64): void;
 // @ts-ignore
 @external("lunatic::process", "add_plugin")
 export declare function add_plugin(config_id: u64, plugin_data_ptr: usize, plugin_data_len: u32, id_ptr: usize): error.err_code;
@@ -76,27 +77,49 @@ export declare function lookup(name_ptr: usize, name_len: u32, query_ptr: usize,
 /** A predefined location to store id output. */
 const id_ptr = memory.data(sizeof<u64>());
 
-export class Module {
+export class Module extends LunaticManaged {
     constructor(
         public id: u64,
-    ) {}
+    ) {
+        super();
+        add_finalize(this);
+    }
 
     /** Drop the module. */
     drop(): void {
-        drop_module(this.id);
+        if (!this.dropped) {
+            drop_module(this.id);
+            this.dropped = true;
+        }
+    }
+    
+    /** Used by as-lunatic's __lunatic_finalize() function to assert the resource is dropped. */
+    dispose(): void {
+        this.drop();
     }
 }
 
-export class Environment {
+export class Environment extends LunaticManaged {
     constructor(
         public id: u64,
-    ) {}
+    ) {
+        super();
+        add_finalize(this);
+    }
+
+    /** Used by as-lunatic's __lunatic_finalize() function to assert the resource is dropped. */
+    dispose(): void {
+        this.drop();
+    } 
 
     /**
      * Drop an environment.
      */
     drop(): void {
-        drop_environment(this.id);
+        if (!this.dropped) {
+            drop_environment(this.id);
+            this.dropped = true;
+        }
     }
 
     /**
@@ -167,12 +190,19 @@ export class Environment {
 
 
 // Configurations help create environments
-export class Config {
+export class Config extends LunaticManaged {
     private id: u64 = 0;
     private directories = new Map<string, u64>();
 
     constructor(max_memory: u64, max_fuel: u64) {
-        this.id = create_config(max_memory, max_fuel)
+        super();
+        this.id = create_config(max_memory, max_fuel);
+        add_finalize(this);
+    }
+
+    /** Used by as-lunatic's __lunatic_finalize() function to assert the resource is dropped. */
+    dispose(): void {
+        this.drop();
     }
 
     /**
@@ -190,7 +220,10 @@ export class Config {
      * Drop a configuration
      */
     drop(): void {
-        drop_config(this.id);
+        if (!this.dropped) {
+            drop_config(this.id);
+            this.dropped = true;
+        }
     }
 
     /**
