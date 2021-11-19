@@ -1,5 +1,6 @@
 import { Result, err_code } from "../error";
 import { add_finalize, LunaticManaged } from "../util";
+import { ASON } from "@ason/assembly";
 
 // @ts-ignore
 @external("lunatic::process", "create_config")
@@ -79,9 +80,32 @@ const id_ptr = memory.data(sizeof<u64>());
 
 let pid = id();
 
+export class Process extends LunaticManaged {
+
+
+
+    constructor(
+        private id: u64,
+    ) {
+        super();
+        add_finalize(this);
+    }
+
+    drop(): void {
+        if (!this.dropped) {
+            this.dropped = true;
+            drop_process(this.id);
+        }
+    }
+
+    dispose(): void {
+        this.drop();
+    }
+}
+
 export class Module extends LunaticManaged {
     constructor(
-        public id: u64,
+        private id: u64,
     ) {
         super();
         add_finalize(this);
