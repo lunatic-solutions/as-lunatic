@@ -134,6 +134,7 @@ export function __lunatic_seed(): f64 { // eslint-disable-line @typescript-eslin
 export * from "./error";
 export * from "./process";
 export * from "./messaging";
+export * from "./util";
 
 // export * from "./channel";
 // export * from "./process/index-old";
