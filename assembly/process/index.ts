@@ -111,7 +111,7 @@ export class Process extends LunaticManaged {
             changetype<usize>(bootstrap_utf8),
             <usize>bootstrap_utf8.length,
             changetype<usize>(params),
-            <usize>params.length,
+            1,
             id_ptr,
         );
         let spawnID = load<u64>(id_ptr);
