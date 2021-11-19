@@ -4,6 +4,9 @@
       "debug": true
     }
   },
+  "entries": [
+    "assembly/entry.ts"
+  ],
   "options": {
     "use": [
       "__finalize=__lunatic_finalize",

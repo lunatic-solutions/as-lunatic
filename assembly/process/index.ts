@@ -37,7 +37,7 @@ export declare function drop_module(mod_id: u64): void;
 export declare function spawn(link: i64, module_id: u64, func_str_ptr: usize, func_str_len: u32, params_ptr: usize, params_len: u32, id_ptr: usize): usize
     // @ts-ignore
 @external("lunatic::process", "inherit_spawn")
-export declare function inherit_spawn(link: i64, func_str_ptr: usize, func_str_len: u32, params_ptr: usize, params_len: u32, id_ptr: usize): usize
+export declare function inherit_spawn(link: u64, func_str_ptr: usize, func_str_len: u32, params_ptr: usize, params_len: u32, id_ptr: usize): err_code;
     // @ts-ignore
 @external("lunatic::process", "drop_process")
 export declare function drop_process(process_id: u64): usize
@@ -78,10 +78,49 @@ export declare function lookup(name_ptr: usize, name_len: u32, query_ptr: usize,
 /** A predefined location to store id output. */
 const id_ptr = memory.data(sizeof<u64>());
 
+const params = [0x7F, 0, 0, 0, 0,
+                      0, 0, 0, 0,
+                      0, 0, 0, 0,
+                      0, 0, 0, 0] as StaticArray<u8>;
+
+const bootstrap_utf8 = [0x5f, 0x5f, // "__"
+    0x6c, 0x75, 0x6e, 0x61, 0x74, 0x69, 0x63, // "lunatic"
+    0x5f, // "_"
+    0x70, 0x72, 0x6f, 0x63, 0x65, 0x73, 0x73, // "process"
+    0x5f, // "_"
+    0x62, 0x6f, 0x6f, 0x74, 0x73, 0x74, 0x72, 0x61, 0x70, // "bootstrap"
+] as StaticArray<u8>;
+
+
 let pid = id();
 
 export class Process extends LunaticManaged {
 
+    /**
+     * Create a process from the same module as the currently running one, with a single callback.
+     * 
+     * @param {() => void} func - The callback for the process. 
+     * @returns {Result<Process | null>} the process if the creation was successful.
+     */
+    static inherit_spawn(func: () => void): Result<Process | null> {
+        // store the function pointer bytes little endian (lower bytes in front)
+        store<i32>(changetype<usize>(params), <i32>func.index, 1);
+
+        let result = inherit_spawn(
+            pid,
+            changetype<usize>(bootstrap_utf8),
+            <usize>bootstrap_utf8.length,
+            changetype<usize>(params),
+            <usize>params.length,
+            id_ptr,
+        );
+        let spawnID = load<u64>(id_ptr);
+
+        if (result == err_code.Success) {
+            return new Result<Process | null>(new Process(spawnID));
+        }
+        return new Result<Process | null>(null, spawnID);
+    } 
 
 
     constructor(
