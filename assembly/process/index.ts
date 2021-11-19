@@ -1,4 +1,4 @@
-import { error } from "../error";
+import { Result, err_code } from "../error";
 import { add_finalize, LunaticManaged } from "../util";
 
 // @ts-ignore
@@ -9,25 +9,25 @@ export declare function create_config(max_memory: u64, max_fuel: u64): u64;
 export declare function drop_config(config_id: u64): void;
 // @ts-ignore
 @external("lunatic::process", "allow_namespace")
-export declare function allow_namespace(config_id: u64, namespace_str_ptr: usize, namespace_str_len: u32): error.err_code;
+export declare function allow_namespace(config_id: u64, namespace_str_ptr: usize, namespace_str_len: u32): err_code;
 // @ts-ignore
 @external("lunatic::process", "preopen_dir")
-export declare function preopen_dir(config_id: u64, dir_str_ptr: usize, dir_str_len: usize, id_ptr: usize): error.err_code;
+export declare function preopen_dir(config_id: u64, dir_str_ptr: usize, dir_str_len: usize, id_ptr: usize): err_code;
 // @ts-ignore
 @external("lunatic::process", "create_environment")
-export declare function create_environment(config_id: u64, id_ptr: usize): error.err_code;
+export declare function create_environment(config_id: u64, id_ptr: usize): err_code;
 // @ts-ignore
 @external("lunatic::process", "drop_environment")
 export declare function drop_environment(env_id: u64): void;
 // @ts-ignore
 @external("lunatic::process", "add_plugin")
-export declare function add_plugin(config_id: u64, plugin_data_ptr: usize, plugin_data_len: u32, id_ptr: usize): error.err_code;
+export declare function add_plugin(config_id: u64, plugin_data_ptr: usize, plugin_data_len: u32, id_ptr: usize): err_code;
     // @ts-ignore
 @external("lunatic::process", "add_module")
-export declare function add_module(env_id: u64, module_data_ptr: usize, module_data_len: u32, id_ptr: usize): error.err_code;
+export declare function add_module(env_id: u64, module_data_ptr: usize, module_data_len: u32, id_ptr: usize): err_code;
     // @ts-ignore
 @external("lunatic::process", "add_this_module")
-export declare function add_this_module(env_id: u64, id_ptr: usize): error.err_code;
+export declare function add_this_module(env_id: u64, id_ptr: usize): err_code;
     // @ts-ignore
 @external("lunatic::process", "drop_module")
 export declare function drop_module(mod_id: u64): void;
@@ -51,7 +51,7 @@ export declare function sleep_ms(ms: u64): usize // I'm not so sure about the re
 export declare function die_when_link_dies(trap: u32): void
     // @ts-ignore
 @external("lunatic::process", "this")
-export declare function _this(): u64
+export declare function this_process(): u64;
     // @ts-ignore
 @external("lunatic::process", "id")
 export declare function id(): usize
@@ -76,6 +76,8 @@ export declare function lookup(name_ptr: usize, name_len: u32, query_ptr: usize,
 
 /** A predefined location to store id output. */
 const id_ptr = memory.data(sizeof<u64>());
+
+let pid = this_process();
 
 export class Module extends LunaticManaged {
     constructor(
@@ -124,65 +126,65 @@ export class Environment extends LunaticManaged {
 
     /**
      * Add a module from an ArrayBuffer that represents a wasm module. If adding the module
-     * fails, the `error.err_str` global will contain the error string.
+     * fails, the `err_str` global will contain the error string.
      *
      * @param {Uint8Array} array The web assembly module.
-     * @returns {error.Result<Module | null>} the module if it was successful.
+     * @returns {Result<Module | null>} the module if it was successful.
      */
-    addModuleBuffer(array: ArrayBuffer): error.Result<Module | null> {
+    addModuleBuffer(array: ArrayBuffer): Result<Module | null> {
         return this.addModuleUnsafe(changetype<usize>(array), <usize>array.byteLength);
     }
 
     /**
      * Add a module from a Uint8Array that represents a wasm module. If adding the module fails,
-     * the `error.err_str` global will contain the error string.
+     * the `err_str` global will contain the error string.
      *
      * @param {Uint8Array} array The web assembly module.
-     * @returns {error.Result<Module | null>} the module if it was successful.
+     * @returns {Result<Module | null>} the module if it was successful.
      */
-    addModuleArray(array: Uint8Array): error.Result<Module | null> {
+    addModuleArray(array: Uint8Array): Result<Module | null> {
         return this.addModuleUnsafe(array.dataStart, <usize>array.byteLength);
     }
 
     /**
      * Add a module from a StaticArray<u8> that represents a wasm module. If adding the module fails,
-     * the `error.err_str` global will contain the error string.
+     * the `err_str` global will contain the error string.
      *
      * @param {StaticArray<u8>} array The web assembly module.
-     * @returns {error.Result<Module | null>} the module if it was successful.
+     * @returns {Result<Module | null>} the module if it was successful.
      */
-    addModuleStaticArray(array: StaticArray<u8>): error.Result<Module | null> {
+    addModuleStaticArray(array: StaticArray<u8>): Result<Module | null> {
         return this.addModuleUnsafe(changetype<usize>(array), <usize>array.length);
     }
 
     /**
      * Add a plugin from a pointer and a length that represents a wasm module. If adding the Module
-     * fails, the `error.err_str` global will contain the error string.
+     * fails, the `err_str` global will contain the error string.
      *
      * @param {StaticArray<u8>} array The web assembly plugin.
-     * @returns {error.Result<Module | null>} the module if it was successful.
+     * @returns {Result<Module | null>} the module if it was successful.
      */
-    addModuleUnsafe(bytes: usize, len: usize): error.Result<Module | null> {
+    addModuleUnsafe(bytes: usize, len: usize): Result<Module | null> {
         let result = add_module(this.id, bytes, len, id_ptr);
         let moduleId = load<u64>(id_ptr);
-        if (result == error.err_code.Success) {
-            return new error.Result<Module | null>(new Module(moduleId));
+        if (result == err_code.Success) {
+            return new Result<Module | null>(new Module(moduleId));
         }
-        return new error.Result<Module | null>(null, moduleId);
+        return new Result<Module | null>(null, moduleId);
     }
 
     /**
      * Add a module of the current kind to the environment.
      * 
-     * @returns {error.Result<Module | null>} The module if it was successful.
+     * @returns {Result<Module | null>} The module if it was successful.
      */
-    addThisModule(): error.Result<Module | null> {
+    addThisModule(): Result<Module | null> {
         let result = add_this_module(this.id, id_ptr);
         let moduleId = load<u64>(id_ptr);
-        if (result == error.err_code.Success) {
-            return new error.Result<Module | null>(new Module(moduleId));
+        if (result == err_code.Success) {
+            return new Result<Module | null>(new Module(moduleId));
         }
-        return new error.Result<Module | null>(null, moduleId);
+        return new Result<Module | null>(null, moduleId);
     }
 }
 
@@ -211,7 +213,7 @@ export class Config extends LunaticManaged {
      */
     allowNamespace(namespace: string): bool {
         let buff = String.UTF8.encode(namespace);
-        return allow_namespace(this.id, changetype<usize>(buff), buff.byteLength) == error.err_code.Success;
+        return allow_namespace(this.id, changetype<usize>(buff), buff.byteLength) == err_code.Success;
     }
 
     /**
@@ -228,82 +230,82 @@ export class Config extends LunaticManaged {
      * Preopen a directory for filesystem use.
      * 
      * @param {string} directory
-     * @returns {error.Result<bool>} true if the directory was preopened, otherwise it sets the error.err_str variable with the reason for failure.
+     * @returns {Result<bool>} true if the directory was preopened, otherwise it sets the err_str variable with the reason for failure.
      */
-    preopenDir(directory: string): error.Result<bool> {
+    preopenDir(directory: string): Result<bool> {
         // strings need to be encoded every time we pass them up to the host
         let dirStr = String.UTF8.encode(directory);
         // call preopen
         let result = preopen_dir(this.id, changetype<usize>(dirStr), dirStr.byteLength, id_ptr);
         let dirId  = load<u64>(id_ptr);
-        if (result == error.err_code.Success) {
+        if (result == err_code.Success) {
             this.directories.set(directory, dirId);
-            return new error.Result<bool>(true);
+            return new Result<bool>(true);
         }
-        return new error.Result<bool>(false, dirId);
+        return new Result<bool>(false, dirId);
     }
 
     /**
      * Create an environment from the given configuration. If an environment cannot be created,
-     * it will return `null` and write the error description to `error.err_str`.
+     * it will return `null` and write the error description to `err_str`.
      * 
-     * @returns {error.Result<Environment | null>} The environment if it was successful.
+     * @returns {Result<Environment | null>} The environment if it was successful.
      */
-    createEnvironment(): error.Result<Environment | null> {
+    createEnvironment(): Result<Environment | null> {
         let result = create_environment(this.id, id_ptr);
         let id = load<u64>(id_ptr);
-        if (result == error.err_code.Success) {
-            return new error.Result<Environment | null>(new Environment(id));
+        if (result == err_code.Success) {
+            return new Result<Environment | null>(new Environment(id));
         }
-        return new error.Result<Environment | null>(null, id);
+        return new Result<Environment | null>(null, id);
     }
 
     /**
      * Add a plugin from an ArrayBuffer that represents a wasm module. If adding the plugin
-     * fails, the `error.err_str` global will contain the error string.
+     * fails, the `err_str` global will contain the error string.
      *
      * @param {Uint8Array} array The web assembly plugin.
-     * @returns {error.Result<bool>} true if it was successful.
+     * @returns {Result<bool>} true if it was successful.
      */
-    addPluginBuffer(array: ArrayBuffer): error.Result<bool> {
+    addPluginBuffer(array: ArrayBuffer): Result<bool> {
         return this.addPluginUnsafe(changetype<usize>(array), <usize>array.byteLength);
     }
 
     /**
      * Add a plugin from a Uint8Array that represents a wasm module. If adding the plugin fails,
-     * the `error.err_str` global will contain the error string.
+     * the `err_str` global will contain the error string.
      *
      * @param {Uint8Array} array The web assembly plugin.
-     * @returns {error.Result<bool>} true if it was successful.
+     * @returns {Result<bool>} true if it was successful.
      */
-    addPluginArray(array: Uint8Array): error.Result<bool> {
+    addPluginArray(array: Uint8Array): Result<bool> {
         return this.addPluginUnsafe(array.dataStart, <usize>array.byteLength);
     }
 
     /**
      * Add a plugin from a StaticArray<u8> that represents a wasm module. If adding the plugin fails,
-     * the `error.err_str` global will contain the error string.
+     * the `err_str` global will contain the error string.
      *
      * @param {StaticArray<u8>} array The web assembly plugin.
-     * @returns {error.Result<bool>} true if it was successful.
+     * @returns {Result<bool>} true if it was successful.
      */
-    addPluginStaticArray(array: StaticArray<u8>): error.Result<bool> {
+    addPluginStaticArray(array: StaticArray<u8>): Result<bool> {
         return this.addPluginUnsafe(changetype<usize>(array), <usize>array.length);
     }
 
     /**
      * Add a plugin from a pointer and a length that represents a wasm module. If adding the plugin
-     * fails, the `error.err_str` global will contain the error string.
+     * fails, the `err_str` global will contain the error string.
      *
      * @param {StaticArray<u8>} array The web assembly plugin.
-     * @returns {error.Result<bool>} true if it was successful.
+     * @returns {Result<bool>} true if it was successful.
      */
-    addPluginUnsafe(bytes: usize, len: usize): error.Result<bool> {
+    addPluginUnsafe(bytes: usize, len: usize): Result<bool> {
         let result = add_plugin(this.id, bytes, len, id_ptr);
         let pluginId = load<u64>(id_ptr);
-        if (result == error.err_code.Success) {
-            return new error.Result<bool>(true);
+        if (result == err_code.Success) {
+            return new Result<bool>(true);
         }
-        return new error.Result<bool>(false, pluginId);
+        return new Result<bool>(false, pluginId);
     }
 }
