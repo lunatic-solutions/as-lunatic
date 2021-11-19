@@ -51,7 +51,7 @@ export declare function sleep_ms(ms: u64): usize // I'm not so sure about the re
 export declare function die_when_link_dies(trap: u32): void
     // @ts-ignore
 @external("lunatic::process", "this")
-export declare function this_process(): u64;
+export declare function this_handle(): u64;
     // @ts-ignore
 @external("lunatic::process", "id")
 export declare function id(): usize
@@ -77,7 +77,7 @@ export declare function lookup(name_ptr: usize, name_len: u32, query_ptr: usize,
 /** A predefined location to store id output. */
 const id_ptr = memory.data(sizeof<u64>());
 
-let pid = this_process();
+let pid = id();
 
 export class Module extends LunaticManaged {
     constructor(
