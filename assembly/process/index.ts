@@ -130,6 +130,7 @@ export class Process extends LunaticManaged {
         add_finalize(this);
     }
 
+    /** Drop a process. */
     drop(): void {
         if (!this.dropped) {
             this.dropped = true;
@@ -137,6 +138,7 @@ export class Process extends LunaticManaged {
         }
     }
 
+    /** Used by as-lunatic's __lunatic_finalize() function to assert the resource is dropped. */
     dispose(): void {
         this.drop();
     }
