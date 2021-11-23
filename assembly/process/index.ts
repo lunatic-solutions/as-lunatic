@@ -34,7 +34,7 @@ export declare function add_this_module(env_id: u64, id_ptr: usize): err_code;
 export declare function drop_module(mod_id: u64): void;
     // @ts-ignore
 @external("lunatic::process", "spawn")
-export declare function spawn(link: i64, module_id: u64, func_str_ptr: usize, func_str_len: u32, params_ptr: usize, params_len: u32, id_ptr: usize): usize
+export declare function spawn(link: u64, module_id: u64, func_str_ptr: usize, func_str_len: usize, params_ptr: usize, params_len: u32, id_ptr: usize): err_code;
     // @ts-ignore
 @external("lunatic::process", "inherit_spawn")
 export declare function inherit_spawn(link: u64, func_str_ptr: usize, func_str_len: u32, params_ptr: usize, params_len: u32, id_ptr: usize): err_code;
@@ -95,6 +95,25 @@ const bootstrap_utf8 = [0x5f, 0x5f, // "__"
 let pid = id();
 
 export class Process extends LunaticManaged {
+
+    static spawn(module: Module, func: string, tag: i32 = 0): Result<Process | null> {
+        let buff = String.UTF8.encode(func);
+        store<i32>(changetype<usize>(params), tag, 1); // after the magic byte
+        let result = spawn(
+            pid,
+            load<u64>(changetype<usize>(module), offsetof<Module>("id")),
+            changetype<usize>(buff),
+            <usize>buff.byteLength,
+            changetype<usize>(params),
+            1,
+            id_ptr,
+        );
+        let id = load<u64>(id_ptr);
+        if (result == err_code.Success) {
+            return new Result<Process | null>(new Process(id));
+        }
+        return new Result<Process | null>(null, id);
+    }
 
     /**
      * Create a process from the same module as the currently running one, with a single callback.
