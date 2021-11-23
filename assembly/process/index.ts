@@ -1,5 +1,6 @@
 import { Result, err_code } from "../error";
 import { add_finalize, LunaticManaged } from "../util";
+import { push_process, take_process } from "../messaging";
 import { ASON } from "@ason/assembly";
 
 // @ts-ignore
@@ -241,6 +242,19 @@ export class Process extends LunaticManaged {
     clone(): Process | null {
         if (this.dropped) return null;
         return new Process(clone_process(this.id));
+    }
+
+    __asonSerialize(): StaticArray<u8> {
+        let result = new StaticArray<u8>(sizeof<u64>());
+        let cloned = this.clone()!
+        store<u64>(changetype<usize>(result), push_process(cloned.id));
+        cloned.dropped = true;
+        return result;
+    }
+
+    __asonDeserialize(buffer: StaticArray<u8>): void {
+        assert(buffer.length == sizeof<u64>());
+        this.id = take_process(load<u64>(changetype<usize>(buffer)));
     }
 }
 
