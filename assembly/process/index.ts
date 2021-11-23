@@ -43,10 +43,10 @@ export declare function inherit_spawn(link: u64, func_str_ptr: usize, func_str_l
 export declare function drop_process(process_id: u64): void;
 // @ts-ignore
 @external("lunatic::process", "clone_process")
-export declare function clone_process(process_id: u64): err_code;
+export declare function clone_process(process_id: u64): u64;
 // @ts-ignore
 @external("lunatic::process", "sleep_ms")
-export declare function sleep_ms(ms: u64): usize // I'm not so sure about the return type of this one
+export declare function sleep_ms(ms: u64): void;
 // @ts-ignore
 @external("lunatic::process", "die_when_link_dies")
 export declare function die_when_link_dies(trap: u32): void
@@ -58,7 +58,9 @@ export declare function this_handle(): u64;
 export declare function id(): usize
 // @ts-ignore
 @external("lunatic::process", "this_env")
-export declare function this_env(): u64
+export declare function this_env(): u64;
+
+
 // @ts-ignore
 @external("lunatic::process", "link")
 export declare function link(tag: i64, process_id: u64): usize
@@ -141,6 +143,15 @@ let pid = id();
 export class Process extends LunaticManaged {
 
     /**
+     * Sleep the current process for ms number of milliseconds.
+     * 
+     * @param {u64} ms - The number of milliseconds to sleep for.
+     */
+    static sleep(ms: u64): void {
+        sleep_ms(ms);
+    }
+
+    /**
      * Spawn a process from a module, and provide up to three function parameters with a tag.
      * 
      * @param {Module} module - The module being spawned
@@ -204,8 +215,7 @@ export class Process extends LunaticManaged {
             return new Result<Process | null>(new Process(spawnID));
         }
         return new Result<Process | null>(null, spawnID);
-    } 
-
+    }
 
     constructor(
         private id: u64,
