@@ -244,14 +244,16 @@ export class Process extends LunaticManaged {
         return new Process(clone_process(this.id));
     }
 
+    /** Utilized by ason to serialize a process. */
     __asonSerialize(): StaticArray<u8> {
         let result = new StaticArray<u8>(sizeof<u64>());
-        let cloned = this.clone()!
+        let cloned = this.clone()!;
         store<u64>(changetype<usize>(result), push_process(cloned.id));
         cloned.dropped = true;
         return result;
     }
 
+    /** Utilized by ason to deserialize a process. */
     __asonDeserialize(buffer: StaticArray<u8>): void {
         assert(buffer.length == sizeof<u64>());
         this.id = take_process(load<u64>(changetype<usize>(buffer)));
