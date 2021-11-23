@@ -226,6 +226,12 @@ export class Process extends LunaticManaged {
     dispose(): void {
         this.drop();
     }
+
+    /** Clone a process, returns null if the process has already been dropped. */
+    clone(): Process | null {
+        if (this.dropped) return null;
+        return new Process(clone_process(this.id));
+    }
 }
 
 export class Module extends LunaticManaged {
