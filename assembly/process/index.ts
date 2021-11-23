@@ -78,10 +78,54 @@ export declare function lookup(name_ptr: usize, name_len: u32, query_ptr: usize,
 /** A predefined location to store id output. */
 const id_ptr = memory.data(sizeof<u64>());
 
-const params = [0x7F, 0, 0, 0, 0,
-                      0, 0, 0, 0,
-                      0, 0, 0, 0,
-                      0, 0, 0, 0] as StaticArray<u8>;
+//%  - 0x7F => i32
+//%  - 0x7E => i64
+//%  - 0x7B => v128
+/** Predefined location to store tags for function parameters. */
+const params = memory.data(51); // ( 16(v128) + 1(type) ) * 3(count)
+let param_count = 0;
+let param_offset = 0;
+
+/** Unmanaged Tag class used for tagging parameters for remote function calls when starting a process. */
+@unmanaged export class Tag {
+    static reset() {
+        param_count = 0;
+        param_offset = 0;
+        // Yes. This is a fake null reference
+        return changetype<Tag>(params);
+    }
+
+    /** Tag an i32 parameter. */
+    i32(val: i32): Tag {
+        assert(param_count < 3);
+        param_count++;
+        store<u8>(params + param_offset, <u8>0x7F);
+        store<i32>(params + param_offset, val, 1);
+        param_offset += sizeof<i32>() + 1;
+        return this;
+    }
+
+    /** Tag an i64 parameter. */
+    i64(val: i64): Tag {
+        assert(param_count < 3);
+        param_count++;
+        store<u8>(params + param_offset, <u8>0x7E);
+        store<i64>(params + param_offset, val, 1);
+        param_offset += sizeof<i64>() + 1;
+        return this;
+    }
+
+    /** Tag a v128 parameter. */
+    v128(val: v128): Tag {
+        assert(param_count < 3);
+        param_count++;
+        store<u8>(params + param_offset, <u8>0x7B);
+        v128.store(params + param_offset, val, 1);
+        param_offset += 17; // 16(v128) + 1
+        return this;
+    }
+}
+
 
 const bootstrap_utf8 = [0x5f, 0x5f, // "__"
     0x6c, 0x75, 0x6e, 0x61, 0x74, 0x69, 0x63, // "lunatic"
