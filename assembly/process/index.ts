@@ -140,18 +140,38 @@ let pid = id();
 
 export class Process extends LunaticManaged {
 
-    static spawn(module: Module, func: string, tag: i32 = 0): Result<Process | null> {
+    /**
+     * Spawn a process from a module, and provide up to three function parameters with a tag.
+     * 
+     * @param {Module} module - The module being spawned
+     * @param {string} func - The exported function name being called
+     * @param {Tag} tag - The function parameters
+     * @returns {Result<Process | null>} the result of creating a process, or an error string.
+     */
+    static spawn(module: Module, func: string, tag: Tag): Result<Process | null> {
+        // utf8 string is required
         let buff = String.UTF8.encode(func);
-        store<i32>(changetype<usize>(params), tag, 1); // after the magic byte
+
         let result = spawn(
+            // parent is this process
             pid,
+
+            // load the module id, because it's private
             load<u64>(changetype<usize>(module), offsetof<Module>("id")),
+
+            // function name
             changetype<usize>(buff),
             <usize>buff.byteLength,
-            changetype<usize>(params),
-            1,
+
+            // process tag, function parameters
+            changetype<usize>(tag),
+            param_count,
+
+            // output id
             id_ptr,
         );
+        
+        // obtain the id, error, or process id
         let id = load<u64>(id_ptr);
         if (result == err_code.Success) {
             return new Result<Process | null>(new Process(id));
@@ -167,14 +187,15 @@ export class Process extends LunaticManaged {
      */
     static inherit_spawn(func: () => void): Result<Process | null> {
         // store the function pointer bytes little endian (lower bytes in front)
-        store<i32>(changetype<usize>(params), <i32>func.index, 1);
+        let params = Tag.reset()
+            .i32(func.index);
 
         let result = inherit_spawn(
             pid,
             changetype<usize>(bootstrap_utf8),
             <usize>bootstrap_utf8.length,
             changetype<usize>(params),
-            1,
+            1, // we know it's 1
             id_ptr,
         );
         let spawnID = load<u64>(id_ptr);
