@@ -40,10 +40,6 @@ export declare function send_receive_skip_search(process_id: u64, timeout: u32):
 @external("lunatic::message", "receive")
 export declare function receive(tag: usize /* *const i64 */, tag_len: usize, timeout: u32): u32;
 
-export class Mailbox<T> {
-  constructor() {
-    if (isReference<T>() && !isNullable<T>()) {
-      ERROR("Mailbox type parameter must be nullable if T is a reference.");
-    }
-  }
+export class Mailbox {
+  
 }
