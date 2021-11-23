@@ -23,55 +23,55 @@ export declare function drop_environment(env_id: u64): void;
 // @ts-ignore
 @external("lunatic::process", "add_plugin")
 export declare function add_plugin(config_id: u64, plugin_data_ptr: usize, plugin_data_len: u32, id_ptr: usize): err_code;
-    // @ts-ignore
+// @ts-ignore
 @external("lunatic::process", "add_module")
 export declare function add_module(env_id: u64, module_data_ptr: usize, module_data_len: u32, id_ptr: usize): err_code;
-    // @ts-ignore
+// @ts-ignore
 @external("lunatic::process", "add_this_module")
 export declare function add_this_module(env_id: u64, id_ptr: usize): err_code;
-    // @ts-ignore
+// @ts-ignore
 @external("lunatic::process", "drop_module")
 export declare function drop_module(mod_id: u64): void;
-    // @ts-ignore
+// @ts-ignore
 @external("lunatic::process", "spawn")
 export declare function spawn(link: u64, module_id: u64, func_str_ptr: usize, func_str_len: usize, params_ptr: usize, params_len: u32, id_ptr: usize): err_code;
-    // @ts-ignore
+// @ts-ignore
 @external("lunatic::process", "inherit_spawn")
 export declare function inherit_spawn(link: u64, func_str_ptr: usize, func_str_len: u32, params_ptr: usize, params_len: u32, id_ptr: usize): err_code;
-    // @ts-ignore
+// @ts-ignore
 @external("lunatic::process", "drop_process")
-export declare function drop_process(process_id: u64): usize
-    // @ts-ignore
+export declare function drop_process(process_id: u64): void;
+// @ts-ignore
 @external("lunatic::process", "clone_process")
-export declare function clone_process(process_id: u64): usize
-    // @ts-ignore
+export declare function clone_process(process_id: u64): err_code;
+// @ts-ignore
 @external("lunatic::process", "sleep_ms")
 export declare function sleep_ms(ms: u64): usize // I'm not so sure about the return type of this one
-    // @ts-ignore
+// @ts-ignore
 @external("lunatic::process", "die_when_link_dies")
 export declare function die_when_link_dies(trap: u32): void
-    // @ts-ignore
+// @ts-ignore
 @external("lunatic::process", "this")
 export declare function this_handle(): u64;
-    // @ts-ignore
+// @ts-ignore
 @external("lunatic::process", "id")
 export declare function id(): usize
-    // @ts-ignore
+// @ts-ignore
 @external("lunatic::process", "this_env")
 export declare function this_env(): u64
-    // @ts-ignore
+// @ts-ignore
 @external("lunatic::process", "link")
 export declare function link(tag: i64, process_id: u64): usize
-    // @ts-ignore
+// @ts-ignore
 @external("lunatic::process", "unlink")
 export declare function unlink(process_id: u64): usize
-    // @ts-ignore
+// @ts-ignore
 @external("lunatic::process", "register")
 export declare function register(name_ptr: usize, name_len: u32, version_ptr: usize, version_len: u32, env_id: u64, process_id: u64): usize
-    // @ts-ignore
+// @ts-ignore
 @external("lunatic::process", "unregister")
 export declare function unregister(name_ptr: usize, name_len: u32, version_ptr: usize, version_len: u32): usize
-    // @ts-ignore
+// @ts-ignore
 @external("lunatic::process", "lookup")
 export declare function lookup(name_ptr: usize, name_len: u32, query_ptr: usize, query_len: u32, id_u64_ptr: usize): usize
 
