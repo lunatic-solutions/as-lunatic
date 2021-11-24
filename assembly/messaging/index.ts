@@ -40,3 +40,11 @@ export declare function send_receive_skip_search(process_id: u64, timeout: u32):
 // @ts-ignore: decorator
 @external("lunatic::message", "receive")
 export declare function receive(tag: usize /* *const i64 */, tag_len: usize, timeout: u32): u32;
+
+@unmanaged export class Mailbox<TMessage> {
+  constructor() { ERROR("Cannot construct a mailbox."); }
+
+  receive(): TMessage {
+    
+  }
+}

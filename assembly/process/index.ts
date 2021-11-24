@@ -207,7 +207,7 @@ export class Process<TMessage> extends LunaticManaged {
      * @param {() => void} func - The callback for the process. 
      * @returns {Result<Process | null>} the process if the creation was successful.
      */
-    static inherit_spawn<TMessage>(func: () => void): Result<Process<TMessage> | null> {
+    static inherit_spawn<TMessage>(func: (mb: Mailbox<TMessage>) => void): Result<Process<TMessage> | null> {
         // store the function pointer bytes little endian (lower bytes in front)
         let params = Tag.reset()
             .i32(func.index);
