@@ -68,12 +68,15 @@ export declare function link(tag: i64, process_id: u64): usize
 // @ts-ignore
 @external("lunatic::process", "unlink")
 export declare function unlink(process_id: u64): usize
+
+
 // @ts-ignore
 @external("lunatic::process", "register")
-export declare function register(name_ptr: usize, name_len: u32, version_ptr: usize, version_len: u32, env_id: u64, process_id: u64): usize
+export declare function register(name_ptr: usize, name_len: usize, version_ptr: usize, version_len: usize, env_id: u64, process_id: u64): err_code;
 // @ts-ignore
 @external("lunatic::process", "unregister")
-export declare function unregister(name_ptr: usize, name_len: u32, version_ptr: usize, version_len: u32): usize
+export declare function unregister(name_ptr: usize, name_len: usize, version_ptr: usize, version_len: usize): err_code;
+
 // @ts-ignore
 @external("lunatic::process", "lookup")
 export declare function lookup(name_ptr: usize, name_len: u32, query_ptr: usize, query_len: u32, id_u64_ptr: usize): usize
@@ -284,7 +287,7 @@ export class Module extends LunaticManaged {
 
 export class Environment extends LunaticManaged {
     constructor(
-        public id: u64,
+        private id: u64,
     ) {
         super();
         add_finalize(this);
@@ -366,6 +369,30 @@ export class Environment extends LunaticManaged {
             return new Result<Module | null>(new Module(moduleId));
         }
         return new Result<Module | null>(null, moduleId);
+    }
+
+    /**
+     * Register a given process with a name and a version.
+     * 
+     * @param {Process} proc - The process being registered
+     * @param {string} name - The name of the process.
+     * @param {string} version - The version of the process.
+     * @returns {bool} true if the process was registered.
+     */
+     register(proc: Process, name: string, version: string): bool {
+        let pid = load<u64>(changetype<usize>(proc), offsetof<Process>("id"));
+        let eid = this.id;
+        let procName = String.UTF8.encode(name);
+        let procVersion = String.UTF8.encode(version);
+        let result = register(
+            changetype<usize>(procName),
+            <usize>procName.byteLength,
+            changetype<usize>(procVersion),
+            <usize>procVersion.byteLength,
+            eid,
+            pid,
+        );
+        return result == err_code.Success;
     }
 }
 
