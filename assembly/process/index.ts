@@ -236,6 +236,13 @@ export class Process<TMessage> extends LunaticManaged {
     }
 
     /**
+     * Return a handle to this process.
+     */
+    static self<TMessage>(): Process<TMessage> {
+        return new Process(this_handle());
+    }
+
+    /**
      * Send a message with an optional tag.
      * 
      * @param {TMessage} message - The message being sent.
