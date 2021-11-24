@@ -1,6 +1,13 @@
 import { Result, err_code } from "../error";
 import { add_finalize, LunaticManaged } from "../util";
-import { push_process, take_process, create_data, write_data, send, Message } from "../messaging";
+import {
+    create_data,
+    push_process,
+    send,
+    send_receive_skip_search,
+    take_process,
+    write_data,
+} from "../messaging";
 import { ASON } from "@ason/assembly";
 
 // @ts-ignore
@@ -240,6 +247,20 @@ export class Process<TMessage> extends LunaticManaged {
         create_data(tag, bufferLength);
         write_data(changetype<usize>(buffer), bufferLength);
         send(this.id);
+    }
+
+    /**
+     * Send a message with a request acknowledgement.
+     * 
+     * @param {TMessage} message - The message being sent.
+     * @param {u32} timeout - The timeout in milliseconds.
+     */
+    request(message: TMessage, timeout: u32 = 0): void {
+        let buffer = ASON.serialize<TMessage>(message);
+        let bufferLength = <usize>buffer.length;
+        create_data(0, bufferLength);
+        write_data(changetype<usize>(buffer), bufferLength);
+        send_receive_skip_search(this.id, timeout);
     }
 
     /** Drop a process. */
