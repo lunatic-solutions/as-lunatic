@@ -1,6 +1,6 @@
 import { Result, err_code } from "../error";
 import { add_finalize, LunaticManaged } from "../util";
-import { push_process, take_process } from "../messaging";
+import { push_process, take_process, create_data, write_data, send, Message } from "../messaging";
 import { ASON } from "@ason/assembly";
 
 // @ts-ignore
@@ -144,7 +144,7 @@ const bootstrap_utf8 = [0x5f, 0x5f, // "__"
 
 let pid = id();
 
-export class Process extends LunaticManaged {
+export class Process<TMessage> extends LunaticManaged {
 
     /**
      * Sleep the current process for ms number of milliseconds.
@@ -161,9 +161,9 @@ export class Process extends LunaticManaged {
      * @param {Module} module - The module being spawned
      * @param {string} func - The exported function name being called
      * @param {Tag} tag - The function parameters
-     * @returns {Result<Process | null>} the result of creating a process, or an error string.
+     * @returns {Result<Process<StaticArray<u8>> | null>} the result of creating a process, or an error string.
      */
-    static spawn(module: Module, func: string, tag: Tag): Result<Process | null> {
+    static spawn(module: Module, func: string, tag: Tag): Result<Process<StaticArray<u8>> | null> {
         // utf8 string is required
         let buff = String.UTF8.encode(func);
 
@@ -189,9 +189,9 @@ export class Process extends LunaticManaged {
         // obtain the id, error, or process id
         let id = load<u64>(id_ptr);
         if (result == err_code.Success) {
-            return new Result<Process | null>(new Process(id));
+            return new Result<Process<StaticArray<u8>> | null>(new Process(id));
         }
-        return new Result<Process | null>(null, id);
+        return new Result<Process<StaticArray<u8>> | null>(null, id);
     }
 
     /**
@@ -200,7 +200,7 @@ export class Process extends LunaticManaged {
      * @param {() => void} func - The callback for the process. 
      * @returns {Result<Process | null>} the process if the creation was successful.
      */
-    static inherit_spawn(func: () => void): Result<Process | null> {
+    static inherit_spawn<TMessage>(func: () => void): Result<Process<TMessage> | null> {
         // store the function pointer bytes little endian (lower bytes in front)
         let params = Tag.reset()
             .i32(func.index);
@@ -216,9 +216,9 @@ export class Process extends LunaticManaged {
         let spawnID = load<u64>(id_ptr);
 
         if (result == err_code.Success) {
-            return new Result<Process | null>(new Process(spawnID));
+            return new Result<Process<TMessage> | null>(new Process(spawnID));
         }
-        return new Result<Process | null>(null, spawnID);
+        return new Result<Process<TMessage> | null>(null, spawnID);
     }
 
     constructor(
@@ -226,6 +226,14 @@ export class Process extends LunaticManaged {
     ) {
         super();
         add_finalize(this);
+    }
+
+    send(message: Message<TMessage>, tag: i64 = 0): void {
+        let buffer = ASON.serialize<TMessage>(message.value);
+        let bufferLength = <usize>buffer.length;
+        create_data(tag, bufferLength);
+        write_data(changetype<usize>(buffer), bufferLength);
+        send(this.id);
     }
 
     /** Drop a process. */
@@ -242,7 +250,7 @@ export class Process extends LunaticManaged {
     }
 
     /** Clone a process, returns null if the process has already been dropped. */
-    clone(): Process | null {
+    clone(): Process<TMessage> | null {
         if (this.dropped) return null;
         return new Process(clone_process(this.id));
     }
@@ -379,8 +387,8 @@ export class Environment extends LunaticManaged {
      * @param {string} version - The version of the process.
      * @returns {bool} true if the process was registered.
      */
-     register(proc: Process, name: string, version: string): bool {
-        let pid = load<u64>(changetype<usize>(proc), offsetof<Process>("id"));
+     register<TMessage>(proc: Process<TMessage>, name: string, version: string): bool {
+        let pid = load<u64>(changetype<usize>(proc), offsetof<Process<TMessage>>("id"));
         let eid = this.id;
         let procName = String.UTF8.encode(name);
         let procVersion = String.UTF8.encode(version);

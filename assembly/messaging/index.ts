@@ -1,3 +1,4 @@
+import { ASON } from "@ason/assembly";
 import { Result } from "../error";
 
 // @ts-ignore: decorator
@@ -40,6 +41,15 @@ export declare function send_receive_skip_search(process_id: u64, timeout: u32):
 @external("lunatic::message", "receive")
 export declare function receive(tag: usize /* *const i64 */, tag_len: usize, timeout: u32): u32;
 
-export class Mailbox {
-  
+export class Mailbox<TSend, TReceive> {
+  constructor() {}
+
+  create(value: TSend): Message<TSend> {
+    return new Message<TSend>(value);
+  }
+}
+
+export class Message<T> {
+  constructor(public value: T) {}
+
 }
