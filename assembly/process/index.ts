@@ -243,6 +243,13 @@ export class Process<TMessage> extends LunaticManaged {
     }
 
     /**
+     * Return a handle to this environment.
+     */
+    static env(): Environment {
+        return new Environment(this_env());
+    }
+
+    /**
      * Send a message with an optional tag.
      * 
      * @param {TMessage} message - The message being sent.
