@@ -394,6 +394,28 @@ export class Environment extends LunaticManaged {
         );
         return result == err_code.Success;
     }
+
+    /**
+     * Register this current process with a name and a version.
+     * 
+     * @param {string} name - The name of the process.
+     * @param {string} version - The version of the process.
+     * @returns {bool} true if the process was registered.
+     */
+    registerThisProcess(name: string, version: string): bool {
+        let eid = this.id;
+        let procName = String.UTF8.encode(name);
+        let procVersion = String.UTF8.encode(version);
+        let result = register(
+            changetype<usize>(procName),
+            <usize>procName.byteLength,
+            changetype<usize>(procVersion),
+            <usize>procVersion.byteLength,
+            eid,
+            pid,
+        );
+        return result == err_code.Success;
+    }
 }
 
 
