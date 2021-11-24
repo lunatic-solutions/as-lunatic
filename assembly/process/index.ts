@@ -75,7 +75,7 @@ export declare function unlink(process_id: u64): usize
 export declare function register(name_ptr: usize, name_len: usize, version_ptr: usize, version_len: usize, env_id: u64, process_id: u64): err_code;
 // @ts-ignore
 @external("lunatic::process", "unregister")
-export declare function unregister(name_ptr: usize, name_len: usize, version_ptr: usize, version_len: usize): err_code;
+export declare function unregister(name_ptr: usize, name_len: usize, version_ptr: usize, version_len: usize, env_id: u64): err_code;
 
 // @ts-ignore
 @external("lunatic::process", "lookup")
@@ -391,6 +391,26 @@ export class Environment extends LunaticManaged {
             <usize>procVersion.byteLength,
             eid,
             pid,
+        );
+        return result == err_code.Success;
+    }
+
+    /**
+     * Unregister a process by it's name and version.
+     * 
+     * @param {string} name - The name of the process.
+     * @param {string} version - The version of the process.
+     * @returns {bool} true if the operation was successful.
+     */
+    unregister(name: string, version: string): bool {
+        let procName = String.UTF8.encode(name);
+        let procVersion = String.UTF8.encode(version);
+        let result = unregister(
+            changetype<usize>(procName),
+            <usize>procName.byteLength,
+            changetype<usize>(procVersion),
+            <usize>procVersion.byteLength,
+            this.id,
         );
         return result == err_code.Success;
     }
