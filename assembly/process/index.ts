@@ -228,15 +228,18 @@ export class Process<TMessage> extends LunaticManaged {
         add_finalize(this);
     }
 
-    send(message: Message<TMessage>, tag: i64 = 0): bool {
-        if (message.sent) return false;
-        let buffer = ASON.serialize<TMessage>(message.value);
+    /**
+     * Send a message with an optional tag.
+     * 
+     * @param {TMessage} message - The message being sent.
+     * @param {i64} tag - The message tag.
+     */
+    send(message: TMessage, tag: i64 = 0): void {
+        let buffer = ASON.serialize<TMessage>(message);
         let bufferLength = <usize>buffer.length;
         create_data(tag, bufferLength);
         write_data(changetype<usize>(buffer), bufferLength);
         send(this.id);
-        message.sent = true;
-        return true;
     }
 
     /** Drop a process. */
