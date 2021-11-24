@@ -50,6 +50,6 @@ export class Mailbox<TSend, TReceive> {
 }
 
 export class Message<T> {
+  public sent: bool = false;
   constructor(public value: T) {}
-
 }
