@@ -37,14 +37,66 @@ export declare function send(process_id: u64): void;
 // @ts-ignore: decorator
 @external("lunatic::message", "send_receive_skip_search")
 export declare function send_receive_skip_search(process_id: u64, timeout: u32): u32;
+
+export const enum ReceiveType {
+  DataMessage = 0,
+  SignalMessage = 1,
+  Timeout = 9027,
+}
+
+export const enum MessageType {
+  None = 0,
+  Signal = 1,
+  Error = 2,
+  Value = 3,
+}
+
 // @ts-ignore: decorator
 @external("lunatic::message", "receive")
-export declare function receive(tag: usize /* *const i64 */, tag_len: usize, timeout: u32): u32;
+export declare function receive(tag: usize /* *const i64 */, tag_len: usize, timeout: u32): ReceiveType;
+
+let emptyTagset = [] as StaticArray<i64>;
+
+export class Message<TMessage> {
+  constructor(public type: MessageType) {}
+  
+  get tag(): i64 {
+    assert(this.type == MessageType.Signal);
+    return get_tag();
+  }
+
+  /**
+   * Obtain the message value if and only if the message type is MessageType.Value.
+   */
+  get value(): TMessage {
+    assert(this.type == MessageType.Value);
+    let size = data_size();
+    let data = new StaticArray<u8>();
+    let count = read_data(changetype<usize>(data), <usize>data.length);
+    assert(count == size);
+    return ASON.deserialize<TMessage>(data);
+  }
+}
 
 @unmanaged export class Mailbox<TMessage> {
   constructor() { ERROR("Cannot construct a mailbox."); }
 
-  receive(): TMessage {
+  receive(tags: StaticArray<i64> | null = null, timeout: u32 = 0): Message<TMessage> {
+    tags = tags || emptyTagset;
+    let tagsLength = tags.length;
+
+    /**
+     * Returns:
+     * 0    if it's a data message.
+     * 1    if it's a signal turned into a message.
+     * 9027 if call timed out.
+     */
+    let type = receive(changetype<usize>(tags), tagsLength, timeout);
     
+    switch (type) {
+      case ReceiveType.DataMessage: return new Message(MessageType.Value);
+      case ReceiveType.SignalMessage: return new Message(MessageType.Signal);
+      case ReceiveType.Timeout: return new Message(MessageType.Error);
+    }
   }
 }

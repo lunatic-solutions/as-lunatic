@@ -2,6 +2,7 @@ import { Result, err_code } from "../error";
 import { add_finalize, LunaticManaged } from "../util";
 import {
     create_data,
+    Mailbox,
     push_process,
     send,
     send_receive_skip_search,
