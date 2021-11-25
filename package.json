@@ -32,7 +32,7 @@
     "@ason/assembly": "0.1.2"
   },
   "devDependencies": {
-    "assemblyscript": "^0.19.10",
+    "assemblyscript": "^0.19.20",
     "npm-run-all": "^4.1.5"
   }
 }

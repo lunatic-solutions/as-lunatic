@@ -4,8 +4,12 @@
       "debug": true
     }
   },
+  "entries": [
+    "assembly/entry.ts"
+  ],
   "options": {
     "use": [
+      "__finalize=__lunatic_finalize",
       "abort=__lunatic_abort",
       "trace=__lunatic_trace",
       "seed=__lunatic_seed",
