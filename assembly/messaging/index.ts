@@ -58,13 +58,10 @@ export declare function receive(tag: usize /* *const i64 */, tag_len: usize, tim
 let emptyTagset = [] as StaticArray<i64>;
 
 export class Message<TMessage> {
-  constructor(public type: MessageType) {}
-  
-  get tag(): i64 {
-    assert(this.type == MessageType.Signal);
-    return get_tag();
-  }
-
+  constructor(
+    public type: MessageType,
+    public tag: i64,
+  ) {}
   /**
    * Obtain the message value if and only if the message type is MessageType.Value.
    */
@@ -92,11 +89,11 @@ export class Message<TMessage> {
      * 9027 if call timed out.
      */
     let type = receive(changetype<usize>(tags), tagsLength, timeout);
-    
+
     switch (type) {
-      case ReceiveType.DataMessage: return new Message(MessageType.Value);
-      case ReceiveType.SignalMessage: return new Message(MessageType.Signal);
-      case ReceiveType.Timeout: return new Message(MessageType.Error);
+      case ReceiveType.DataMessage: return new Message(MessageType.Value, get_tag());
+      case ReceiveType.SignalMessage: return new Message(MessageType.Signal, get_tag());
     }
+    return new Message(MessageType.Error, get_tag())
   }
 }
