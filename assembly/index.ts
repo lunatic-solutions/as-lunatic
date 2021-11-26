@@ -135,6 +135,7 @@ export * from "./error";
 export * from "./process";
 export * from "./messaging";
 export * from "./util";
+export * from "./bindings";
 
 // export * from "./channel";
 // export * from "./process/index-old";

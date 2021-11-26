@@ -1,93 +1,8 @@
-import { Result, err_code } from "../error";
-import { add_finalize, LunaticManaged } from "../util";
-import {
-    create_data,
-    Mailbox,
-    push_process,
-    send,
-    send_receive_skip_search,
-    take_process,
-    write_data,
-} from "../messaging";
+import { Result } from "../error";
+import { add_finalize, LunaticManaged, err_code } from "../util";
+import { Mailbox } from "../messaging";
 import { ASON } from "@ason/assembly";
-
-// @ts-ignore
-@external("lunatic::process", "create_config")
-export declare function create_config(max_memory: u64, max_fuel: u64): u64;
-// @ts-ignore
-@external("lunatic::process", "drop_config")
-export declare function drop_config(config_id: u64): void;
-// @ts-ignore
-@external("lunatic::process", "allow_namespace")
-export declare function allow_namespace(config_id: u64, namespace_str_ptr: usize, namespace_str_len: u32): err_code;
-// @ts-ignore
-@external("lunatic::process", "preopen_dir")
-export declare function preopen_dir(config_id: u64, dir_str_ptr: usize, dir_str_len: usize, id_ptr: usize): err_code;
-// @ts-ignore
-@external("lunatic::process", "create_environment")
-export declare function create_environment(config_id: u64, id_ptr: usize): err_code;
-// @ts-ignore
-@external("lunatic::process", "drop_environment")
-export declare function drop_environment(env_id: u64): void;
-// @ts-ignore
-@external("lunatic::process", "add_plugin")
-export declare function add_plugin(config_id: u64, plugin_data_ptr: usize, plugin_data_len: u32, id_ptr: usize): err_code;
-// @ts-ignore
-@external("lunatic::process", "add_module")
-export declare function add_module(env_id: u64, module_data_ptr: usize, module_data_len: u32, id_ptr: usize): err_code;
-// @ts-ignore
-@external("lunatic::process", "add_this_module")
-export declare function add_this_module(env_id: u64, id_ptr: usize): err_code;
-// @ts-ignore
-@external("lunatic::process", "drop_module")
-export declare function drop_module(mod_id: u64): void;
-// @ts-ignore
-@external("lunatic::process", "spawn")
-export declare function spawn(link: u64, module_id: u64, func_str_ptr: usize, func_str_len: usize, params_ptr: usize, params_len: u32, id_ptr: usize): err_code;
-// @ts-ignore
-@external("lunatic::process", "inherit_spawn")
-export declare function inherit_spawn(link: u64, func_str_ptr: usize, func_str_len: u32, params_ptr: usize, params_len: u32, id_ptr: usize): err_code;
-// @ts-ignore
-@external("lunatic::process", "drop_process")
-export declare function drop_process(process_id: u64): void;
-// @ts-ignore
-@external("lunatic::process", "clone_process")
-export declare function clone_process(process_id: u64): u64;
-// @ts-ignore
-@external("lunatic::process", "sleep_ms")
-export declare function sleep_ms(ms: u64): void;
-// @ts-ignore
-@external("lunatic::process", "die_when_link_dies")
-export declare function die_when_link_dies(trap: u32): void
-// @ts-ignore
-@external("lunatic::process", "this")
-export declare function this_handle(): u64;
-// @ts-ignore
-@external("lunatic::process", "id")
-export declare function id(): usize
-// @ts-ignore
-@external("lunatic::process", "this_env")
-export declare function this_env(): u64;
-
-
-// @ts-ignore
-@external("lunatic::process", "link")
-export declare function link(tag: i64, process_id: u64): usize
-// @ts-ignore
-@external("lunatic::process", "unlink")
-export declare function unlink(process_id: u64): usize
-
-
-// @ts-ignore
-@external("lunatic::process", "register")
-export declare function register(name_ptr: usize, name_len: usize, version_ptr: usize, version_len: usize, env_id: u64, process_id: u64): err_code;
-// @ts-ignore
-@external("lunatic::process", "unregister")
-export declare function unregister(name_ptr: usize, name_len: usize, version_ptr: usize, version_len: usize, env_id: u64): err_code;
-
-// @ts-ignore
-@external("lunatic::process", "lookup")
-export declare function lookup(name_ptr: usize, name_len: u32, query_ptr: usize, query_len: u32, id_u64_ptr: usize): usize
+import { message, process } from "../bindings";
 
 /** A predefined location to store id output. */
 const id_ptr = memory.data(sizeof<u64>());
@@ -150,22 +65,22 @@ const bootstrap_utf8 = [0x5f, 0x5f, // "__"
 ] as StaticArray<u8>;
 
 
-let pid = id();
+let pid = process.id();
 
 export class Process<TMessage> extends LunaticManaged {
 
     /**
      * Sleep the current process for ms number of milliseconds.
-     * 
+     *
      * @param {u64} ms - The number of milliseconds to sleep for.
      */
     static sleep(ms: u64): void {
-        sleep_ms(ms);
+        process.sleep_ms(ms);
     }
 
     /**
      * Spawn a process from a module, and provide up to three function parameters with a tag.
-     * 
+     *
      * @param {Module} module - The module being spawned
      * @param {string} func - The exported function name being called
      * @param {Tag} tag - The function parameters
@@ -175,7 +90,7 @@ export class Process<TMessage> extends LunaticManaged {
         // utf8 string is required
         let buff = String.UTF8.encode(func);
 
-        let result = spawn(
+        let result = process.spawn(
             // parent is this process
             pid,
 
@@ -193,7 +108,7 @@ export class Process<TMessage> extends LunaticManaged {
             // output id
             id_ptr,
         );
-        
+
         // obtain the id, error, or process id
         let id = load<u64>(id_ptr);
         if (result == err_code.Success) {
@@ -204,8 +119,8 @@ export class Process<TMessage> extends LunaticManaged {
 
     /**
      * Create a process from the same module as the currently running one, with a single callback.
-     * 
-     * @param {() => void} func - The callback for the process. 
+     *
+     * @param {() => void} func - The callback for the process.
      * @returns {Result<Process | null>} the process if the creation was successful.
      */
     static inherit_spawn<TMessage>(func: (mb: Mailbox<TMessage>) => void): Result<Process<TMessage> | null> {
@@ -213,7 +128,7 @@ export class Process<TMessage> extends LunaticManaged {
         let params = Tag.reset()
             .i32(func.index);
 
-        let result = inherit_spawn(
+        let result = process.inherit_spawn(
             pid,
             changetype<usize>(bootstrap_utf8),
             <usize>bootstrap_utf8.length,
@@ -240,49 +155,49 @@ export class Process<TMessage> extends LunaticManaged {
      * Return a handle to this process.
      */
     static self<TMessage>(): Process<TMessage> {
-        return new Process(this_handle());
+        return new Process(process.this_handle());
     }
 
     /**
      * Return a handle to this environment.
      */
     static env(): Environment {
-        return new Environment(this_env());
+        return new Environment(process.this_env());
     }
 
     /**
      * Send a message with an optional tag.
-     * 
-     * @param {TMessage} message - The message being sent.
+     *
+     * @param {TMessage} msg - The message being sent.
      * @param {i64} tag - The message tag.
      */
-    send(message: TMessage, tag: i64 = 0): void {
-        let buffer = ASON.serialize<TMessage>(message);
+    send(msg: TMessage, tag: i64 = 0): void {
+        let buffer = ASON.serialize<TMessage>(msg);
         let bufferLength = <usize>buffer.length;
-        create_data(tag, bufferLength);
-        write_data(changetype<usize>(buffer), bufferLength);
-        send(this.id);
+        message.create_data(tag, bufferLength);
+        message.write_data(changetype<usize>(buffer), bufferLength);
+        message.send(this.id);
     }
 
     /**
      * Send a message with a request acknowledgement.
-     * 
+     *
      * @param {TMessage} message - The message being sent.
      * @param {u32} timeout - The timeout in milliseconds.
      */
-    request(message: TMessage, timeout: u32 = 0): void {
-        let buffer = ASON.serialize<TMessage>(message);
+    request(msg: TMessage, timeout: u32 = 0): void {
+        let buffer = ASON.serialize<TMessage>(msg);
         let bufferLength = <usize>buffer.length;
-        create_data(0, bufferLength);
-        write_data(changetype<usize>(buffer), bufferLength);
-        send_receive_skip_search(this.id, timeout);
+        message.create_data(0, bufferLength);
+        message.write_data(changetype<usize>(buffer), bufferLength);
+        message.send_receive_skip_search(this.id, timeout);
     }
 
     /** Drop a process. */
     drop(): void {
         if (!this.dropped) {
             this.dropped = true;
-            drop_process(this.id);
+            process.drop_process(this.id);
         }
     }
 
@@ -294,14 +209,14 @@ export class Process<TMessage> extends LunaticManaged {
     /** Clone a process, returns null if the process has already been dropped. */
     clone(): Process<TMessage> | null {
         if (this.dropped) return null;
-        return new Process(clone_process(this.id));
+        return new Process(process.clone_process(this.id));
     }
 
     /** Utilized by ason to serialize a process. */
     __asonSerialize(): StaticArray<u8> {
         let result = new StaticArray<u8>(sizeof<u64>());
         let cloned = this.clone()!;
-        store<u64>(changetype<usize>(result), push_process(cloned.id));
+        store<u64>(changetype<usize>(result), message.push_process(cloned.id));
         cloned.dropped = true;
         return result;
     }
@@ -309,7 +224,7 @@ export class Process<TMessage> extends LunaticManaged {
     /** Utilized by ason to deserialize a process. */
     __asonDeserialize(buffer: StaticArray<u8>): void {
         assert(buffer.length == sizeof<u64>());
-        this.id = take_process(load<u64>(changetype<usize>(buffer)));
+        this.id = message.take_process(load<u64>(changetype<usize>(buffer)));
     }
 }
 
@@ -324,11 +239,11 @@ export class Module extends LunaticManaged {
     /** Drop the module. */
     drop(): void {
         if (!this.dropped) {
-            drop_module(this.id);
+            process.drop_module(this.id);
             this.dropped = true;
         }
     }
-    
+
     /** Used by as-lunatic's __lunatic_finalize() function to assert the resource is dropped. */
     dispose(): void {
         this.drop();
@@ -346,14 +261,14 @@ export class Environment extends LunaticManaged {
     /** Used by as-lunatic's __lunatic_finalize() function to assert the resource is dropped. */
     dispose(): void {
         this.drop();
-    } 
+    }
 
     /**
      * Drop an environment.
      */
     drop(): void {
         if (!this.dropped) {
-            drop_environment(this.id);
+            process.drop_environment(this.id);
             this.dropped = true;
         }
     }
@@ -399,7 +314,7 @@ export class Environment extends LunaticManaged {
      * @returns {Result<Module | null>} the module if it was successful.
      */
     addModuleUnsafe(bytes: usize, len: usize): Result<Module | null> {
-        let result = add_module(this.id, bytes, len, id_ptr);
+        let result = process.add_module(this.id, bytes, len, id_ptr);
         let moduleId = load<u64>(id_ptr);
         if (result == err_code.Success) {
             return new Result<Module | null>(new Module(moduleId));
@@ -409,11 +324,11 @@ export class Environment extends LunaticManaged {
 
     /**
      * Add a module of the current kind to the environment.
-     * 
+     *
      * @returns {Result<Module | null>} The module if it was successful.
      */
     addThisModule(): Result<Module | null> {
-        let result = add_this_module(this.id, id_ptr);
+        let result = process.add_this_module(this.id, id_ptr);
         let moduleId = load<u64>(id_ptr);
         if (result == err_code.Success) {
             return new Result<Module | null>(new Module(moduleId));
@@ -423,7 +338,7 @@ export class Environment extends LunaticManaged {
 
     /**
      * Register a given process with a name and a version.
-     * 
+     *
      * @param {Process} proc - The process being registered
      * @param {string} name - The name of the process.
      * @param {string} version - The version of the process.
@@ -434,7 +349,7 @@ export class Environment extends LunaticManaged {
         let eid = this.id;
         let procName = String.UTF8.encode(name);
         let procVersion = String.UTF8.encode(version);
-        let result = register(
+        let result = process.register(
             changetype<usize>(procName),
             <usize>procName.byteLength,
             changetype<usize>(procVersion),
@@ -447,7 +362,7 @@ export class Environment extends LunaticManaged {
 
     /**
      * Unregister a process by it's name and version.
-     * 
+     *
      * @param {string} name - The name of the process.
      * @param {string} version - The version of the process.
      * @returns {bool} true if the operation was successful.
@@ -455,7 +370,7 @@ export class Environment extends LunaticManaged {
     unregister(name: string, version: string): bool {
         let procName = String.UTF8.encode(name);
         let procVersion = String.UTF8.encode(version);
-        let result = unregister(
+        let result = process.unregister(
             changetype<usize>(procName),
             <usize>procName.byteLength,
             changetype<usize>(procVersion),
@@ -467,7 +382,7 @@ export class Environment extends LunaticManaged {
 
     /**
      * Register this current process with a name and a version.
-     * 
+     *
      * @param {string} name - The name of the process.
      * @param {string} version - The version of the process.
      * @returns {bool} true if the process was registered.
@@ -476,7 +391,7 @@ export class Environment extends LunaticManaged {
         let eid = this.id;
         let procName = String.UTF8.encode(name);
         let procVersion = String.UTF8.encode(version);
-        let result = register(
+        let result = process.register(
             changetype<usize>(procName),
             <usize>procName.byteLength,
             changetype<usize>(procVersion),
@@ -496,7 +411,7 @@ export class Config extends LunaticManaged {
 
     constructor(max_memory: u64, max_fuel: u64) {
         super();
-        this.id = create_config(max_memory, max_fuel);
+        this.id = process.create_config(max_memory, max_fuel);
         add_finalize(this);
     }
 
@@ -507,13 +422,13 @@ export class Config extends LunaticManaged {
 
     /**
      * Allow a host namespace to be used.
-     * 
+     *
      * @param {string} namespace - The lunatic namespace being allowed.
      * @returns {bool} true if the namespace was allowed.
      */
     allowNamespace(namespace: string): bool {
         let buff = String.UTF8.encode(namespace);
-        return allow_namespace(this.id, changetype<usize>(buff), buff.byteLength) == err_code.Success;
+        return process.allow_namespace(this.id, changetype<usize>(buff), buff.byteLength) == err_code.Success;
     }
 
     /**
@@ -521,14 +436,14 @@ export class Config extends LunaticManaged {
      */
     drop(): void {
         if (!this.dropped) {
-            drop_config(this.id);
+            process.drop_config(this.id);
             this.dropped = true;
         }
     }
 
     /**
      * Preopen a directory for filesystem use.
-     * 
+     *
      * @param {string} directory
      * @returns {Result<bool>} true if the directory was preopened, otherwise it sets the err_str variable with the reason for failure.
      */
@@ -536,7 +451,7 @@ export class Config extends LunaticManaged {
         // strings need to be encoded every time we pass them up to the host
         let dirStr = String.UTF8.encode(directory);
         // call preopen
-        let result = preopen_dir(this.id, changetype<usize>(dirStr), dirStr.byteLength, id_ptr);
+        let result = process.preopen_dir(this.id, changetype<usize>(dirStr), dirStr.byteLength, id_ptr);
         let dirId  = load<u64>(id_ptr);
         if (result == err_code.Success) {
             this.directories.set(directory, dirId);
@@ -548,11 +463,11 @@ export class Config extends LunaticManaged {
     /**
      * Create an environment from the given configuration. If an environment cannot be created,
      * it will return `null` and write the error description to `err_str`.
-     * 
+     *
      * @returns {Result<Environment | null>} The environment if it was successful.
      */
     createEnvironment(): Result<Environment | null> {
-        let result = create_environment(this.id, id_ptr);
+        let result = process.create_environment(this.id, id_ptr);
         let id = load<u64>(id_ptr);
         if (result == err_code.Success) {
             return new Result<Environment | null>(new Environment(id));
@@ -601,7 +516,7 @@ export class Config extends LunaticManaged {
      * @returns {Result<bool>} true if it was successful.
      */
     addPluginUnsafe(bytes: usize, len: usize): Result<bool> {
-        let result = add_plugin(this.id, bytes, len, id_ptr);
+        let result = process.add_plugin(this.id, bytes, len, id_ptr);
         let pluginId = load<u64>(id_ptr);
         if (result == err_code.Success) {
             return new Result<bool>(true);
