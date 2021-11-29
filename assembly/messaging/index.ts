@@ -22,6 +22,7 @@ export class Message<TMessage> {
       this.tag = message.get_tag();
     }
   }
+
   /**
    * Obtain the message value if and only if the message type is MessageType.Value.
    */

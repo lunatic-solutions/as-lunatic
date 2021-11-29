@@ -12,9 +12,7 @@
       "__finalize=__lunatic_finalize",
       "abort=__lunatic_abort",
       "trace=__lunatic_trace",
-      "seed=__lunatic_seed",
-      "TCP_READ_BUFFER_COUNT=4",
-      "TCP_READ_BUFFER_SIZE=10000"
+      "seed=__lunatic_seed"
     ],
     "transform": ["@ason/transform"],
     "exportTable": true
