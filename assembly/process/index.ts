@@ -16,16 +16,16 @@ let param_count = 0;
 let param_offset = 0;
 
 /** Unmanaged Tag class used for tagging parameters for remote function calls when starting a process. */
-@unmanaged export class Tag {
+@unmanaged export class Parameters {
     static reset() {
         param_count = 0;
         param_offset = 0;
         // Yes. This is a fake null reference
-        return changetype<Tag>(params);
+        return changetype<Parameters>(params);
     }
 
     /** Tag an i32 parameter. */
-    i32(val: i32): Tag {
+    i32(val: i32): Parameters {
         assert(param_count < 3);
         param_count++;
         store<u8>(params + param_offset, <u8>0x7F);
@@ -35,7 +35,7 @@ let param_offset = 0;
     }
 
     /** Tag an i64 parameter. */
-    i64(val: i64): Tag {
+    i64(val: i64): Parameters {
         assert(param_count < 3);
         param_count++;
         store<u8>(params + param_offset, <u8>0x7E);
@@ -45,7 +45,7 @@ let param_offset = 0;
     }
 
     /** Tag a v128 parameter. */
-    v128(val: v128): Tag {
+    v128(val: v128): Parameters {
         assert(param_count < 3);
         param_count++;
         store<u8>(params + param_offset, <u8>0x7B);
@@ -83,10 +83,10 @@ export class Process<TMessage> extends LunaticManaged {
      *
      * @param {Module} module - The module being spawned
      * @param {string} func - The exported function name being called
-     * @param {Tag} tag - The function parameters
+     * @param {Parameters} params - The function parameters
      * @returns {Result<Process<StaticArray<u8>> | null>} the result of creating a process, or an error string.
      */
-    static spawn(module: Module, func: string, tag: Tag): Result<Process<StaticArray<u8>> | null> {
+    static spawn(module: Module, func: string, params: Parameters): Result<Process<StaticArray<u8>> | null> {
         // utf8 string is required
         let buff = String.UTF8.encode(func);
 
@@ -102,7 +102,7 @@ export class Process<TMessage> extends LunaticManaged {
             <usize>buff.byteLength,
 
             // process tag, function parameters
-            changetype<usize>(tag),
+            changetype<usize>(params),
             param_count,
 
             // output id
@@ -125,7 +125,7 @@ export class Process<TMessage> extends LunaticManaged {
      */
     static inherit_spawn<TMessage>(func: (mb: Mailbox<TMessage>) => void): Result<Process<TMessage> | null> {
         // store the function pointer bytes little endian (lower bytes in front)
-        let params = Tag.reset()
+        let params = Parameters.reset()
             .i32(func.index);
 
         let result = process.inherit_spawn(
