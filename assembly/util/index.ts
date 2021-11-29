@@ -28,17 +28,10 @@ export abstract class LunaticManaged {
   abstract dispose(): void;
 }
 
-export const enum ReceiveType {
-  DataMessage = 0,
-  SignalMessage = 1,
-  Timeout = 9027,
-}
-
 export const enum MessageType {
-  None = 0,
+  Data = 0,
   Signal = 1,
-  Error = 2,
-  Value = 3,
+  Timeout = 9027,
 }
 
 /** Success enum to describe the results of syscalls. The value `0` is successful. */

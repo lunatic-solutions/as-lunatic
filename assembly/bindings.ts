@@ -1,4 +1,4 @@
-import { ReceiveType, err_code } from "./util";
+import { MessageType, err_code } from "./util";
 
 export namespace process {
     // @ts-ignore
@@ -117,7 +117,7 @@ export namespace message {
     export declare function send_receive_skip_search(process_id: u64, timeout: u32): u32;
     // @ts-ignore: decorator
     @external("lunatic::message", "receive")
-    export declare function receive(tag: usize /* *const i64 */, tag_len: usize, timeout: u32): ReceiveType;
+    export declare function receive(tag: usize /* *const i64 */, tag_len: usize, timeout: u32): MessageType;
 }
 
 export namespace error {
