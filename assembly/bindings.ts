@@ -152,3 +152,7 @@ export namespace error {
     @external("lunatic::error", "drop")
     export declare function drop_error(id: u64): void;
 }
+
+export namespace net {
+
+}
