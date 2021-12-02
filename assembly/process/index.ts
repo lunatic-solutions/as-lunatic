@@ -3,7 +3,6 @@ import { set_finalize, LunaticManaged, err_code } from "../util";
 import { Mailbox } from "../messaging";
 import { ASON } from "@ason/assembly";
 import { message, process } from "../bindings";
-import { TCPServer } from "../net";
 
 //%  - 0x7F => i32
 //%  - 0x7E => i64
@@ -203,17 +202,16 @@ export class Process<TMessage> extends LunaticManaged {
   }
 
   /** Clone a process, returns null if the process has already been dropped. */
-  clone(): TCPServer | null {
+  clone(): Process<TMessage> | null {
     if (this.dropped) return null;
-    return new TCPServer(process.clone_tcp_listener(this.id));
+    return new Process(process.clone_process(this.id));
   }
 
   /** Utilized by ason to serialize a process. */
   __asonSerialize(): StaticArray<u8> {
     let result = new StaticArray<u8>(sizeof<u64>());
     let cloned = this.clone()!;
-    store<u64>(changetype<usize>(result), message.push_tcp_listener(cloned.id));
-    // we prevent finalization here because the process will transfer ownership
+    store<u64>(changetype<usize>(result), message.push_process(cloned.id));
     cloned.preventFinalize();
     return result;
   }
