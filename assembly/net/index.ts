@@ -72,3 +72,5 @@ export function resolve(host: string, timeout: u32 = 0): Result<IPResolution[] |
   } 
   return new Result<IPResolution[] | null>(null, id);
 }
+
+export class TCPServer {}
