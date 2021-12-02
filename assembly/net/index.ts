@@ -134,13 +134,11 @@ export class TCPServer extends LunaticManaged {
 
     /** Utilized by ason to serialize a process. */
     __asonSerialize(): StaticArray<u8> {
-      let result = new StaticArray<u8>(sizeof<u64>());
-      let cloned = this.clone()!;
-      store<u64>(changetype<usize>(result), message.push_tcp_listener(cloned.id));
-      // we prevent finalization here because the process will transfer ownership
-      cloned.preventFinalize();
-      return result;
+      ERROR("TCPServer cannot be serialized.");
     }
-
-
+    
+    /** Utilized by ason to deserialize a process. */
+    __asonDeserialize(_buffer: StaticArray<u8>): void {
+      ERROR("TCPServer cannot be deserialized.");
+    }
 }
