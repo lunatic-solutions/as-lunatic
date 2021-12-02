@@ -10,6 +10,8 @@ const ip_port = memory.data(sizeof<u16>());
 const ip_flow_info = memory.data(sizeof<u32>());
 const ip_scope_id = memory.data(sizeof<u32>());
 
+const dns_iterator_id = memory.data(sizeof<u64>());
+
 export class IPResolution {
   // allocate 16 bytes for the address
   private _address_1: u64 = 0;
@@ -38,6 +40,24 @@ export class IPResolution {
 }
 
 /**
+ * Resolve the contents of a DNS Iterator.
+ * @param {u64} id - The dns iterator id.
+ * @returns {IPResolution[]} The IPResolution array.
+ */
+function resolveDNSIterator(id: u64): IPResolution[] {
+  let value: IPResolution[] = [];
+
+  // obtain the ip resolutions
+  while (net.resolve_next(id, ip_address_type, ip_address, ip_port, ip_flow_info, ip_scope_id) == err_code.Success) {
+    value.push(new IPResolution()); // IPResolution will automatically load from the pointers
+  }
+
+  // always drop if successful
+  net.drop_dns_iterator(id);
+  return value;
+}
+
+/**
  * Resolve a hostname it it's given IPResolutions.
  *
  * @param {string} host - The host to be resolved.
@@ -54,18 +74,24 @@ export function resolve(host: string, timeout: u32 = 0): Result<IPResolution[] |
   // process the result
   let id = load<u64>(id_ptr);
   if (result == err_code.Success) {
-    let value: IPResolution[] = [];
-
-    // obtain the ip resolutions
-    while (net.resolve_next(id, ip_address_type, ip_address, ip_port, ip_flow_info, ip_scope_id) == err_code.Success) {
-      value.push(new IPResolution()); // IPResolution will automatically load from the pointers
-    }
-
-    // always drop if successful
-    net.drop_dns_iterator(id);
+    let value: IPResolution[] = resolveDNSIterator(id);
     return new Result<IPResolution[] | null>(value);
   } 
   return new Result<IPResolution[] | null>(null, id);
+}
+
+/**
+ * A TCP Socket that can be written to or read from.
+ */
+export class TCPSocket extends LunaticManaged {
+  constructor(
+    /** The tcp socket id on the host. */
+    public id: u64,
+    /** The IP Address of this socket. */
+    public ip: IPResolution
+  ) {
+    super(id, net.drop_tcp_listener);
+  }
 }
 
 /**
@@ -132,13 +158,25 @@ export class TCPServer extends LunaticManaged {
     return new Result<TCPServer | null>(null, id);
   }
 
-    /** Utilized by ason to serialize a process. */
-    __asonSerialize(): StaticArray<u8> {
-      ERROR("TCPServer cannot be serialized.");
+  /** Utilized by ason to serialize a process. */
+  __asonSerialize(): StaticArray<u8> {
+    ERROR("TCPServer cannot be serialized.");
+  }
+  
+  /** Utilized by ason to deserialize a process. */
+  __asonDeserialize(_buffer: StaticArray<u8>): void {
+    ERROR("TCPServer cannot be deserialized.");
+  }
+
+  accept(): Result<TCPSocket | null> {
+    let result = net.tcp_accept(this.id, id_ptr, dns_iterator_id);
+    let id = load<u64>(id_ptr);
+    if (result == err_code.Success) {
+      let dns_iterator = load<u64>(dns_iterator_id);
+      let ipResolutions = resolveDNSIterator(dns_iterator);
+      assert(ipResolutions.length == 1);
+      return new Result<TCPSocket | null>(new TCPSocket(id, unchecked(ipResolutions[0])))
     }
-    
-    /** Utilized by ason to deserialize a process. */
-    __asonDeserialize(_buffer: StaticArray<u8>): void {
-      ERROR("TCPServer cannot be deserialized.");
-    }
+    return new Result<TCPSocket | null>(null, id);
+  }
 }

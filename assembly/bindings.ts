@@ -180,11 +180,20 @@ export namespace net {
     /**
      * Drop a tcp listener.
      *
-     * @param {u64} id - The ID of the iterator.
+     * @param {u64} id - The ID of the listener.
      */
     // @ts-ignore: external is valid here
     @external("lunatic::networking", "drop_tcp_listener")
     export declare function drop_tcp_listener(id: u64): void;
+
+    /**
+     * Drop a tcp stream.
+     *
+     * @param {u64} id - The ID of the stream.
+     */
+    // @ts-ignore: external is valid here
+    @external("lunatic::networking", "drop_tcp_stream")
+    export declare function drop_tcp_stream(id: u64): void;
     
     /**
      * Takes the next socket address from DNS iterator and writes it to the passed in pointers.
@@ -238,4 +247,16 @@ export namespace net {
     // @ts-ignore: external is valid here
     @external("lunatic::networking", "tcp_bind")
     export declare function tcp_bind(addr_type: IPType, addr_u8_ptr: usize, port: u16, flow_info: u32, scope_id: u32, id_u64_ptr: usize): err_code;
+
+    /**
+     * Accept a TCPListener.
+     *
+     * @param listener_id - The TCPListener.
+     * @param id_ptr - A pointer to a u64 that will contain the TCPServer id or the error.
+     * @param socket_addr_id_ptr - A pointer to a u64 that will contain a dns iterator.
+     * @returns {err_code} - `err_code.Success` If the value written to `id_ptr` is an error or a socket id.
+     */
+    // @ts-ignore: external is valid here
+    @external("lunatic::networking", "tcp_accept")
+    export declare function tcp_accept(listener_id: u64, id_ptr: usize, socket_addr_id_ptr: usize): err_code;
 }
