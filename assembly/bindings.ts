@@ -1,4 +1,4 @@
-import { MessageType, err_code } from "./util";
+import { IPType, MessageType, err_code } from "./util";
 
 export namespace process {
     // @ts-ignore
@@ -194,4 +194,21 @@ export namespace net {
     @external("lunatic::networking", "resolve_next")
     export declare function resolve_next(dns_iter_id: u64, addr_type_ptr: usize, add_u8_ptr: usize, port_u16_ptr: usize, flow_info_u32_ptr: usize, scope_id_u32_ptr: usize): err_code;
 
+    /**
+     * Creates a new TCP listener, which will be bound to the specified address. The returned listener
+     * is ready for accepting connections.
+     * 
+     * Binding with a port number of 0 will request that the OS assigns a port to this listener. The
+     * port allocated can be queried via the `local_addr` (TODO) method.
+     *
+     * @param {} addr_type 
+     * @param {} addr_u8_ptr 
+     * @param {} port 
+     * @param {} flow_info 
+     * @param {} scope_id 
+     * @param {} id_u64_ptr 
+     */
+    // @ts-ignore: external is valid here
+    @external("lunatic::networking", "resolve_next")
+    export declare function resolve_next(addr_type: IPType, addr_u8_ptr: usize, port: u16, flow_info: u32, scope_id: u32, id_u64_ptr: usize): err_code;
 }

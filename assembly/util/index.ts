@@ -1,31 +1,42 @@
 
-let finalizeMap = new Map<usize, u32>();
+export const enum IPType {
+  None = 0,
+  IPV4 = 4,
+  IPV6 = 6,
+}
+
+/**
+ * An internal finalization record for object disposal.
+ */
+export class FinalizationRecord {
+  constructor(
+    public held: u64,
+    public cb: u32,
+  ) {}
+}
+
+/**
+ * A map of pointer to FinalizationRecord
+ */
+let finalizeMap = new Map<usize, FinalizationRecord>();
 
 // @ts-ignore: global decorator
 @global export function __lunatic_finalize(ptr: usize): void {
   if (finalizeMap.has(ptr)) {
-    call_indirect(finalizeMap.get(ptr), ptr);
+    let record = finalizeMap.get(ptr);
+    call_indirect(record.cb, record.held);
     finalizeMap.delete(ptr);
   }
 }
 
-export function add_finalize<T>(obj: T): void {
-  // TODO: Check this
-  if (!isReference(obj) || isFunction(obj)) ERROR("Cannot finalize.");
-
-  // @ts-ignore: isDefined is a compile time check
-  if (isDefined(obj.dispose())) {
-    // @ts-ignore 
-    let index: u32 = obj.dispose.index;
-    finalizeMap.set(changetype<usize>(obj), index);
-  }
+/** Set the finalization record for this reference. */
+export function set_finalize(ptr: usize, held: u64, cb: u32): void {
+  finalizeMap.set(ptr, new FinalizationRecord(held, cb));
 }
 
-export abstract class LunaticManaged {
-  dropped: bool = false;
-  constructor() {}
-
-  abstract dispose(): void;
+/** Check to see if a reference has a finalization record still. */
+export function has_finalize(ptr: usize): bool {
+  return finalizeMap.has(ptr);
 }
 
 export const enum MessageType {
@@ -38,4 +49,27 @@ export const enum MessageType {
 export const enum err_code {
   Success,
   Fail,
+}
+
+export abstract class LunaticManaged {
+  constructor(
+    held: u64,
+    finalize: (val: u64) => void,
+  ) {
+    set_finalize(changetype<usize>(this), held, finalize.index);
+  }
+
+  get dropped(): bool {
+    return has_finalize(changetype<usize>(this));
+  }
+
+  dispose(): void {
+    if (has_finalize(changetype<usize>(this))) {
+      __lunatic_finalize(changetype<usize>(this));
+    }
+  }
+
+  preventFinalize(): void {
+    finalizeMap.delete(changetype<usize>(this));
+  }
 }

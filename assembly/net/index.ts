@@ -2,11 +2,6 @@ import { Result, id_ptr } from "../error";
 import { net } from "../bindings";
 import { err_code } from "..";
 
-export const enum IPType {
-  None = 0,
-  IPV4 = 4,
-  IPV6 = 6,
-}
 
 // ip address constant pointers
 const ip_address = memory.data(16);
@@ -73,4 +68,6 @@ export function resolve(host: string, timeout: u32 = 0): Result<IPResolution[] |
   return new Result<IPResolution[] | null>(null, id);
 }
 
-export class TCPServer {}
+export class TCPServer {
+
+}

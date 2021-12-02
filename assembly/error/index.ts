@@ -1,5 +1,5 @@
 import { error } from "../bindings";
-import { add_finalize, LunaticManaged } from "../util";
+import { set_finalize } from "../util";
 
 
 /** A predefined location to store id and error output. */
@@ -16,23 +16,27 @@ export function getError(id: u64): string {
   let len = error.string_size(id);
   let ptr = heap.alloc(len);
   error.to_string(id, ptr);
-  error.drop_error(id);
+
+  // Errors are always droped by `Result<T>` now, so we shouldn't drop the error resource until it falls
+  // out of scope.
+  // error.drop_error(id);
+
   let value = String.UTF8.decodeUnsafe(ptr, len, false);
   heap.free(ptr);
   return value;
 }
 
 /** Represents the result of a lunatic call, that could have possibly errored. */
-export class Result<T> extends LunaticManaged {
+export class Result<T> {
   private errStr: string | null = null;
+
   constructor(
     /** The resulting value of the lunatic call. */
     public value: T,
     /** Used by the underlying lunatic call to identify an error if it exists. */
     private errId: u64 = u64.MAX_VALUE,
   ) {
-    super();
-    add_finalize(this);
+    if (errId != u64.MAX_VALUE) set_finalize(changetype<usize>(this), errId, error.drop_error.index);
   }
 
   /** Obtain the error string */
@@ -43,23 +47,9 @@ export class Result<T> extends LunaticManaged {
     let errStr = this.errStr;
 
     if (errStr == null) {
-      this.dropped = true;
       return this.errStr = getError(errId);
     }
 
     return errStr!;
-  }
-
-  /** Used by as-lunatic's __lunatic_finalize() function to assert the resource is dropped. */
-  dispose(): void {
-    this.drop();
-  }
-
-  /** Dispose the error string if it was allocated. */
-  drop(): void {
-    if (!this.dropped && this.errId != u64.MAX_VALUE) {
-      error.drop_error(this.errId);
-      this.dropped = true;
-    }
   }
 }
