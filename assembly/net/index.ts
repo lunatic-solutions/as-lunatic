@@ -1,6 +1,6 @@
 import { Result, id_ptr } from "../error";
 import { net } from "../bindings";
-import { err_code } from "..";
+import { err_code, IPType, LunaticManaged } from "../util";
 
 
 // ip address constant pointers
@@ -68,6 +68,67 @@ export function resolve(host: string, timeout: u32 = 0): Result<IPResolution[] |
   return new Result<IPResolution[] | null>(null, id);
 }
 
-export class TCPServer {
+/**
+ * Represents a TCPListener, waiting for incoming TCP connections at the bound
+ * address.
+ * 
+ * Construct one with the `TCPServer.bind()` method.
+ */
+export class TCPServer extends LunaticManaged {
+  constructor(
+    public id: u64
+  ) {
+    super(id, net.drop_tcp_listener);
+  }
 
+  /**
+   * Bind a TCPServer to an IPV4 address.
+   * 
+   * @param {StaticArray<u8>} ip - Must be at least 4 bytes long, the first four bytes will be used.
+   * @param {u16} port - The port to bind to.
+   * @returns {Result<TCPServer | null>} The resulting TCPServer or an error.
+   */
+  static bindIPv4(ip: StaticArray<u8>, port: u16): Result<TCPServer | null> {
+    assert(ip.length >= 4);
+    return TCPServer.bindUnsafe(IPType.IPV4, changetype<usize>(ip), port, 0, 0);
+  }
+
+  /**
+   * Bind a TCPServer to an IPV6 address.
+   * 
+   * @param {StaticArray<u8>} ip - Must be at least 16 bytes long, the first 16 bytes will be used.
+   * @param {u16} port - The port to bind to.
+   * @param {u32} flowInfo - The flow info of the IP address.
+   * @param {u32} scopeId - The scope id of the IP address.
+   * @returns {Result<TCPServer | null>} The resulting TCPServer or an error.
+   */
+  static bindIPv6(ip: StaticArray<u8>, port: u16, flowInfo: u32, scopeId: u32): Result<TCPServer | null> {
+    assert(ip.length >= 4);
+    return TCPServer.bindUnsafe(IPType.IPV4, changetype<usize>(ip), port, flowInfo, scopeId);
+  }
+
+  /**
+   * Bind a TCPServer unsafely to a local address.
+   *
+   * @param {usize} addressPtr 
+   * @param {IPType} addressType 
+   * @param {u16} port 
+   * @param {u32} flowInfo 
+   * @param {u32} scopeId 
+   * @returns {Result<TCPServer | null>} The resulting TCPServer or an error.
+   */
+  @unsafe static bindUnsafe(
+    addressPtr: usize,
+    addressType: IPType,
+    port: u16,
+    flowInfo: u32,
+    scopeId: u32,
+  ): Result<TCPServer | null> {
+    let result = net.tcp_bind(addressType, addressPtr, port, flowInfo, scopeId, id_ptr);
+    let id = load<u64>(id_ptr);
+    if (result == err_code.Success) {
+      return new Result<TCPServer | null>(new TCPServer(id));
+    }
+    return new Result<TCPServer | null>(null, id);
+  }
 }
