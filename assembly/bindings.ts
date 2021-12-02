@@ -176,6 +176,22 @@ export namespace net {
     // @ts-ignore: external is valid here
     @external("lunatic::networking", "drop_dns_iterator")
     export declare function drop_dns_iterator(id: u64): err_code;
-
+    
+    /**
+     * Takes the next socket address from DNS iterator and writes it to the passed in pointers.
+     * Addresses type is going to be a value of `4` or `6`, representing v4 or v6 addresses. The
+     * caller needs to reserve enough space at `addr_u8_ptr` for both values to fit in (16 bytes).
+     * `flow_info_u32_ptr` & `scope_id_u32_ptr` are only going to be used with version v6.
+     *
+     * @param {u64} dns_iter_id 
+     * @param {usize} addr_type_ptr 
+     * @param {usize} add_u8_ptr 
+     * @param {usize} port_u16_ptr 
+     * @param {usize} flow_info_u32_ptr 
+     * @param {usize} scope_id_u32_ptr 
+     */
+    // @ts-ignore: external is valid here
+    @external("lunatic::networking", "resolve_next")
+    export declare function resolve_next(dns_iter_id: u64, addr_type_ptr: usize, add_u8_ptr: usize, port_u16_ptr: usize, flow_info_u32_ptr: usize, scope_id_u32_ptr: usize): err_code;
 
 }
