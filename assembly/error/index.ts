@@ -1,7 +1,9 @@
 import { error } from "../bindings";
 import { add_finalize, LunaticManaged } from "../util";
 
-export let err_str: string | null = "";
+
+/** A predefined location to store id and error output. */
+export const id_ptr = memory.data(sizeof<u64>());
 
 /**
  * Obtain an error string from an error id. This function will trap if the

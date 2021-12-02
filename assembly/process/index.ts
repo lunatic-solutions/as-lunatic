@@ -1,11 +1,8 @@
-import { Result } from "../error";
+import { Result, id_ptr } from "../error";
 import { add_finalize, LunaticManaged, err_code } from "../util";
 import { Mailbox } from "../messaging";
 import { ASON } from "@ason/assembly";
 import { message, process } from "../bindings";
-
-/** A predefined location to store id output. */
-const id_ptr = memory.data(sizeof<u64>());
 
 //%  - 0x7F => i32
 //%  - 0x7E => i64

@@ -155,4 +155,27 @@ export namespace error {
 
 export namespace net {
 
+    /**
+     * Performs a DNS resolution. The returned iterator may not actually yield any values
+     * depending on the outcome of any resolution performed.
+     *
+     * @param {usize} name_str_ptr - A pointer to utf8 string that contains the host to resolve
+     * @param {usize} name_str_len - The length of `name_str_ptr`
+     * @param {u32} timeout - How long lunatic should wait until timing out
+     * @param {usize} id_ptr - The pointer to the error or the resolution_id
+     */
+    // @ts-ignore: external is valid here
+    @external("lunatic::networking", "resolve")
+    export declare function resolve(name_str_ptr: usize, name_str_len: usize, timeout: u32, id_ptr: usize): err_code;
+
+    /**
+     * Drop a dns iterator.
+     *
+     * @param {u64} id - The ID of the iterator.
+     */
+    // @ts-ignore: external is valid here
+    @external("lunatic::networking", "drop_dns_iterator")
+    export declare function drop_dns_iterator(id: u64): err_code;
+
+
 }
