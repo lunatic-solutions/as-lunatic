@@ -212,7 +212,8 @@ export class Process<TMessage> extends LunaticManaged {
     let result = new StaticArray<u8>(sizeof<u64>());
     let cloned = this.clone()!;
     store<u64>(changetype<usize>(result), message.push_process(cloned.id));
-    cloned.dispose();
+    // we prevent finalization here because the process will transfer ownership
+    cloned.preventFinalize();
     return result;
   }
 
