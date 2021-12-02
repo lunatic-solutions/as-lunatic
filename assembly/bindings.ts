@@ -221,31 +221,20 @@ export namespace net {
     @external("lunatic::networking", "resolve_next")
     export declare function resolve_next(addr_type: IPType, addr_u8_ptr: usize, port: u16, flow_info: u32, scope_id: u32, id_u64_ptr: usize): err_code;
 
-    
-//% lunatic::networking::tcp_bind(
-//%     addr_type: u32,
-//%     addr_u8_ptr: u32,
-//%     port: u32,
-//%     flow_info: u32,
-//%     scope_id: u32,
-//%     id_u64_ptr: u32
-//% ) -> u32
-//%
-//% Returns:
-//% * 0 on success - The ID of the newly created TCP listener is written to **id_u64_ptr**
-//% * 1 on error   - The error ID is written to **id_u64_ptr**
-//%
-//% Creates a new TCP listener, which will be bound to the specified address. The returned listener
-//% is ready for accepting connections.
-//%
-//% Binding with a port number of 0 will request that the OS assigns a port to this listener. The
-//% port allocated can be queried via the `local_addr` (TODO) method.
-//%
-//% Traps:
-//% * If **addr_type** is neither 4 or 6.
-//% * If **addr_u8_ptr** is outside the memory
-//% * If **id_u64_ptr** is outside the memory.
-
+    /**
+     * Creates a new TCP listener, which will be bound to the specified address. The returned listener
+     * is ready for accepting connections.
+     *
+     * Binding with a port number of 0 will request that the OS assigns a port to this listener. The
+     * port allocated can be queried via the `local_addr` (TODO) method.
+     *
+     * @param {IPType} addr_type - The IP type.
+     * @param {usize} addr_u8_ptr - A pointer to the address.
+     * @param {u16} port - The port number
+     * @param {u32} flow_info 
+     * @param {u32} scope_id 
+     * @param {usize} id_u64_ptr 
+     */
     // @ts-ignore: external is valid here
     @external("lunatic::networking", "tcp_bind")
     export declare function tcp_bind(addr_type: IPType, addr_u8_ptr: usize, port: u16, flow_info: u32, scope_id: u32, id_u64_ptr: usize): err_code;
