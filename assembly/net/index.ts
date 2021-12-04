@@ -4,13 +4,19 @@ import { err_code, IPType, LunaticManaged } from "../util";
 
 
 // ip address constant pointers
-const ip_address = memory.data(16);
-const ip_address_type = memory.data(sizeof<u32>());
-const ip_port = memory.data(sizeof<u16>());
-const ip_flow_info = memory.data(sizeof<u32>());
-const ip_scope_id = memory.data(sizeof<u32>());
+// @ts-ignore: @lazy!
+@lazy const ip_address = memory.data(16);
+// @ts-ignore: @lazy!
+@lazy const ip_address_type = memory.data(sizeof<u32>());
+// @ts-ignore: @lazy!
+@lazy const ip_port = memory.data(sizeof<u16>());
+// @ts-ignore: @lazy!
+@lazy const ip_flow_info = memory.data(sizeof<u32>());
+// @ts-ignore: @lazy!
+@lazy const ip_scope_id = memory.data(sizeof<u32>());
 
-const dns_iterator_id = memory.data(sizeof<u64>());
+// @ts-ignore: @lazy!
+@lazy const dns_iterator_id = memory.data(sizeof<u64>());
 
 export class IPResolution {
   // allocate 16 bytes for the address
