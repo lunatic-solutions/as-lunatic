@@ -194,15 +194,15 @@ export namespace net {
     // @ts-ignore: external is valid here
     @external("lunatic::networking", "drop_tcp_stream")
     export declare function drop_tcp_stream(id: u64): void;
-    
+
     /**
-     * Takes the next socket address from DNS iterator and writes it to the passed in pointers.
-     * Addresses type is going to be a value of `4` or `6`, representing v4 or v6 addresses. The
+     * Takes the next socket address from DNS iterator and writes it to the passed pointers.
+     * Address type is going to be a value of `4` or `6`, representing v4 or v6 addresses. The
      * caller needs to reserve enough space at `addr_u8_ptr` for both values to fit in (16 bytes).
      * `flow_info_u32_ptr` & `scope_id_u32_ptr` are only going to be used with version v6.
      *
-     * @param {u64} dns_iter_id 
-     * @param {usize} addr_type_ptr 
+     * @param {u64} dns_iter_id - The DNS Iterator.
+     * @param {usize} addr_type_ptr - A pointer to the address type.
      * @param {usize} add_u8_ptr 
      * @param {usize} port_u16_ptr 
      * @param {usize} flow_info_u32_ptr 
@@ -215,34 +215,16 @@ export namespace net {
     /**
      * Creates a new TCP listener, which will be bound to the specified address. The returned listener
      * is ready for accepting connections.
-     * 
-     * Binding with a port number of 0 will request that the OS assigns a port to this listener. The
-     * port allocated can be queried via the `local_addr` (TODO) method.
-     *
-     * @param {} addr_type 
-     * @param {} addr_u8_ptr 
-     * @param {} port 
-     * @param {} flow_info 
-     * @param {} scope_id 
-     * @param {} id_u64_ptr 
-     */
-    // @ts-ignore: external is valid here
-    @external("lunatic::networking", "resolve_next")
-    export declare function resolve_next(addr_type: IPType, addr_u8_ptr: usize, port: u16, flow_info: u32, scope_id: u32, id_u64_ptr: usize): err_code;
-
-    /**
-     * Creates a new TCP listener, which will be bound to the specified address. The returned listener
-     * is ready for accepting connections.
      *
      * Binding with a port number of 0 will request that the OS assigns a port to this listener. The
      * port allocated can be queried via the `local_addr` (TODO) method.
      *
-     * @param {IPType} addr_type - The IP type.
-     * @param {usize} addr_u8_ptr - A pointer to the address.
-     * @param {u16} port - The port number
-     * @param {u32} flow_info 
-     * @param {u32} scope_id 
-     * @param {usize} id_u64_ptr 
+     * @param {IPType} addr_type - The IP Address type.
+     * @param {usize} addr_u8_ptr - A pointer to the address itself.
+     * @param {u16} port - The port number for the IP Address
+     * @param {u32} flow_info - The IPV6 Flow Info if the IP Address is v6.
+     * @param {u32} scope_id - The IPV6 Scope ID if the IP Address is v6
+     * @param {usize} id_u64_ptr - A pointer to the TCPListener id.
      */
     // @ts-ignore: external is valid here
     @external("lunatic::networking", "tcp_bind")

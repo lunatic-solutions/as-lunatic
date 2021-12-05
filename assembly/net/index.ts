@@ -1,6 +1,7 @@
 import { Result, id_ptr } from "../error";
 import { net } from "../bindings";
 import { err_code, IPType, LunaticManaged } from "../util";
+import { iovec } from "bindings/wasi_snapshot_preview1";
 
 
 // ip address constant pointers
@@ -82,7 +83,7 @@ export function resolve(host: string, timeout: u32 = 0): Result<IPResolution[] |
   if (result == err_code.Success) {
     let value: IPResolution[] = resolveDNSIterator(id);
     return new Result<IPResolution[] | null>(value);
-  } 
+  }
   return new Result<IPResolution[] | null>(null, id);
 }
 
@@ -98,12 +99,20 @@ export class TCPSocket extends LunaticManaged {
   ) {
     super(id, net.drop_tcp_listener);
   }
+
+  read(): StaticArray<u8> {
+    let vecs = heap.alloc(<usize>TCP_READ_VECTOR_INITIAL_COUNT * offsetof<iovec>());
+    let vec_index = 0;
+    let vec_capacity = TCP_READ_VECTOR_INITIAL_COUNT;
+    let buf_size = <usize>0;
+    
+  }
 }
 
 /**
  * Represents a TCPListener, waiting for incoming TCP connections at the bound
  * address.
- * 
+ *
  * Construct one with the `TCPServer.bind()` method.
  */
 export class TCPServer extends LunaticManaged {
@@ -168,7 +177,7 @@ export class TCPServer extends LunaticManaged {
   __asonSerialize(): StaticArray<u8> {
     ERROR("TCPServer cannot be serialized.");
   }
-  
+
   /** Utilized by ason to deserialize a process. */
   __asonDeserialize(_buffer: StaticArray<u8>): void {
     ERROR("TCPServer cannot be deserialized.");

@@ -1,3 +1,4 @@
+/// <reference path="./index.d.ts" />
 
 import {
   proc_exit,
