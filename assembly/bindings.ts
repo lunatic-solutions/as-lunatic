@@ -241,4 +241,17 @@ export namespace net {
     // @ts-ignore: external is valid here
     @external("lunatic::networking", "tcp_accept")
     export declare function tcp_accept(listener_id: u64, id_ptr: usize, socket_addr_id_ptr: usize): err_code;
+
+    /**
+     * Read from a tcp stream.
+     *
+     * @param stream_id - The TCP Stream to be read from.
+     * @param buffer_ptr - The pointer to the buffer.
+     * @param buffer_len - The length of the buffer.
+     * @param timeout - A timeout.
+     * @param opaque_ptr - A pointer to the error id.
+     */
+    // @ts-ignore: external is valid here
+    @external("lunatic::networking", "tcp_read")
+    export declare function tcp_read(stream_id: u64, buffer_ptr: usize, buffer_len: usize, timeout: u32, opaque_ptr: usize): err_code;
 }

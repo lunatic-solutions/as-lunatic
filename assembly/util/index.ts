@@ -1,3 +1,4 @@
+import { iovec } from "bindings/wasi";
 
 export const enum IPType {
   None = 0,
@@ -71,5 +72,66 @@ export abstract class LunaticManaged {
 
   preventFinalize(): void {
     finalizeMap.delete(changetype<usize>(this));
+  }
+}
+
+@unmanaged export class iovec_vector {
+  private index: i32 = 0;
+  private capacity: i32 = TCP_READ_VECTOR_INITIAL_COUNT;
+  public vec = heap.alloc(TCP_READ_VECTOR_INITIAL_COUNT * offsetof<iovec>());
+
+  constructor() {}
+
+  push(ptr: usize, len: usize): void {
+    assert(this.index < this.capacity);
+    let vec = changetype<iovec>(this.vec + <usize>(this.index++) * offsetof<iovec>());
+    vec.buf = ptr;
+    vec.buf_len = len;
+  }
+
+  conditionally_increase_capacity(): void {
+    let capacity = this.capacity;
+    if (this.index == this.capacity) {
+      capacity = capacity << 1;
+      this.vec = heap.realloc(this.vec, (<usize>capacity) * offsetof<iovec>());
+      this.capacity = capacity;
+    }
+  }
+
+  to_static_array(): StaticArray<u8> {
+
+    // sum up the buffer lengths
+    let sum = 0;
+    let count = this.index;
+    let vec = this.vec;
+    for (let i: usize = 0; i < count; i++) {
+      sum += changetype<iovec>(vec + i * offsetof<iovec>()).buf_len;
+    }
+
+    // get the return value
+    let reset = new StaticArray<u8>(<i32>sum);
+    let running_ptr = changetype<usize>(reset);
+
+    // copy each buffer
+    for (let i: usize = 0; i < count; i++) {
+      let buff = changetype<iovec>(vec + i * offsetof<iovec>()).buf;
+      let len = changetype<iovec>(vec + i * offsetof<iovec>()).buf_len;
+      memory.copy(running_ptr, buff, len);
+      running_ptr += len;
+      heap.free(buff); // free the buffer
+    }
+
+    this.index = 0;
+    return reset;
+  }
+
+  free_children(): void {
+    // free each child
+    let vec = this.vec;
+    let count = this.index;
+    for (let i = 0; i < count; i++) {
+      heap.free(changetype<iovec>(vec + i * offsetof<iovec>()).buf);
+    }
+    this.index = 0;
   }
 }

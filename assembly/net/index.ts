@@ -1,7 +1,7 @@
 import { Result, id_ptr } from "../error";
 import { net } from "../bindings";
-import { err_code, IPType, LunaticManaged } from "../util";
-import { iovec } from "bindings/wasi_snapshot_preview1";
+import { err_code, IPType, LunaticManaged, iovec_vector } from "../util";
+
 
 
 // ip address constant pointers
@@ -17,7 +17,7 @@ import { iovec } from "bindings/wasi_snapshot_preview1";
 @lazy const ip_scope_id = memory.data(sizeof<u32>());
 
 // @ts-ignore: @lazy!
-@lazy const dns_iterator_id = memory.data(sizeof<u64>());
+@lazy const opaque_ptr = memory.data(sizeof<u64>());
 
 export class IPResolution {
   // allocate 16 bytes for the address
@@ -44,6 +44,13 @@ export class IPResolution {
     memory.copy(changetype<usize>(result), changetype<usize>(this), select<usize>(i32(type == IPType.IPV4), 16, 4));
     return result;
   }
+}
+
+/** The different tcp read results. */
+export const enum TCPReadResultType {
+  Success,
+  Timeout,
+  Closed,
 }
 
 /**
@@ -91,6 +98,9 @@ export function resolve(host: string, timeout: u32 = 0): Result<IPResolution[] |
  * A TCP Socket that can be written to or read from.
  */
 export class TCPSocket extends LunaticManaged {
+  /** The resulting read buffer. */
+  public buffer: StaticArray<u8> | null = null;
+
   constructor(
     /** The tcp socket id on the host. */
     public id: u64,
@@ -100,12 +110,55 @@ export class TCPSocket extends LunaticManaged {
     super(id, net.drop_tcp_listener);
   }
 
-  read(): StaticArray<u8> {
-    let vecs = heap.alloc(<usize>TCP_READ_VECTOR_INITIAL_COUNT * offsetof<iovec>());
-    let vec_index = 0;
-    let vec_capacity = TCP_READ_VECTOR_INITIAL_COUNT;
-    let buf_size = <usize>0;
-    
+  /**
+   * Read a buffer from the TCP Stream with a timeout.
+   *
+   * @param {u32} timeout - How long a read should wait until the request times out.
+   * @returns {StaticArray<u8>} The resulting buffer.
+   */
+  read(timeout: u32 = 0): TCPReadResultType {
+    // setup
+    let result_buffer = new iovec_vector(); // unmanaged! must be freed
+    let id = this.id;
+
+    let count = 0;
+    // for each successful read
+    while (true) {
+      // TCP_READ_VECTOR_SIZE is managed by `--use TCP_READ_VECTOR_SIZE={some const value}`
+      let buff = heap.alloc(TCP_READ_VECTOR_SIZE);
+      let read_result = net.tcp_read(id, buff, TCP_READ_VECTOR_SIZE, timeout, id_ptr);
+      if (read_result == err_code.Success) {
+        // get bytes read
+        let bytes_read = load<u64>(id_ptr);
+
+        // if no bytes were read on a success, the socket was closed
+        if (bytes_read == 0) {
+          result_buffer.free_children();
+          this.buffer = null;
+          heap.free(changetype<usize>(buff));
+          return TCPReadResultType.Closed;
+        }
+
+        // give ownership of buffer to result_buffer
+        result_buffer.push(buff, <usize>bytes_read);
+      } else {
+        // free the buffer and continue execution
+        heap.free(buff);
+        break;
+      }
+      count++;
+    }
+
+    // if success was never returned, user defined timeout
+    if (count == 0) {
+      return TCPReadResultType.Timeout;
+    }
+
+    // free all the internal buffers and copy them into a static array
+    let result = result_buffer.to_static_array();
+    heap.free(changetype<usize>(result_buffer));
+    this.buffer = result;
+    return TCPReadResultType.Success;
   }
 }
 
@@ -124,7 +177,7 @@ export class TCPServer extends LunaticManaged {
 
   /**
    * Bind a TCPServer to an IPV4 address.
-   * 
+   *
    * @param {StaticArray<u8>} ip - Must be at least 4 bytes long, the first four bytes will be used.
    * @param {u16} port - The port to bind to.
    * @returns {Result<TCPServer | null>} The resulting TCPServer or an error.
@@ -136,7 +189,7 @@ export class TCPServer extends LunaticManaged {
 
   /**
    * Bind a TCPServer to an IPV6 address.
-   * 
+   *
    * @param {StaticArray<u8>} ip - Must be at least 16 bytes long, the first 16 bytes will be used.
    * @param {u16} port - The port to bind to.
    * @param {u32} flowInfo - The flow info of the IP address.
@@ -184,10 +237,10 @@ export class TCPServer extends LunaticManaged {
   }
 
   accept(): Result<TCPSocket | null> {
-    let result = net.tcp_accept(this.id, id_ptr, dns_iterator_id);
+    let result = net.tcp_accept(this.id, id_ptr, opaque_ptr);
     let id = load<u64>(id_ptr);
     if (result == err_code.Success) {
-      let dns_iterator = load<u64>(dns_iterator_id);
+      let dns_iterator = load<u64>(opaque_ptr);
       let ipResolutions = resolveDNSIterator(dns_iterator);
       assert(ipResolutions.length == 1);
       return new Result<TCPSocket | null>(new TCPSocket(id, unchecked(ipResolutions[0])))
