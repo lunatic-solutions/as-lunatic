@@ -1,6 +1,7 @@
 import { Result, id_ptr } from "../error";
 import { net } from "../bindings";
 import { err_code, IPType, LunaticManaged, iovec_vector } from "../util";
+import { iovec } from "bindings/wasi";
 
 
 
@@ -47,10 +48,12 @@ export class IPResolution {
 }
 
 /** The different tcp read results. */
-export const enum TCPReadResultType {
+
+export const enum TCPResultType {
   Success,
   Timeout,
   Closed,
+  Error,
 }
 
 /**
@@ -100,6 +103,8 @@ export function resolve(host: string, timeout: u32 = 0): Result<IPResolution[] |
 export class TCPSocket extends LunaticManaged {
   /** The resulting read buffer. */
   public buffer: StaticArray<u8> | null = null;
+  /** Written byte count after calling write. */
+  public byteCount: i32 = 0;
 
   constructor(
     /** The tcp socket id on the host. */
@@ -116,7 +121,7 @@ export class TCPSocket extends LunaticManaged {
    * @param {u32} timeout - How long a read should wait until the request times out.
    * @returns {StaticArray<u8>} The resulting buffer.
    */
-  read(timeout: u32 = 0): TCPReadResultType {
+  read(timeout: u32 = 0): TCPResultType {
     // setup
     let result_buffer = new iovec_vector(); // unmanaged! must be freed
     let id = this.id;
@@ -136,7 +141,7 @@ export class TCPSocket extends LunaticManaged {
           result_buffer.free_children();
           this.buffer = null;
           heap.free(changetype<usize>(buff));
-          return TCPReadResultType.Closed;
+          return TCPResultType.Closed;
         }
 
         // give ownership of buffer to result_buffer
@@ -151,14 +156,32 @@ export class TCPSocket extends LunaticManaged {
 
     // if success was never returned, user defined timeout
     if (count == 0) {
-      return TCPReadResultType.Timeout;
+      return TCPResultType.Timeout;
     }
 
     // free all the internal buffers and copy them into a static array
     let result = result_buffer.to_static_array();
     heap.free(changetype<usize>(result_buffer));
     this.buffer = result;
-    return TCPReadResultType.Success;
+    return TCPResultType.Success;
+  }
+
+  @unsafe writeUnsafe(ptr: usize, len: usize, timeout: u32 = 0): Result<TCPResultType> {
+    let vec = changetype<iovec>(memory.data(offsetof<iovec>()));
+    vec.buf = ptr;
+    vec.buf_len = len;
+    let result = net.tcp_write_vectored(this.id, vec, 1, timeout, id_ptr);
+    let count = load<u64>(id_ptr);
+
+    if (result == err_code.Success) {
+      if (count == 0) {
+        return new Result<TCPResultType>(TCPResultType.Closed);
+      }
+      this.byteCount = count;
+      return new Result<TCPResultType>(TCPResultType.Success);
+    } else {
+      return new Result<TCPResultType>(TCPResultType.Error, count);
+    }
   }
 }
 

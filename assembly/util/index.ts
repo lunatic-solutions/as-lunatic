@@ -75,6 +75,7 @@ export abstract class LunaticManaged {
   }
 }
 
+/** A helper class for collecting iovecs. */
 @unmanaged export class iovec_vector {
   private index: i32 = 0;
   private capacity: i32 = TCP_READ_VECTOR_INITIAL_COUNT;

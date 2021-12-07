@@ -1,3 +1,4 @@
+import { iovec } from "bindings/wasi";
 import { IPType, MessageType, err_code } from "./util";
 
 export namespace process {
@@ -254,4 +255,17 @@ export namespace net {
     // @ts-ignore: external is valid here
     @external("lunatic::networking", "tcp_read")
     export declare function tcp_read(stream_id: u64, buffer_ptr: usize, buffer_len: usize, timeout: u32, opaque_ptr: usize): err_code;
+
+    /**
+     * Write bytes to a stream.
+     *
+     * @param stream_id - The stream id.
+     * @param ciovec_array_ptr - A ciovec array pointer to the data.
+     * @param ciovec_array_len - The length of that vector.
+     * @param timeout - A timeout in milliseconds for the write.
+     * @param opaque_ptr - A pointer to write the number of bytes to, or the error.
+     */
+    // @ts-ignore: external is valid here
+    @external("lunatic::networking", "tcp_write_vectored")
+    export declare function tcp_write_vectored(stream_id: u64, ciovec_array_ptr: iovec, ciovec_array_len: u32, timeout: u32, opaque_ptr: usize): err_code;
 }
