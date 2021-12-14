@@ -8,7 +8,7 @@ const writeVec = changetype<iovec>(memory.data(offsetof<iovec>()));
  *
  * @param {usize} name_ptr - A pointer to the hostname to be resolved.
  * @param {usize} name_len - The length of the hostname string.
- * @param {usize} resolver_id - A pointer to a u32 that will contain the result id
+ * @param {usize} resolver_id - A pointer to a u64 that will contain the result id
  * that represents an iterator.
  * @returns {ResolveResult} The Resolution result.
  */
@@ -178,22 +178,24 @@ export function resolve(host: string): TCPResult<IPAddress[] | null> {
 /**
  * Bind a TCPServer to an IP Address and port.
  *
- * @param {usize} addr_len - The length of the IP address, 4 or 16.
+ * @param {usize} addr_type - The length of the IP address, 4 or 16.
  * @param {usize} addr_ptr - A pointer to the address bytes.
  * @param {u16} port - The port.
- * @param {usize} listener_id - A pointer to a u32 that will be the TCPServer
- * listener ID.
- * @returns {TCPErrorCode} The result of binding to an IP address.
+ * @param {u32} flow_info - IPV6 Flow Info.
+ * @param {u32} scope_id - IPV6 scope id.
+ * @param {usize} listener_id - A pointer to a u64 that will either be the tcp_listener, or the
+ * error that occured when trying to create it.
+ * @returns {err_code} successful if the socket was successfully bound.
  */
 // @ts-ignore: valid decorator
 @external("lunatic", "tcp_bind")
 declare function tcp_bind(
-  addr_len: usize,
+  addr_type: usize,
   addr_ptr: usize,// *const u8,
   port: u16,
   flow_info: u32,
   scope_id: u32,
-  listener_id: usize, //*mut u32,
+  listener_id: usize, //*mut u64,
 ): err_code;
 
 /**
