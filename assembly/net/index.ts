@@ -1,7 +1,7 @@
-import { err_code, getError } from "../error";
+import { Result, id_ptr } from "../error";
+import { net } from "../bindings";
+import { err_code, IPType, LunaticManaged, iovec_vector } from "../util";
 import { iovec } from "bindings/wasi";
-import { TOTAL_OVERHEAD, OBJECT } from "rt/common";
-const writeVec = changetype<iovec>(memory.data(offsetof<iovec>()));
 
 /**
  * Resolve a hostname to an array of ip addresses.
@@ -20,160 +20,57 @@ declare function lunatic_resolve(
   resolver_id: usize /* *mut u64 */
 ): err_code;
 
-/**
- * The iterator result.
- */
-const enum ResolveNextResult {
-  /** This value indicates there are more IP addresses to be iterated over. */
-  Success = 0,
-  /** The IP addresses are exhausted, and iteration is complete. */
-  Done = 1,
-}
 
-/**
- * Write the next IP address into memory if it exists.
- *
- * @param {u64} resolver_id - The iterator id.
- * @param {usize} addr - A pointer to 16 allocated bytes to write the resolved IP address.
- * @param {usize} addr_len - A pointer to a usize to write the length of the resolved IP address.
- * @param {usize} port - A pointer to a u16 to write the port number of the resolved IP address.
- * @param {usize} flow_info - A pointer to a u32 to write the flow_info of the resolved IP address.
- * @param {usize} scope_id - A pointer to a u32 to write the scope_id of the resolved IP address.
- * @returns {ResolveNextResult} The result of iterating over the next IP address. If it returns
- * Success, there is another IP address to retrieve.
- */
-// @ts-ignore: valid decorator
-@external("lunatic", "resolve_next")
-declare function resolve_next(
-  resolver_id: u64,
-  addr: usize /* *mut u8 */,
-  addr_len: usize /* *mut usize */,
-  port: usize /* *mut u16 */,
-  flow_info: usize /* *mut u32 */,
-  scope_id: usize /* *mut u32 */,
-): ResolveNextResult;
+// ip address constant pointers
+// @ts-ignore: @lazy!
+@lazy const ip_address = memory.data(16);
+// @ts-ignore: @lazy!
+@lazy const ip_address_type = memory.data(sizeof<u32>());
+// @ts-ignore: @lazy!
+@lazy const ip_port = memory.data(sizeof<u16>());
+// @ts-ignore: @lazy!
+@lazy const ip_flow_info = memory.data(sizeof<u32>());
+// @ts-ignore: @lazy!
+@lazy const ip_scope_id = memory.data(sizeof<u32>());
 
-/**
- * Free an ip resolution iterator.
- *
- * @param {u64} id - The iterator id.
- */
-// @ts-ignore: valid decorator
-@external("lunatic", "drop_dns_iterator")
-declare function drop_dns_iterator(id: u64): void;
+// @ts-ignore: @lazy!
+@lazy const opaque_ptr = memory.data(sizeof<u64>());
 
-/** Represents the result of an operation. */
-export class TCPResult<T> {
-  constructor(
-    public message: string | null,
-    public value: T,
-  ) {}
-}
+export class IPResolution {
+  // allocate 16 bytes for the address
+  private _address_1: u64 = 0;
+  private _address_2: u64 = 0;
+  public type: IPType = IPType.None;
+  public port: u16 = 0;
+  public flowInfo: u32 = 0;
+  public scopeId: u32 = 0;
 
-/**
- * A resulting IPResolution.
- */
-export class IPAddress {
-  /** An array of bytes representing the IP address. */
-  address: StaticArray<u8> | null = null;
-  /** The length of the IP address. 4 or 16. */
-  address_len: usize;
-  /** The port. */
-  port: u16;
-  /** The flow info. */
-  flow_info: u32;
-  /** The scope_id. */
-  scope_id: u32;
+  constructor() {
+    let type = <IPType>load<u32>(ip_address_type);
+    memory.copy(changetype<usize>(this), ip_address, select<usize>(i32(type == IPType.IPV4), 16, 4));
+    this.type = type;
+    this.port = load<u16>(ip_port);
+    this.flowInfo = load<u32>(ip_flow_info);
+    this.scopeId = load<u32>(ip_scope_id);
+  }
 
-  /** Clone an IP. */
-  clone(): IPAddress {
-    let result = new IPAddress();
-    result.address = this.address ? this.address.slice(0) : null;
-    result.address_len = this.address_len;
-    result.port = this.port;
-    result.flow_info = this.flow_info
-    result.scope_id = this.scope_id;
+  public get ip(): StaticArray<u8> {
+    let type = this.type;
+    if (type == IPType.None) assert(false);
+    let result = new StaticArray<u8>(4);
+    memory.copy(changetype<usize>(result), changetype<usize>(this), select<usize>(i32(type == IPType.IPV4), 16, 4));
     return result;
   }
 }
 
-/**
- * Close a tcp server.
- *
- * @param {u64} listener - The TCPServer id that should be closed.
- */
-// @ts-ignore: valid decorator
-@external("lunatic", "drop_tcp_listener")
-declare function drop_tcp_listener(listener: u64): void;
+/** The different tcp read results. */
 
-/** Drop a tcp stream by it's id. */
-// @ts-ignore: valid decorator
-@external("lunatic", "drop_tcp_stream")
-declare function drop_tcp_stream(stream: u64): void;
-
-/** Clone a socket, return it's new id. */
-// @ts-ignore: valid decorator
-@external("lunatic", "clone_tcp_stream")
-declare function clone_tcp_stream(stream: u64): u64;
-
-/**
- * Block the current process and read from the given TCPStream.
- *
- * @param {u64} stream - The given stream id.
- * @param {usize} ptr - [*mut u8] A pointer to an allocated space of memory for the bytes.
- * @param {usize} len - The maximum number of bytes to be read.
- * @param {usize} opaque - [*mut usize] A pointer to write the number of bytes written.
- */
-// @ts-ignore: valid decorator
-@external("lunatic", "tcp_read")
-declare function tcp_read(stream: u64, ptr: usize, len: usize, opaque: usize): err_code;
-
-/**
- * Write a clike array of iovecs to a given TCPStream.
- *
- * @param {u64} stream - The stream id.
- * @param {usize} ciovec_array_ptr - [*iovec] The array of iovecs to be written.
- * @param {usize} ciovec_array_len - The length of the iovec array.
- * @param {usize} opaqueu64Ptr - A pointer to a *u64 that will contain either the number of bytes written,
- * or the error code.
- */
-// @ts-ignore: valid decorator
-@external("lunatic", "tcp_write_vectored")
-declare function tcp_write_vectored(stream: u64, ciovec_array_ptr: usize, ciovec_array_len: usize, opaqueu64Ptr: usize): err_code;
-
-/** A pointer to an ip resolution iterator. */
-const resolver_id_ptr = memory.data(sizeof<u64>());
-
-/**
- * Resolve an ip address from a host name.
- *
- * @param {string} host - The host or ip address name that should be resolved.
- * @returns {IPAddress[] | null} null if the IP could not be resolved.
- */
-export function resolve(host: string): TCPResult<IPAddress[] | null> {
-  // encode the ip address to utf8
-  let ipBuffer = String.UTF8.encode(host);
-  // call the host to resolve the IP address
-  let resolveResult = lunatic_resolve(
-    changetype<usize>(ipBuffer),
-    ipBuffer.byteLength,
-    // write the resolver to memory
-    resolver_id_ptr
-  );
-
-  if (resolveResult == err_code.Success) {
-    // read the resolver id
-    let resolverId = load<u64>(resolver_id_ptr);
-
-    return new TCPResult<IPAddress[] | null>(null, dns_iterator_to_array(resolverId));
-  } else {
-    return new TCPResult<IPAddress[] | null>(
-      getError(load<u64>(resolver_id_ptr)),
-      null,
-    );
-  }
+export const enum TCPResultType {
+  Success,
+  Timeout,
+  Closed,
+  Error,
 }
-
 
 /**
  * Bind a TCPServer to an IP Address and port.
@@ -199,398 +96,217 @@ declare function tcp_bind(
 ): err_code;
 
 /**
- * Block the current thread to accept a socket from the TCPServer.
- *
- * @param {u32} listener - The listener.
- * @param {usize} tcp_socket - A pointer to a u64 that will contain the socket id.
- * @param {usize} address_ptr - A pointer to a u64 that will contain a dns iterator.
- * @returns {err_code} The result of accepting a tcp socket.
+ * Resolve the contents of a DNS Iterator.
+ * @param {u64} id - The dns iterator id.
+ * @returns {IPResolution[]} The IPResolution array.
  */
-// @ts-ignore: valid decorator
-@external("lunatic", "tcp_accept")
-declare function tcp_accept(
-  listener: u32,
-  tcp_socket: usize, //*mut u64
-  address_ptr: usize, //*mut u64
-): err_code;
+function resolveDNSIterator(id: u64): IPResolution[] {
+  let value: IPResolution[] = [];
 
-/**
- * Initiate a TCP connection.
- *
- * @param {usize} addr_ptr - A pointer to an array of bytes.
- * @param {usize} addr_len - A pointer to a usize that describes the length of the IP address.
- * @param {u16} port - The port.
- * @param {u32} flow_info - The flow info. (ipv6)
- * @param {u32} scope_id - The scope id. (ipv6)
- * @param {usize} listener_id - A pointer to a u32 where the listener_id will be written if
- * the connection was successful, or the error id if it failed.
- * @returns {TCPErrorCode} The result of initiating a TCP connection.
- */
-// @ts-ignore: valid decorator
-@external("lunatic", "tcp_connect")
-declare function tcp_connect(
-  addr_ptr: usize, // *const u8,
-  addr_len: usize,
-  port: u16,
-  flow_info: u32,
-  scope_id: u32,
-  listener_id: usize, // *mut u64,
-): err_code;
-
-const opaqueu64Ptr = memory.data(sizeof<u64>());
-
-/**
- * This class represents a TCPServer. In order to obtain a reference to a TCPServer,
- * lunatic must provide a `listener_id` by calling the lunatic.tcp_bind method. Typical
- * end users will call the `TCPServer.bind(ip, port)` method to obtain a reference.
- */
- export class TCPServer {
-  constructor(private listener: u32) {}
-
-  /** Public ason deserialize method. */
-  public __asonDeserialize(buffer: StaticArray<u8>): void {
-    //this.listener = tcp_listener_deserialize(load<u32>(changetype<usize>(buffer)));
-    this.listener = 0;
+  // obtain the ip resolutions
+  while (net.resolve_next(id, ip_address_type, ip_address, ip_port, ip_flow_info, ip_scope_id) == err_code.Success) {
+    value.push(new IPResolution()); // IPResolution will automatically load from the pointers
   }
 
-  /** Public ason serialize method. */
-  public __asonSerialize(): StaticArray<u8> {
-    // let buffer = new StaticArray<u8>(sizeof<u32>());
-    // store<u32>(changetype<usize>(buffer), tcp_listener_serialize(this.listener));
-    // return buffer;
-    return new StaticArray<u8>();
+  // always drop if successful
+  net.drop_dns_iterator(id);
+  return value;
+}
+
+/**
+ * Resolve a hostname it it's given IPResolutions.
+ *
+ * @param {string} host - The host to be resolved.
+ * @param {u32} timeout - The timeout.
+ * @returns {Result<IPResolution[] | null>} The resulting IPResolution set.
+ */
+export function resolve(host: string, timeout: u32 = 0): Result<IPResolution[] | null> {
+  // encode the string to utf8
+  let name_ptr = String.UTF8.encode(host);
+
+  // resolve the host
+  let result = net.resolve(changetype<usize>(name_ptr), <usize>name_ptr.byteLength, timeout, id_ptr);
+
+  // process the result
+  let id = load<u64>(id_ptr);
+  if (result == err_code.Success) {
+    let value: IPResolution[] = resolveDNSIterator(id);
+    return new Result<IPResolution[] | null>(value);
+  }
+  return new Result<IPResolution[] | null>(null, id);
+}
+
+/**
+ * A TCP Socket that can be written to or read from.
+ */
+export class TCPSocket extends LunaticManaged {
+  /** The resulting read buffer. */
+  public buffer: StaticArray<u8> | null = null;
+  /** Written byte count after calling write. */
+  public byteCount: i32 = 0;
+
+  constructor(
+    /** The tcp socket id on the host. */
+    public id: u64,
+    /** The IP Address of this socket. */
+    public ip: IPResolution
+  ) {
+    super(id, net.drop_tcp_listener);
   }
 
   /**
-   * Bind a TCPServer to an address and a port.
+   * Read a buffer from the TCP Stream with a timeout.
    *
-   * @param {StaticArray<u8>} address - The address in an array of bytes.
-   * @param {u16} port - The port.
-   * @returns {TCPResult<TCPServer | null>} The error code and TCPServer if the error code was 0
+   * @param {u32} timeout - How long a read should wait until the request times out.
+   * @returns {StaticArray<u8>} The resulting buffer.
    */
-  public static bind(
-    address: StaticArray<u8>,
+  read(timeout: u32 = 0): TCPResultType {
+    // setup
+    let result_buffer = new iovec_vector(); // unmanaged! must be freed
+    let id = this.id;
+
+    let count = 0;
+    // for each successful read
+    while (true) {
+      // TCP_READ_VECTOR_SIZE is managed by `--use TCP_READ_VECTOR_SIZE={some const value}`
+      let buff = heap.alloc(TCP_READ_VECTOR_SIZE);
+      let read_result = net.tcp_read(id, buff, TCP_READ_VECTOR_SIZE, timeout, id_ptr);
+      if (read_result == err_code.Success) {
+        // get bytes read
+        let bytes_read = load<u64>(id_ptr);
+
+        // if no bytes were read on a success, the socket was closed
+        if (bytes_read == 0) {
+          result_buffer.free_children();
+          this.buffer = null;
+          heap.free(changetype<usize>(buff));
+          return TCPResultType.Closed;
+        }
+
+        // give ownership of buffer to result_buffer
+        result_buffer.push(buff, <usize>bytes_read);
+      } else {
+        // free the buffer and continue execution
+        heap.free(buff);
+        break;
+      }
+      count++;
+    }
+
+    // if success was never returned, user defined timeout
+    if (count == 0) {
+      return TCPResultType.Timeout;
+    }
+
+    // free all the internal buffers and copy them into a static array
+    let result = result_buffer.to_static_array();
+    heap.free(changetype<usize>(result_buffer));
+    this.buffer = result;
+    return TCPResultType.Success;
+  }
+
+  @unsafe writeUnsafe(ptr: usize, len: usize, timeout: u32 = 0): Result<TCPResultType> {
+    let vec = changetype<iovec>(memory.data(offsetof<iovec>()));
+    vec.buf = ptr;
+    vec.buf_len = len;
+    let result = net.tcp_write_vectored(this.id, vec, 1, timeout, id_ptr);
+    let count = load<u64>(id_ptr);
+
+    if (result == err_code.Success) {
+      if (count == 0) {
+        return new Result<TCPResultType>(TCPResultType.Closed);
+      }
+      this.byteCount = count;
+      return new Result<TCPResultType>(TCPResultType.Success);
+    } else {
+      return new Result<TCPResultType>(TCPResultType.Error, count);
+    }
+  }
+}
+
+/**
+ * Represents a TCPListener, waiting for incoming TCP connections at the bound
+ * address.
+ *
+ * Construct one with the `TCPServer.bind()` method.
+ */
+export class TCPServer extends LunaticManaged {
+  constructor(
+    public id: u64
+  ) {
+    super(id, net.drop_tcp_listener);
+  }
+
+  /**
+   * Bind a TCPServer to an IPV4 address.
+   *
+   * @param {StaticArray<u8>} ip - Must be at least 4 bytes long, the first four bytes will be used.
+   * @param {u16} port - The port to bind to.
+   * @returns {Result<TCPServer | null>} The resulting TCPServer or an error.
+   */
+  static bindIPv4(ip: StaticArray<u8>, port: u16): Result<TCPServer | null> {
+    assert(ip.length >= 4);
+    return TCPServer.bindUnsafe(IPType.IPV4, changetype<usize>(ip), port, 0, 0);
+  }
+
+  /**
+   * Bind a TCPServer to an IPV6 address.
+   *
+   * @param {StaticArray<u8>} ip - Must be at least 16 bytes long, the first 16 bytes will be used.
+   * @param {u16} port - The port to bind to.
+   * @param {u32} flowInfo - The flow info of the IP address.
+   * @param {u32} scopeId - The scope id of the IP address.
+   * @returns {Result<TCPServer | null>} The resulting TCPServer or an error.
+   */
+  static bindIPv6(ip: StaticArray<u8>, port: u16, flowInfo: u32, scopeId: u32): Result<TCPServer | null> {
+    assert(ip.length >= 4);
+    return TCPServer.bindUnsafe(IPType.IPV4, changetype<usize>(ip), port, flowInfo, scopeId);
+  }
+
+  /**
+   * Bind a TCPServer unsafely to a local address.
+   *
+   * @param {usize} addressPtr 
+   * @param {IPType} addressType 
+   * @param {u16} port 
+   * @param {u32} flowInfo 
+   * @param {u32} scopeId 
+   * @returns {Result<TCPServer | null>} The resulting TCPServer or an error.
+   */
+  @unsafe static bindUnsafe(
+    addressPtr: usize,
+    addressType: IPType,
     port: u16,
-    flow_info: u32,
-    scope_id: u32): TCPResult<TCPServer | null> {
-
-    let result = new TCPServer(0);
-    // tcp_bind writes the listener id here
-    let code = tcp_bind(
-      address.length,
-      changetype<usize>(address),
-      port,
-      flow_info,
-      scope_id,
-      changetype<usize>(result)
-    );
-    if (code === err_code.Success) {
-      return new TCPResult<TCPServer | null>(null, result);
-    } else {
-      return new TCPResult<TCPServer | null>(
-        getError(result.listener),
-        null,
-      );
-    }
-  }
-
-  /**
-   * Block the current process and accept a TCPSocket if it was succesfully obtained.
-   * @returns {TCPStream | null} null if the tcp server errored.
-   */
-  public accept(): TCPResult<TCPStream | null> {
-    let code = tcp_accept(this.listener, opaqueu64Ptr, resolver_id_ptr);
-    let tcpStreamId = load<u64>(opaqueu64Ptr);
-
-    if (code == err_code.Success) {
-      let resolution = dns_iterator_to_array(load<u64>(resolver_id_ptr));
-      assert(resolution.length == 1);
-      return new TCPResult<TCPStream | null>(
-        null,
-        new TCPStream(tcpStreamId, resolution[0]),
-      );
-    } else {
-      return new TCPResult<TCPStream | null>(
-        getError(tcpStreamId),
-        null,
-      );
-    }
-  }
-
-  /**
-   * TCP Servers should always be dropped to free up memory when they are no longer in use.
-   */
-  public drop(): void {
-    drop_tcp_listener(this.listener);
-  }
-}
-
-/**
- * This function accepts a dns_iterator id, and resolves it to an array of IPResolution.
- * @param {u64} id - The iterator.
- * @returns an array of IPResolution.
- */
-export function dns_iterator_to_array(id: u64): IPAddress[] {
-  // loop over each IPResolution and add it to the list
-  let ipArray = new Array<IPAddress>(0);
-  while (true) {
-    // must always allocate 16 bytes
-    let buffer = new StaticArray<u8>(16);
-    let resolution = new IPAddress();
-    resolution.address = buffer;
-
-    // the host iterates over each result until it returns Done
-    let resolutionResult = resolve_next(
-      id,
-      changetype<usize>(buffer),
-      changetype<usize>(resolution) + offsetof<IPAddress>("addr_len"),
-      changetype<usize>(resolution) + offsetof<IPAddress>("port"),
-      changetype<usize>(resolution) + offsetof<IPAddress>("flow_info"),
-      changetype<usize>(resolution) + offsetof<IPAddress>("scope_id"),
-    );
-    if (resolutionResult == ResolveNextResult.Done) break;
-    ipArray.push(resolution);
-  }
-  drop_dns_iterator(id);
-  return ipArray;
-}
-
-export function connect_ip(ip: IPAddress): TCPResult<TCPStream | null> {
-  return connect_unsafe(
-    changetype<usize>(ip.address),
-    ip.address_len,
-    ip.port,
-    ip.flow_info,
-    ip.scope_id,
-  );
-}
-
-export function connect(
-  address: StaticArray<u8>,
-  port: u16,
-  flow_info: u32,
-  scope_id: u32,
-  ): TCPResult<TCPStream | null> {
-  return connect_unsafe(
-    changetype<usize>(address),
-    <usize>address.length,
-    port,
-    flow_info,
-    scope_id,
-  );
-}
-
-/**
- * Actually requests a host connection with a raw pointer to address data. Considdered unsafe
- * because passing around pointers can be dangerous.
- *
- * @param {usize} address_ptr - [u8*] The address pointer, 4 or 16 bytes in length
- * @param {usize} address_len - The address length, 4 or 16
- * @param {u16} port - The port number for the connection.
- * @param {u32} flow_info - Flow info, [ipv6]
- * @param {u32} scope_id - Scope id, [ipv6]
- * @returns {TCPResult<TCPStream | null>} The result of attempting to open a tcp connection with a server.
- */
-// @ts-ignore: valid decorator
-@unsafe export function connect_unsafe(
-  address_ptr: usize,
-  address_len: usize,
-  port: u16,
-  flow_info: u32,
-  scope_id: u32,
-  ): TCPResult<TCPStream | null> {
-  let result = tcp_connect(
-    address_ptr,
-    address_len,
-    port,
-    flow_info,
-    scope_id,
-    opaqueu64Ptr,
-  );
-
-  if (result === err_code.Success) {
-    let resolution = new IPAddress();
-    let ip = new StaticArray<u8>(<i32>address_len);
-    memory.copy(changetype<usize>(ip), address_ptr, address_len);
-    resolution.address = ip;
-    resolution.address_len = address_len;
-    resolution.port = port;
-    resolution.flow_info = flow_info;
-    resolution.scope_id = scope_id;
-    return new TCPResult<TCPStream | null>(
-      null,
-      new TCPStream(
-        load<u64>(opaqueu64Ptr),
-        resolution,
-      ),
-    );
-  } else {
-    return new TCPResult<TCPStream | null>(
-      getError(load<u64>(opaqueu64Ptr)),
-      null,
-    );
-  }
-}
-
-export class TCPStream {
-  private dropped: bool = false;
-
-  constructor(public listener: u64, public ip: IPAddress) {}
-
-  drop(): void {
-    drop_tcp_stream(this.listener);
-    this.dropped = true;
-  }
-
-  clone(): TCPResult<TCPStream | null> {
-    if (this.dropped) {
-      return new TCPResult<TCPStream | null>(
-        "Cannot clone a dropped socket.",
-        null,
-      );
-    }
-    return new TCPResult<TCPStream | null>(
-      null,
-      new TCPStream(
-        clone_tcp_stream(this.listener),
-        this.ip.clone(),
-      ),
-    );
-  }
-
-  /**
-   * Read data from this tcp stream into a given static array.
-   *
-   * @param {StaticArray<u8>} buffer - The buffer the bytes will be written to.
-   * @returns The number of bytes written.
-   */
-  read_static_array(buffer: StaticArray<u8>): TCPResult<usize> {
-    return this.read_unsafe(
-      changetype<usize>(buffer),
-      <usize>buffer.length,
-    );
-  }
-
-  /**
-   * Read data into a given typed array, will use the backing buffer's byteLength to
-   * determine the maximum number of bytes to be written.
-   *
-   * @param {U} buffer - The TypedArray that will be written to.
-   * @returns The number of bytes written. Can calculate the number of indicies written
-   * by using `<i32>(bytesWritten >>> alignof<valueof<U>>())`.
-   */
-  read_typed_array<U extends ArrayBufferView>(buffer: U): TCPResult<usize> {
-    let ptr = changetype<usize>(buffer.buffer) + <usize>buffer.byteOffset;
-    return this.read_unsafe(ptr, <usize>buffer.byteLength);
-  }
-
-  /**
-   * Read data from this tcp stream into a given array buffer.
-   *
-   * @param {ArrayBuffer} buffer - The buffer the bytes will be written to.
-   * @returns The number of bytes written.
-   */
-  read_array_buffer(buffer: ArrayBuffer): TCPResult<usize> {
-    return this.read_unsafe(
-      changetype<usize>(buffer),
-      <usize>buffer.byteLength,
-    );
-  }
-
-  /**
-   * Read data from this TCPStream, and return the number of bytes writen.
-   *
-   * @param {usize} ptr - [*mut u8] A pointer to the location where the bytes will be written.
-   * @param {usize} len - The maximum number of bytes to be written.
-   * @returns The number of bytes written.
-   */
-  read_unsafe(ptr: usize, len: usize): TCPResult<usize> {
-    let result = tcp_read(this.listener, ptr, len, opaqueu64Ptr);
+    flowInfo: u32,
+    scopeId: u32,
+  ): Result<TCPServer | null> {
+    let result = net.tcp_bind(addressType, addressPtr, port, flowInfo, scopeId, id_ptr);
+    let id = load<u64>(id_ptr);
     if (result == err_code.Success) {
-      return new TCPResult<usize>(
-        null,
-        <usize>load<u64>(opaqueu64Ptr),
-      );
-    } else {
-      return new TCPResult<usize>(
-        getError(load<u64>(opaqueu64Ptr)),
-        0,
-      );
+      return new Result<TCPServer | null>(new TCPServer(id));
     }
+    return new Result<TCPServer | null>(null, id);
   }
 
-  /**
-   * Write a typed array's data to this TCPStream.
-   *
-   * @param {U} buffer - The array buffer to be written.
-   * @returns The number of bytes written.
-   */
-  write_typed_array<U extends ArrayBufferView>(buffer: U): TCPResult<usize> {
-    return this.write_unsafe(
-      changetype<usize>(buffer.buffer) + <usize>buffer.byteOffset,
-      <usize>buffer.byteLength,
-    );
+  /** Utilized by ason to serialize a process. */
+  __asonSerialize(): StaticArray<u8> {
+    ERROR("TCPServer cannot be serialized.");
   }
 
-  /**
-   * Write a string to the buffer, writing bytes in utf16le format.
-   *
-   * @param {string} str - The string to be written.
-   * @returns The number of bytes written.
-   */
-  write_string_utf16le(str: string): TCPResult<usize> {
-    return this.write_unsafe(
-      changetype<usize>(str),
-      changetype<OBJECT>(changetype<usize>(str) - TOTAL_OVERHEAD).rtSize,
-    );
+  /** Utilized by ason to deserialize a process. */
+  __asonDeserialize(_buffer: StaticArray<u8>): void {
+    ERROR("TCPServer cannot be deserialized.");
   }
 
-  /**
-   * Write a string to the buffer, converting to utf8 first.
-   *
-   * @param {string} str - The string to be written.
-   * @returns The number of bytes written.
-   */
-  write_string(str: string): TCPResult<usize> {
-    let converted = String.UTF8.encode(str);
-    return this.write_array_buffer(converted);
-  }
-
-  /**
-   * Write an ArrayBuffer of data to the tcp stream.
-   *
-   * @param {ArrayBuffer} buffer - The buffer to be written.
-   * @returns The number of bytes written.
-   */
-  write_array_buffer(buffer: ArrayBuffer): TCPResult<usize> {
-    return this.write_unsafe(changetype<usize>(buffer), <usize>buffer.byteLength);
-  }
-
-  /**
-   * Write a static array of data to the tcp stream.
-   *
-   * @param {StaticArray<u8>} buffer - The buffer to be written.
-   * @returns The number of bytes written.
-   */
-  write_static_array(buffer: StaticArray<u8>): TCPResult<usize> {
-    return this.write_unsafe(changetype<usize>(buffer), <usize>buffer.length);
-  }
-
-  /**
-   * Write a vector of bytes to a tcp stream.
-   *
-   * @param {usize} ptr - [*u8] The array of bytes to write.
-   * @param {usize} len - The number of bytes to be written.
-   */
-  write_unsafe(ptr: usize, len: usize): TCPResult<usize> {
-    writeVec.buf = ptr;
-    writeVec.buf_len = len;
-    let result = tcp_write_vectored(this.listener, changetype<usize>(writeVec), 1, opaqueu64Ptr);
+  accept(): Result<TCPSocket | null> {
+    let result = net.tcp_accept(this.id, id_ptr, opaque_ptr);
+    let id = load<u64>(id_ptr);
     if (result == err_code.Success) {
-      return new TCPResult<usize>(null, <usize>load<u64>(opaqueu64Ptr));
-    } else {
-      return new TCPResult<usize>(getError(load<u64>(opaqueu64Ptr)), 0);
+      let dns_iterator = load<u64>(opaque_ptr);
+      let ipResolutions = resolveDNSIterator(dns_iterator);
+      assert(ipResolutions.length == 1);
+      return new Result<TCPSocket | null>(new TCPSocket(id, unchecked(ipResolutions[0])))
     }
+    return new Result<TCPSocket | null>(null, id);
   }
 }
-
