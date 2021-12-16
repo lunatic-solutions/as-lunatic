@@ -1,60 +1,8 @@
 import { Result, id_ptr } from "../error";
-import { set_finalize, LunaticManaged, err_code } from "../util";
+import { Parameters, LunaticManaged, err_code } from "../util";
 import { Mailbox } from "../messaging";
 import { ASON } from "@ason/assembly";
 import { message, process } from "../bindings";
-
-//%  - 0x7F => i32
-//%  - 0x7E => i64
-//%  - 0x7B => v128
-/** Predefined location to store tags for function parameters. */
-@lazy const params = memory.data(55); // ( 16(v128) + 1(type) ) * 3(count)
-@lazy let param_count = 0;
-@lazy let param_offset = 0;
-
-/** Unmanaged Tag class used for tagging parameters for remote function calls when starting a process. */
-@unmanaged export class Parameters {
-  static reset(): Parameters {
-    param_count = 0;
-    param_offset = 0;
-    // Yes. This is a fake null reference
-    return changetype<Parameters>(params);
-  }
-
-  /** Tag an i32 parameter. */
-  i32(val: i32): Parameters {
-    assert(param_count < 3);
-    param_count++;
-    store<u8>(params + param_offset, <u8>0x7F);
-    store<i32>(params + param_offset, val, 1);
-    param_offset += 17;
-    return this;
-  }
-
-  /** Tag an i64 parameter. */
-  i64(val: i64): Parameters {
-    assert(param_count < 3);
-    param_count++;
-    store<u8>(params + param_offset, <u8>0x7E);
-    store<i64>(params + param_offset, val, 1);
-    param_offset += 17;
-    return this;
-  }
-
-  /** Tag a v128 parameter. */
-  v128(val: v128): Parameters {
-    assert(param_count < 3);
-    param_count++;
-    store<u8>(params + param_offset, <u8>0x7B);
-    v128.store(params + param_offset, val, 1);
-    param_offset += 17; // 16(v128) + 1
-    return this;
-  }
-
-  get ptr(): usize {
-    return params;
-  }
-}
 
 
 const bootstrap_utf8 = [0x5f, 0x5f, // "__"

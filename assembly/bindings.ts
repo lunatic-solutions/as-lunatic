@@ -1,5 +1,5 @@
 import { iovec } from "bindings/wasi";
-import { IPType, MessageType, err_code } from "./util";
+import { IPType, MessageType, err_code, Parameters } from "./util";
 
 export namespace process {
     // @ts-ignore
