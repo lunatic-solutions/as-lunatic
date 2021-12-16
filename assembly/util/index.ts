@@ -54,6 +54,10 @@ import { iovec } from "bindings/wasi";
   get ptr(): usize {
     return params;
   }
+
+  get byteLength(): usize {
+    return param_count * 17;
+  } 
 }
 
 export const enum IPType {

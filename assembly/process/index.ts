@@ -44,7 +44,6 @@ export class Process<TMessage> extends LunaticManaged {
   static spawn(module: Module, func: string, params: Parameters): Result<Process<StaticArray<u8>> | null> {
     // utf8 string is required
     let buff = String.UTF8.encode(func);
-
     let result = process.spawn(
       // parent is this process
       pid,
@@ -57,8 +56,8 @@ export class Process<TMessage> extends LunaticManaged {
       <usize>buff.byteLength,
 
       // process tag, function parameters
-      changetype<usize>(params),
-      param_count,
+      params.ptr,
+      params.byteLength,
 
       // output id
       id_ptr,
