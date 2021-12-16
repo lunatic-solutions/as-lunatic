@@ -6,14 +6,14 @@ let emptyTagset = [] as StaticArray<i64>;
 
 export class Message<TMessage> {
   public tag: i64 = 0;
-  private buffer: StaticArray<u8>;
+  private buffer: StaticArray<u8> | null = null;
 
   constructor(
     public type: MessageType,
   ) {
     if (type == MessageType.Data) {
       let size = message.data_size();
-      let data = new StaticArray<u8>();
+      let data = new StaticArray<u8>(<i32>size);
       let count = message.read_data(changetype<usize>(data), <usize>data.length);
       assert(count == size);
       this.buffer = data;
@@ -28,7 +28,7 @@ export class Message<TMessage> {
    */
   get value(): TMessage {
     assert(this.type == MessageType.Data);
-    return ASON.deserialize<TMessage>(this.buffer);
+    return ASON.deserialize<TMessage>(this.buffer!);
   }
 }
 
@@ -37,7 +37,7 @@ export class Message<TMessage> {
 
   receive(tags: StaticArray<i64> | null = null, timeout: u32 = 0): Message<TMessage> {
     tags = tags || emptyTagset;
-    let tagsLength = tags.length;
+    let tagsLength = tags!.length;
 
     /**
      * Returns:

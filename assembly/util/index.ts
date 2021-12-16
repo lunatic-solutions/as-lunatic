@@ -16,28 +16,23 @@ export class FinalizationRecord {
   ) {}
 }
 
-/**
- * A map of pointer to FinalizationRecord
- */
-let finalizeMap = new Map<usize, FinalizationRecord>();
-
 // @ts-ignore: global decorator
 @global export function __lunatic_finalize(ptr: usize): void {
-  if (finalizeMap.has(ptr)) {
-    let record = finalizeMap.get(ptr);
+  if (LunaticManaged.finalizeMap.has(ptr)) {
+    let record = LunaticManaged.finalizeMap.get(ptr);
     call_indirect(record.cb, record.held);
-    finalizeMap.delete(ptr);
+    LunaticManaged.finalizeMap.delete(ptr);
   }
 }
 
 /** Set the finalization record for this reference. */
 export function set_finalize(ptr: usize, held: u64, cb: u32): void {
-  finalizeMap.set(ptr, new FinalizationRecord(held, cb));
+  LunaticManaged.finalizeMap.set(ptr, new FinalizationRecord(held, cb));
 }
 
 /** Check to see if a reference has a finalization record still. */
 export function has_finalize(ptr: usize): bool {
-  return finalizeMap.has(ptr);
+  return LunaticManaged.finalizeMap.has(ptr);
 }
 
 export const enum MessageType {
@@ -53,6 +48,8 @@ export const enum err_code {
 }
 
 export abstract class LunaticManaged {
+  @lazy static finalizeMap: Map<usize, FinalizationRecord> = new Map<usize, FinalizationRecord>()
+
   constructor(
     held: u64,
     finalize: (val: u64) => void,
@@ -71,7 +68,7 @@ export abstract class LunaticManaged {
   }
 
   preventFinalize(): void {
-    finalizeMap.delete(changetype<usize>(this));
+    LunaticManaged.finalizeMap.delete(changetype<usize>(this));
   }
 }
 
@@ -79,7 +76,7 @@ export abstract class LunaticManaged {
 @unmanaged export class iovec_vector {
   private index: i32 = 0;
   private capacity: i32 = TCP_READ_VECTOR_INITIAL_COUNT;
-  public vec = heap.alloc(TCP_READ_VECTOR_INITIAL_COUNT * offsetof<iovec>());
+  public vec: usize = heap.alloc(TCP_READ_VECTOR_INITIAL_COUNT * offsetof<iovec>());
 
   constructor() {}
 

@@ -55,7 +55,7 @@ export namespace process {
     export declare function this_handle(): u64;
     // @ts-ignore
     @external("lunatic::process", "id")
-    export declare function id(): usize
+    export declare function id(pid: u64, ptr: usize): usize;
     // @ts-ignore
     @external("lunatic::process", "this_env")
     export declare function this_env(): u64;

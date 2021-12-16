@@ -47,7 +47,7 @@ export class Result<T> {
     let errStr = this.errStr;
 
     if (errStr == null) {
-      return this.errStr = getError(errId);
+      return (this.errStr = getError(errId))!;
     }
 
     return errStr!;

@@ -8,13 +8,13 @@ import { message, process } from "../bindings";
 //%  - 0x7E => i64
 //%  - 0x7B => v128
 /** Predefined location to store tags for function parameters. */
-const params = memory.data(51); // ( 16(v128) + 1(type) ) * 3(count)
-let param_count = 0;
-let param_offset = 0;
+@lazy const params = memory.data(51); // ( 16(v128) + 1(type) ) * 3(count)
+@lazy let param_count = 0;
+@lazy let param_offset = 0;
 
 /** Unmanaged Tag class used for tagging parameters for remote function calls when starting a process. */
 @unmanaged export class Parameters {
-  static reset() {
+  static reset(): Parameters {
     param_count = 0;
     param_offset = 0;
     // Yes. This is a fake null reference
@@ -62,7 +62,7 @@ const bootstrap_utf8 = [0x5f, 0x5f, // "__"
 ] as StaticArray<u8>;
 
 
-let pid = process.id();
+let pid = process.this_handle();
 
 export class Process<TMessage> extends LunaticManaged {
 
@@ -73,6 +73,12 @@ export class Process<TMessage> extends LunaticManaged {
    */
   static sleep(ms: u64): void {
     process.sleep_ms(ms);
+  }
+
+  static id(): StaticArray<u8> {
+    let id = new StaticArray<u8>(16);
+    process.id(pid, changetype<usize>(id));
+    return id;
   }
 
   /**
@@ -133,6 +139,7 @@ export class Process<TMessage> extends LunaticManaged {
       1, // we know it's 1
       id_ptr,
     );
+
     let spawnID = load<u64>(id_ptr);
 
     if (result == err_code.Success) {
@@ -375,7 +382,7 @@ export class Environment extends LunaticManaged {
 // Configurations help create environments
 export class Config extends LunaticManaged {
   public id: u64 = 0;
-  private directories = new Map<string, u64>();
+  private directories: Map<string, u64> = new Map<string, u64>();
 
   constructor(max_memory: u64, max_fuel: u64) {
       let id = process.create_config(max_memory, max_fuel);
