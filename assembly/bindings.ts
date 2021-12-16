@@ -37,7 +37,7 @@ export namespace process {
     export declare function spawn(link: u64, module_id: u64, func_str_ptr: usize, func_str_len: usize, params_ptr: usize, params_len: u32, id_ptr: usize): err_code;
     // @ts-ignore
     @external("lunatic::process", "inherit_spawn")
-    export declare function inherit_spawn(link: u64, func_str_ptr: usize, func_str_len: u32, params_ptr: usize, params_len: u32, id_ptr: usize): err_code;
+    export declare function inherit_spawn(link: u64, func_str_ptr: usize, func_str_len: usize, params_ptr: usize, params_len: u32, id_ptr: usize): err_code;
     // @ts-ignore
     @external("lunatic::process", "drop_process")
     export declare function drop_process(process_id: u64): void;

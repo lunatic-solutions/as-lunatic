@@ -8,7 +8,7 @@ import { message, process } from "../bindings";
 //%  - 0x7E => i64
 //%  - 0x7B => v128
 /** Predefined location to store tags for function parameters. */
-@lazy const params = memory.data(51); // ( 16(v128) + 1(type) ) * 3(count)
+@lazy const params = memory.data(55); // ( 16(v128) + 1(type) ) * 3(count)
 @lazy let param_count = 0;
 @lazy let param_offset = 0;
 
@@ -27,7 +27,7 @@ import { message, process } from "../bindings";
     param_count++;
     store<u8>(params + param_offset, <u8>0x7F);
     store<i32>(params + param_offset, val, 1);
-    param_offset += sizeof<i32>() + 1;
+    param_offset += 17;
     return this;
   }
 
@@ -37,7 +37,7 @@ import { message, process } from "../bindings";
     param_count++;
     store<u8>(params + param_offset, <u8>0x7E);
     store<i64>(params + param_offset, val, 1);
-    param_offset += sizeof<i64>() + 1;
+    param_offset += 17;
     return this;
   }
 
@@ -49,6 +49,10 @@ import { message, process } from "../bindings";
     v128.store(params + param_offset, val, 1);
     param_offset += 17; // 16(v128) + 1
     return this;
+  }
+
+  get ptr(): usize {
+    return params;
   }
 }
 
@@ -127,16 +131,18 @@ export class Process<TMessage> extends LunaticManaged {
    * @returns {Result<Process | null>} the process if the creation was successful.
    */
   static inherit_spawn<TMessage>(func: (mb: Mailbox<TMessage>) => void): Result<Process<TMessage> | null> {
+    let paramsPtr = Parameters.reset()
+      .i32(func.index)
+      .ptr;
+    
+    trace("paramsPtr", 1, <f64>paramsPtr);
     // store the function pointer bytes little endian (lower bytes in front)
-    let params = Parameters.reset()
-      .i32(func.index);
-
     let result = process.inherit_spawn(
       pid,
       changetype<usize>(bootstrap_utf8),
       <usize>bootstrap_utf8.length,
-      changetype<usize>(params),
-      1, // we know it's 1
+      paramsPtr,
+      17, // 
       id_ptr,
     );
 
