@@ -19,12 +19,12 @@ export function push(ptr: usize, cb: u32, held: u64): void {
 
 export function remove(ptr: usize): finalization_record | null {
     let find: usize = item;
-    let prev = 0;
+    let prev: usize = 0;
     while (true) {
         if (find == 0) return null;
         let findRef = changetype<finalization_record>(find);
         if (findRef.ptr == ptr) {
-            changetype<finalization_record>(prev).next = findRef.next;
+            if (prev != 0) changetype<finalization_record>(prev).next = findRef.next;
             return findRef;
         }
         prev = find;
