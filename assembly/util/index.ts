@@ -1,4 +1,5 @@
 import { iovec } from "bindings/wasi";
+import { push, remove, has } from "./unmanagedLinkedList";
 
 
 //%  - 0x7F => i32
@@ -57,7 +58,7 @@ import { iovec } from "bindings/wasi";
 
   get byteLength(): usize {
     return param_count * 17;
-  } 
+  }
 }
 
 export const enum IPType {
@@ -66,33 +67,23 @@ export const enum IPType {
   IPV6 = 6,
 }
 
-/**
- * An internal finalization record for object disposal.
- */
-export class FinalizationRecord {
-  constructor(
-    public held: u64,
-    public cb: u32,
-  ) {}
-}
-
 // @ts-ignore: global decorator
 @global export function __lunatic_finalize(ptr: usize): void {
-  if (LunaticManaged.finalizeMap.has(ptr)) {
-    let record = LunaticManaged.finalizeMap.get(ptr);
-    call_indirect(record.cb, record.held);
-    LunaticManaged.finalizeMap.delete(ptr);
+  let val = remove(ptr)
+  if (val != null) {
+    call_indirect(val.cb, val.held);
+    heap.free(changetype<usize>(val));
   }
 }
 
 /** Set the finalization record for this reference. */
 export function set_finalize(ptr: usize, held: u64, cb: u32): void {
-  LunaticManaged.finalizeMap.set(ptr, new FinalizationRecord(held, cb));
+  push(ptr, cb, held);
 }
 
 /** Check to see if a reference has a finalization record still. */
 export function has_finalize(ptr: usize): bool {
-  return LunaticManaged.finalizeMap.has(ptr);
+  return has(ptr);
 }
 
 export const enum MessageType {
@@ -108,7 +99,6 @@ export const enum err_code {
 }
 
 export abstract class LunaticManaged {
-  @lazy static finalizeMap: Map<usize, FinalizationRecord> = new Map<usize, FinalizationRecord>()
 
   constructor(
     held: u64,
@@ -128,7 +118,7 @@ export abstract class LunaticManaged {
   }
 
   preventFinalize(): void {
-    LunaticManaged.finalizeMap.delete(changetype<usize>(this));
+    remove(changetype<usize>(this));
   }
 }
 
