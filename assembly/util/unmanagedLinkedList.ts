@@ -37,7 +37,7 @@ export function push(ptr: usize, cb: u32, held: u64): void {
 }
 
 export function remove(ptr: usize): finalization_record | null {
-    let find = item;
+    let find: usize = item;
     let prev = 0;
     while (true) {
         if (find == 0) return null;
