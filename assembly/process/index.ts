@@ -81,15 +81,14 @@ export class Process<TMessage> extends LunaticManaged {
     let paramsPtr = Parameters.reset()
       .i32(func.index)
       .ptr;
-    
-    trace("paramsPtr", 1, <f64>paramsPtr);
+
     // store the function pointer bytes little endian (lower bytes in front)
     let result = process.inherit_spawn(
       pid,
       changetype<usize>(bootstrap_utf8),
       <usize>bootstrap_utf8.length,
       paramsPtr,
-      17, // 
+      17, // 17 * 1
       id_ptr,
     );
 

@@ -5,7 +5,7 @@
   "asMain": "assembly/index.ts",
   "description": "Bindings for lunatic imports",
   "scripts": {
-    "asbuild": "asc assembly/tests.ts --outFile build/test.wasm --config asconfig.json",
+    "asbuild": "asc --debug assembly/tests.ts --outFile build/test.wasm --config asconfig.json",
     "run:test": "lunatic build/test.wasm",
     "run": "run-s asbuild run:test"
   },

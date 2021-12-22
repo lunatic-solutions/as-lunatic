@@ -74,8 +74,9 @@ export const enum IPType {
 
 // @ts-ignore: global decorator
 @global export function __lunatic_finalize(ptr: usize): void {
-  let val = changetype<finalization_record>(get(ptr));
-  if (val != null) {
+  if (has(ptr)) {
+    trace("finalizing", 1, <f64>ptr);
+    let val = changetype<finalization_record>(get(ptr));
     call_indirect(val.cb, val.held);
     heap.free(changetype<usize>(val));
   }
