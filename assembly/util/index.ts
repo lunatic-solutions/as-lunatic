@@ -1,6 +1,11 @@
 import { iovec } from "bindings/wasi";
-import { push, remove, has } from "./unmanagedLinkedList";
+import { get, del, set, has } from "./ptrHashMap";
 
+export class finalization_record {
+  cb: u32;
+  ptr: usize;
+  held: u64;
+}
 
 //%  - 0x7F => i32
 //%  - 0x7E => i64
@@ -69,7 +74,7 @@ export const enum IPType {
 
 // @ts-ignore: global decorator
 @global export function __lunatic_finalize(ptr: usize): void {
-  let val = remove(ptr)
+  let val = changetype<finalization_record>(get(ptr));
   if (val != null) {
     call_indirect(val.cb, val.held);
     heap.free(changetype<usize>(val));
@@ -78,7 +83,11 @@ export const enum IPType {
 
 /** Set the finalization record for this reference. */
 export function set_finalize(ptr: usize, held: u64, cb: u32): void {
-  push(ptr, cb, held);
+  let rec = new finalization_record();
+  rec.cb = cb;
+  rec.held = held;
+  rec.ptr = ptr;
+  set(ptr, changetype<usize>(rec));
 }
 
 /** Check to see if a reference has a finalization record still. */
@@ -118,7 +127,7 @@ export abstract class LunaticManaged {
   }
 
   preventFinalize(): void {
-    remove(changetype<usize>(this));
+    del(changetype<usize>(this));
   }
 }
 
