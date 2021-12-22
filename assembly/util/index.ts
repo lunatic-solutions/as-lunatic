@@ -1,5 +1,5 @@
 import { iovec } from "bindings/wasi";
-import { get, del, set, has } from "./ptrHashMap";
+import { ht_get, ht_set } from "./HashTable";
 
 export class finalization_record {
   cb: u32;
@@ -74,11 +74,12 @@ export const enum IPType {
 
 // @ts-ignore: global decorator
 @global export function __lunatic_finalize(ptr: usize): void {
-  if (has(ptr)) {
+  let result = ht_get(ptr);
+  if (result != 0) {
     trace("finalizing", 1, <f64>ptr);
-    let val = changetype<finalization_record>(get(ptr));
+    let val = changetype<finalization_record>(result);
     call_indirect(val.cb, val.held);
-    heap.free(changetype<usize>(val));
+    heap.free(result);
   }
 }
 
@@ -88,12 +89,12 @@ export function set_finalize(ptr: usize, held: u64, cb: u32): void {
   rec.cb = cb;
   rec.held = held;
   rec.ptr = ptr;
-  set(ptr, changetype<usize>(rec));
+  ht_set(ptr, changetype<usize>(rec));
 }
 
 /** Check to see if a reference has a finalization record still. */
 export function has_finalize(ptr: usize): bool {
-  return has(ptr);
+  return ht_get(ptr) != 0;
 }
 
 export const enum MessageType {
@@ -128,7 +129,7 @@ export abstract class LunaticManaged {
   }
 
   preventFinalize(): void {
-    del(changetype<usize>(this));
+    ht_set(changetype<usize>(this), 0);
   }
 }
 
