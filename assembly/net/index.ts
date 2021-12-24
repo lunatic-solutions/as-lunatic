@@ -106,16 +106,31 @@ export class TCPSocket extends LunaticManaged {
   /** Written byte count after calling write. */
   public byteCount: i32 = 0;
 
-  static connectIPV4(ip: StaticArray<u8>, port: u16): TCPSocket {
+  static connectIPV4(ip: StaticArray<u8>, port: u16, timeout: u32 = 0): Result<TCPSocket | null> {
     assert(ip.length >= 4);
-    return TCPSocket.connectUnsafe();
+    return TCPSocket.connectUnsafe(
+      IPType.IPV4,
+      changetype<usize>(ip),
+      port,
+      0,
+      0,
+      timeout,
+    );
   }
 
-  static connectIPV6(ip: StaticArray<u8>, port: u16): TCPSocket {
-
+  static connectIPV6(ip: StaticArray<u8>, port: u16, flow_info: u32, scope_id: u32, timeout: u32 = 0): Result<TCPSocket | null> {
+    assert(ip.length >= 16);
+    return TCPSocket.connectUnsafe(
+      IPType.IPV6,
+      changetype<usize>(ip),
+      port,
+      flow_info,
+      scope_id,
+      timeout,
+    );
   }
 
-  static connectUnsafe(addr_type: u32, addr_ptr: usize, port: u16, flow_info: u32, scope_id: u32, timeout: u32): Result<TCPSocket | null> {
+  static connectUnsafe(addr_type: IPType, addr_ptr: usize, port: u16, flow_info: u32, scope_id: u32, timeout: u32): Result<TCPSocket | null> {
     assert(addr_type == 4 || addr_type == 6);
     let result = net.tcp_connect(
       addr_type,
@@ -129,7 +144,7 @@ export class TCPSocket extends LunaticManaged {
     let id = load<u64>(id_ptr);
     if (result == err_code.Success) {
       // setup memory to copy an IPResolution object
-      memory.copy(ip_address, addr_ptr, select<usize>(4, 16, addr_type == 4));
+      memory.copy(ip_address, addr_ptr, select<usize>(4, 16, addr_type == IPType.IPV4));
 
       store<u32>(ip_address_type, addr_type);
       store<u16>(ip_address_type, port);
