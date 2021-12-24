@@ -268,4 +268,27 @@ export namespace net {
     // @ts-ignore: external is valid here
     @external("lunatic::networking", "tcp_write_vectored")
     export declare function tcp_write_vectored(stream_id: u64, ciovec_array_ptr: iovec, ciovec_array_len: u32, timeout: u32, opaque_ptr: usize): err_code;
+
+    /**
+     * Create a new tcp connection to a TCP Server.
+     * @param {u32} addr_type - The address type, 4 or 6
+     * @param {usize} addr_u8_ptr - A pointer to a memory location containing the ip address
+     * @param {u16} port - The port of the ip address.
+     * @param {u32} flow_info - The flow info
+     * @param {u32} scope_id - The scope id.
+     * @param {u32} timeout - A timeout in ms.
+     * @param {usize} id_u64_ptr - A pointer to a 64 bit number that will contain the error string id,
+     *                             or the id of the tcp socket.
+     */
+    // @ts-ignore: external is valid here
+    @external("lunatic::networking", "tcp_connect")
+    export declare function tcp_connect(
+        addr_type: u32,
+        addr_u8_ptr: u32,
+        port: u32,
+        flow_info: u32,
+        scope_id: u32,
+        timeout: u32,
+        id_u64_ptr: u32,
+    ): err_code;
 }

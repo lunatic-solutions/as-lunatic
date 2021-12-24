@@ -1,14 +1,20 @@
-import { Process, Mailbox, MessageType, Message } from "./index";
+import {
+  TCPServer,
+  TCPSocket,
+  Process,
+  Mailbox,
+} from "./index";
 
 export function _start(): void {
-  trace("Testing GC!");
+  test_tcp();
+}
 
-  for (let i = 0; i < 100; i++) {
-    Process.inherit_spawn<i32>((mb: Mailbox<i32>) => {
-      let msg = mb.receive();
-      trace("received:", 1, <f64>msg.value);
-    });
-  }
-  __collect();
-  while (true) {}
+let port = 999999;
+function test_tcp(): void {
+  let result = TCPServer.bindIPv4([127, 0, 0, 1], port);
+  if (!result.value) assert(false, result.errorString);
+  let server = result.value!;
+  Process.inherit_spawn<i32>((mb: Mailbox<i32>) => {
+    
+  });
 }

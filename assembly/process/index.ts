@@ -15,7 +15,7 @@ const bootstrap_utf8 = [0x5f, 0x5f, // "__"
 
 
 let pid = process.this_handle();
-
+let tagid: u64 = 0;
 export class Process<TMessage> extends LunaticManaged {
 
   /**
@@ -158,6 +158,16 @@ export class Process<TMessage> extends LunaticManaged {
   /** Used by as-lunatic's __lunatic_finalize() function to assert the resource is dropped. */
   dispose(): void {
     this.drop();
+  }
+
+  link(): u64 {
+    let tag = tagid++;
+    process.link(tag, this.id);
+    return tag;
+  }
+
+  unlink(): void {
+    process.unlink(this.id);
   }
 
   /** Clone a process, returns null if the process has already been dropped. */

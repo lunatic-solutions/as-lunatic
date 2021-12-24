@@ -3,22 +3,6 @@ import { net } from "../bindings";
 import { err_code, IPType, LunaticManaged, iovec_vector } from "../util";
 import { iovec } from "bindings/wasi";
 
-/**
- * Resolve a hostname to an array of ip addresses.
- *
- * @param {usize} name_ptr - A pointer to the hostname to be resolved.
- * @param {usize} name_len - The length of the hostname string.
- * @param {usize} resolver_id - A pointer to a u64 that will contain the result id
- * that represents an iterator.
- * @returns {ResolveResult} The Resolution result.
- */
-// @ts-ignore: valid decorator
-@external("lunatic", "resolve")
-declare function lunatic_resolve(
-  name_ptr: usize /* *const u8 */,
-  name_len: usize,
-  resolver_id: usize /* *mut u64 */
-): err_code;
 
 
 // ip address constant pointers
@@ -73,29 +57,6 @@ export const enum TCPResultType {
 }
 
 /**
- * Bind a TCPServer to an IP Address and port.
- *
- * @param {usize} addr_type - The length of the IP address, 4 or 16.
- * @param {usize} addr_ptr - A pointer to the address bytes.
- * @param {u16} port - The port.
- * @param {u32} flow_info - IPV6 Flow Info.
- * @param {u32} scope_id - IPV6 scope id.
- * @param {usize} listener_id - A pointer to a u64 that will either be the tcp_listener, or the
- * error that occured when trying to create it.
- * @returns {err_code} successful if the socket was successfully bound.
- */
-// @ts-ignore: valid decorator
-@external("lunatic", "tcp_bind")
-declare function tcp_bind(
-  addr_type: usize,
-  addr_ptr: usize,// *const u8,
-  port: u16,
-  flow_info: u32,
-  scope_id: u32,
-  listener_id: usize, //*mut u64,
-): err_code;
-
-/**
  * Resolve the contents of a DNS Iterator.
  * @param {u64} id - The dns iterator id.
  * @returns {IPResolution[]} The IPResolution array.
@@ -144,6 +105,42 @@ export class TCPSocket extends LunaticManaged {
   public buffer: StaticArray<u8> | null = null;
   /** Written byte count after calling write. */
   public byteCount: i32 = 0;
+
+  static connectIPV4(ip: StaticArray<u8>, port: u16): TCPSocket {
+    assert(ip.length >= 4);
+    return TCPSocket.connectUnsafe();
+  }
+
+  static connectIPV6(ip: StaticArray<u8>, port: u16): TCPSocket {
+
+  }
+
+  static connectUnsafe(addr_type: u32, addr_ptr: usize, port: u16, flow_info: u32, scope_id: u32, timeout: u32): Result<TCPSocket | null> {
+    assert(addr_type == 4 || addr_type == 6);
+    let result = net.tcp_connect(
+      addr_type,
+      addr_ptr,
+      port,
+      flow_info,
+      scope_id,
+      timeout,
+      id_ptr,
+    );
+    let id = load<u64>(id_ptr);
+    if (result == err_code.Success) {
+      // setup memory to copy an IPResolution object
+      memory.copy(ip_address, addr_ptr, select<usize>(4, 16, addr_type == 4));
+
+      store<u32>(ip_address_type, addr_type);
+      store<u16>(ip_address_type, port);
+      store<u32>(ip_flow_info, flow_info);
+      store<u32>(ip_scope_id, scope_id);
+
+      // new IPResolution() copies from the previous pointers
+      return new Result<TCPSocket | null>(new TCPSocket(id, new IPResolution()), 0);
+    }
+    return new Result<TCPSocket | null>(null, id);
+  }
 
   constructor(
     /** The tcp socket id on the host. */

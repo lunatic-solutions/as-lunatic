@@ -137,6 +137,7 @@ export * from "./process";
 export * from "./messaging";
 export * from "./util";
 export * from "./bindings";
+export * from "./net";
 
 // export * from "./channel";
 // export * from "./process/index-old";
