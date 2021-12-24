@@ -1,2 +1,3 @@
 declare const TCP_READ_VECTOR_INITIAL_COUNT: i32;
 declare const TCP_READ_VECTOR_SIZE: i32;
+declare const LUNATIC_FINALIZATION_ENTRY_COUNT: i32;

@@ -1,11 +1,5 @@
 import { iovec } from "bindings/wasi";
-import { ht_get, ht_set } from "./HashTable";
-
-export class finalization_record {
-  cb: u32;
-  ptr: usize;
-  held: u64;
-}
+import { ht_del, ht_get, ht_set } from "./HashTable";
 
 //%  - 0x7F => i32
 //%  - 0x7E => i64
@@ -74,27 +68,20 @@ export const enum IPType {
 
 // @ts-ignore: global decorator
 @global export function __lunatic_finalize(ptr: usize): void {
-  let result = ht_get(ptr);
-  if (result != 0) {
-    trace("finalizing", 1, <f64>ptr);
-    let val = changetype<finalization_record>(result);
-    call_indirect(val.cb, val.held);
-    heap.free(result);
+  let result = ht_del(ptr);
+  if (result) {
+    call_indirect(result.cb, result.held)
   }
 }
 
 /** Set the finalization record for this reference. */
 export function set_finalize(ptr: usize, held: u64, cb: u32): void {
-  let rec = new finalization_record();
-  rec.cb = cb;
-  rec.held = held;
-  rec.ptr = ptr;
-  ht_set(ptr, changetype<usize>(rec));
+  ht_set(ptr, held, cb);
 }
 
 /** Check to see if a reference has a finalization record still. */
 export function has_finalize(ptr: usize): bool {
-  return ht_get(ptr) != 0;
+  return ht_get(ptr) != null;
 }
 
 export const enum MessageType {
@@ -129,7 +116,7 @@ export abstract class LunaticManaged {
   }
 
   preventFinalize(): void {
-    ht_set(changetype<usize>(this), 0);
+    ht_del(changetype<usize>(this));
   }
 }
 
