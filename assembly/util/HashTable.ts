@@ -8,9 +8,12 @@ import { E_ALLOCATION_TOO_LARGE, E_KEYNOTFOUND } from "util/error";
 }
 
 
-let entries: usize = heap.alloc(offsetof<ht_entry>() * LUNATIC_FINALIZATION_ENTRY_COUNT);  // hash slots
-let capacity: usize = <usize>LUNATIC_FINALIZATION_ENTRY_COUNT;    // size of _entries array
-let length: usize = 0;      // number of items in hash table
+/** Always points to the currently active table of references. */
+let entries: usize = heap.alloc(offsetof<ht_entry>() * LUNATIC_FINALIZATION_ENTRY_COUNT);
+/** HashTable capacity. */
+let capacity: usize = <usize>LUNATIC_FINALIZATION_ENTRY_COUNT;
+/** Current active item count. */
+let length: usize = 0;
 
 const FNV_OFFSET: u64 = 14695981039346656037;
 const FNV_PRIME: u64 = 1099511628211;
