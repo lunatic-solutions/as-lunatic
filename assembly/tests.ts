@@ -6,15 +6,18 @@ import {
 } from "./index";
 
 export function _start(): void {
-  test_tcp();
+  for (let  i = 0; i < 1000; i ++) {
+    Process.inherit_spawn<i32>((mb: Mailbox<i32>) => {
+    
+    });
+  }
+  __collect();
 }
 
-let port = 999999;
+let port: u16 = 0xA000;
 function test_tcp(): void {
   let result = TCPServer.bindIPv4([127, 0, 0, 1], port);
   if (!result.value) assert(false, result.errorString);
   let server = result.value!;
-  Process.inherit_spawn<i32>((mb: Mailbox<i32>) => {
-    
-  });
+  
 }

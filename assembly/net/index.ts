@@ -258,7 +258,7 @@ export class TCPServer extends LunaticManaged {
    */
   static bindIPv4(ip: StaticArray<u8>, port: u16): Result<TCPServer | null> {
     assert(ip.length >= 4);
-    return TCPServer.bindUnsafe(IPType.IPV4, changetype<usize>(ip), port, 0, 0);
+    return TCPServer.bindUnsafe(changetype<usize>(ip), IPType.IPV4, port, 0, 0);
   }
 
   /**
@@ -272,17 +272,17 @@ export class TCPServer extends LunaticManaged {
    */
   static bindIPv6(ip: StaticArray<u8>, port: u16, flowInfo: u32, scopeId: u32): Result<TCPServer | null> {
     assert(ip.length >= 4);
-    return TCPServer.bindUnsafe(IPType.IPV4, changetype<usize>(ip), port, flowInfo, scopeId);
+    return TCPServer.bindUnsafe(changetype<usize>(ip), IPType.IPV6, port, flowInfo, scopeId);
   }
 
   /**
    * Bind a TCPServer unsafely to a local address.
    *
-   * @param {usize} addressPtr 
-   * @param {IPType} addressType 
-   * @param {u16} port 
-   * @param {u32} flowInfo 
-   * @param {u32} scopeId 
+   * @param {usize} addressPtr - A pointer to the address.
+   * @param {IPType} addressType - The IP Address type.
+   * @param {u16} port - The port to listen on.
+   * @param {u32} flowInfo - The IP Address flow info.
+   * @param {u32} scopeId - The IP Address scope id.
    * @returns {Result<TCPServer | null>} The resulting TCPServer or an error.
    */
   @unsafe static bindUnsafe(
