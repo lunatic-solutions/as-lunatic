@@ -217,10 +217,72 @@ export class TCPSocket extends LunaticManaged {
     return TCPResultType.Success;
   }
 
+  /**
+   * Write a typedarray's data to a TCPStream.
+   *
+   * @param {T extends ArrayBufferView} array - A static array to write the TCPStream
+   * @param {u32} timeout - The amount of time to wait and timeout in milliseconds.
+   */
+  writeTypedArray<T extends ArrayBufferView>(array: T, timeout: u32 = 0): Result<TCPResultType> {
+    return this.writeUnsafe(array.dataStart, <usize>array.byteLength, timeout);
+  }
+
+  /**
+   * Write a Array to the TCPStream.
+   *
+   * @param {T extends Array<U>} array - A static array to write the TCPStream
+   * @param {u32} timeout - The amount of time to wait and timeout in milliseconds.
+   * @returns {Result<TCPResultType>} A wrapper to a TCPResultType. If an error occured, the
+   * errorString property will return a string describing the error.
+   */
+  writeArray<T extends Array<U>, U>(array: T, timeout: u32 = 0): Result<TCPResultType> {
+    if (isReference<U>()) ERROR("Cannot call writeArray if type of U is a reference.");
+    let byteLength = (<usize>array.length) << alignof<U>();
+    return this.writeUnsafe(array.dataStart, byteLength, timeout);
+  }
+
+  /**
+   * Write a StaticArray to the TCPStream.
+   *
+   * @param {T extends StaticArray<U>} array - A static array to write the TCPStream
+   * @param {u32} timeout - The amount of time to wait and timeout in milliseconds.
+   * @returns {Result<TCPResultType>} A wrapper to a TCPResultType. If an error occured, the
+   * errorString property will return a string describing the error.
+   */
+  writeStaticArray<T extends StaticArray<U>, U>(array: T, timeout: u32 = 0): Result<TCPResultType> {
+    if (isReference<U>()) ERROR("Cannot call writeStaticArray if type of U is a reference.");
+    let byteLength = (<usize>array.length) << alignof<U>();
+    return this.writeUnsafe(changetype<usize>(array), byteLength, timeout);
+  }
+
+  /**
+   * Write the bytes of an ArrayBuffer to the TCPStream.
+   *
+   * @param {ArrayBuffer} buffer - The buffer to be written.
+   * @param {u32} timeout - The amount of time to wait and timeout in milliseconds.
+   * @returns {Result<TCPResultType>} A wrapper to a TCPResultType. If an error occured, the
+   * errorString property will return a string describing the error.
+   */
+  writeBuffer(buffer: ArrayBuffer, timeout: u32 = 0): Result<TCPResultType> {
+    return this.writeUnsafe(changetype<usize>(buffer), <usize>buffer.byteLength, timeout);
+  }
+
+  /**
+   * Write data to the socket using a raw pointer. Considdered unsafe.
+   *
+   * @param {usize} ptr - The pointer to the data being written.
+   * @param {usize} len - The length of the data being written.
+   * @param {u32} timeout - The amount of time to wait and timeout in milliseconds.
+   * @returns {Result<TCPResultType>} A wrapper to a TCPResultType. If an error occured, the
+   * errorString property will return a string describing the error.
+   */
   @unsafe writeUnsafe(ptr: usize, len: usize, timeout: u32 = 0): Result<TCPResultType> {
+    // Statically allocate an iovec for writing data
     let vec = changetype<iovec>(memory.data(offsetof<iovec>()));
     vec.buf = ptr;
     vec.buf_len = len;
+
+    // call tcp_write_vectored
     let result = net.tcp_write_vectored(this.id, vec, 1, timeout, id_ptr);
     let count = load<u64>(id_ptr);
 
@@ -231,6 +293,7 @@ export class TCPSocket extends LunaticManaged {
       this.byteCount = count;
       return new Result<TCPResultType>(TCPResultType.Success);
     } else {
+      // count is actually an index to an error
       return new Result<TCPResultType>(TCPResultType.Error, count);
     }
   }

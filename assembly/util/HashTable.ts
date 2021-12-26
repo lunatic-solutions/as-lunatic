@@ -53,7 +53,12 @@ export function ht_get(key: usize): ht_entry | null {
 
         // empty space means empty partition.
         if (entry.key == 0) break;
-        if (entry.key == key && !entry.free) return entry;
+
+        // if we find the key, the entry must be used
+        if (entry.key == key) {
+            if (!entry.free) return entry;
+            break;
+        }
     }
 
     return null;
@@ -104,11 +109,15 @@ function ht_set_entry(key: usize, held: u64, cb: u32): ht_entry {
             entry.held = held;
             entry.cb = cb;
             entry.free = false;
+
+            // we are adding an entry to the table
             length++;
+
+            // return the entry
             return entry;
         }
     }
-    trace("values", 2, <f64>index, <f64>capacity);
+    // This should never be possible, only useful for the compiler
     throw new Error(E_KEYNOTFOUND);
 }
 
@@ -160,10 +169,10 @@ export function ht_expand(): void {
     // assert the values are 0
     memory.fill(newTable, 0, newTableByteLength);
 
-    // new table length is 0, ht_set_entry increments length
+    // in order to move the entries to the new table, we need to set the entries pointer
     entries = newTable;
-    length = 0;
-    capacity = newCapacity;
+    length = 0; // length starts at 0
+    capacity = newCapacity; // capacity needs to remain accurate
 
     for (let i: usize = 0; i < oldCapacity; i++) {
         // for each non-null entry

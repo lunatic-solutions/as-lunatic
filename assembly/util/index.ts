@@ -66,10 +66,13 @@ export const enum IPType {
   IPV6 = 6,
 }
 
+let id = 0;
 // @ts-ignore: global decorator
 @global export function __lunatic_finalize(ptr: usize): void {
   let result = ht_del(ptr);
   if (result) {
+    trace("cleaning up", 1, <f64>id);
+    id++;
     call_indirect(result.cb, result.held)
   }
 }
