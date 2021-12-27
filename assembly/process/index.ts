@@ -1,10 +1,23 @@
 import { Result, id_ptr } from "../error";
-import { Parameters, LunaticManaged, err_code } from "../util";
+import { Parameters, LunaticManaged, err_code, MessageType } from "../util";
 import { Mailbox } from "../messaging";
 import { ASON } from "@ason/assembly";
 import { message, process } from "../bindings";
 
+/**
+ * A wrapper reference to be serialized that contains a start message and a callback for a
+ * new process.
+ */
+export class StartWrapper<T> {
+  constructor(
+    /** The start message. */
+    public start: T,
+    /** The callback index. */
+    public index: i32,
+  ) {}
+}
 
+/** This utf-8 string is the name of the export that gets called when a process bootstraps. */
 const bootstrap_utf8 = [0x5f, 0x5f, // "__"
   0x6c, 0x75, 0x6e, 0x61, 0x74, 0x69, 0x63, // "lunatic"
   0x5f, // "_"
@@ -71,6 +84,34 @@ export class Process<TMessage> extends LunaticManaged {
     return new Result<Process<StaticArray<u8>> | null>(null, id);
   }
 
+  static inherit_spawn_with<TStart, TMessage>(start: TStart, func: (start: TStart, mb: Mailbox<TMessage>) => void): Result<Process<TMessage> | null> {
+    // we need to wrap up the callback and the start value into the message
+    let wrapped = new StartWrapper<TStart>(start, func.index);
+
+    // create a regular process
+    let p = Process.inherit_spawn((mb: Mailbox<TMessage>): void => {
+
+      // create a fake mailbox that receives the first message of the process
+      let startMb = changetype<Mailbox<StartWrapper<TStart>>>(0);
+      let startMessage = startMb.receive();
+
+      // we know it must be a Data message
+      assert(startMessage.type == MessageType.Data);
+
+      // call the start message callback with the start value
+      call_indirect(startMessage.value.index, startMessage.value.start, mb);
+    });
+
+    // if process creation was successful, send the first message which should be a TStart wrapper
+    if (p.value) {
+      let message = ASON.serialize(wrapped);
+      p.value.sendBufferUnsafe(message);
+    }
+
+    // finally return the process wrapper
+    return p;
+  }
+
   /**
    * Create a process from the same module as the currently running one, with a single callback.
    *
@@ -131,6 +172,18 @@ export class Process<TMessage> extends LunaticManaged {
     let bufferLength = <usize>buffer.length;
     message.create_data(tag, bufferLength);
     message.write_data(changetype<usize>(buffer), bufferLength);
+    message.send(this.id);
+  }
+
+  /**
+   * Send a raw buffer unsafely to the process. This is unsafe, because mailboxes are strongly typed.
+   *
+   * @param {StaticArray<u8>} msg - The buffer to be sent.
+   * @param {i64} tag - The tag of the message.
+   */
+  @unsafe sendBufferUnsafe(msg: StaticArray<u8>, tag: i64 = 0): void {
+    message.create_data(tag, <usize>msg.length);
+    message.write_data(changetype<usize>(msg), <usize>msg.length);
     message.send(this.id);
   }
 
