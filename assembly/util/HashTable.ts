@@ -1,5 +1,6 @@
 import { E_ALLOCATION_TOO_LARGE, E_KEYNOTFOUND } from "util/error";
 
+/** A simple hashtable entry in the resulting flat c-array. */
 @unmanaged class ht_entry {
     key: usize;
     held: u64;
@@ -84,7 +85,7 @@ export function ht_set(key: usize, held: u64, cb: u32): ht_entry {
 }
 
 /**
- * Internal set entry method.
+ * Internal set entry method which contains the bulk of the set method.
  *
  * @param {usize} key - The pointer for the entry.
  * @param {u64} held - The held value.
@@ -122,7 +123,8 @@ function ht_set_entry(key: usize, held: u64, cb: u32): ht_entry {
 }
 
 /**
- * Remove an entry from the table. Scan until we find a 0.
+ * Remove an entry from the table. The algorithm will scan until it finds an entry that matches
+ * the key and is currently used, or it hits a 0, which means the entry does not exist in the table.
  *
  * @param {usize} key - The pointer.
  * @returns The table entry. The entry must be manually zeroed afterwards, but not freed.
@@ -156,7 +158,6 @@ export function ht_del(key: usize): ht_entry | null {
 
 /** Realocate more table size. This function may *never* be called mid finalization. */
 export function ht_expand(): void {
-    trace("expanding");
     // increase the capacity
     let newCapacity = capacity << 1;
     let oldCapacity = capacity;
