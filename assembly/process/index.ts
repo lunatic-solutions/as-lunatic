@@ -105,7 +105,7 @@ export class Process<TMessage> extends LunaticManaged {
     // if process creation was successful, send the first message which should be a TStart wrapper
     if (p.value) {
       let message = ASON.serialize(wrapped);
-      p.value.sendBufferUnsafe(message);
+      p.value!.sendBufferUnsafe(message);
     }
 
     // finally return the process wrapper

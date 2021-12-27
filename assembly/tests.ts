@@ -4,11 +4,25 @@ import {
   Process,
   Mailbox,
   TCPResultType,
+  MessageType,
 } from "./index";
 
 export function _start(): void {
- 
+ test_spawn_inherit_with();
 }
+
+function test_spawn_inherit_with(): void {
+  let p = Process.inherit_spawn_with<i32, i32>(42, (value: i32, mb: Mailbox<i32>): void => {
+    assert(value == 42);
+    trace("first success!")
+    let message = mb.receive();
+    assert(message.type == MessageType.Data);
+    trace("second success!");
+  });
+  assert(p.value);
+  p.value!.send(41);
+}
+
 
 let port: u16 = 0xA000;
 function test_tcp(): void {
