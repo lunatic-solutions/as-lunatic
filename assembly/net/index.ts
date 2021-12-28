@@ -29,13 +29,17 @@ export class IPResolution {
   public flowInfo: u32 = 0;
   public scopeId: u32 = 0;
 
-  constructor() {
+  constructor() {}
+
+  static load(): IPResolution {
+    let ip = new IPResolution();
     let type = <IPType>load<u32>(ip_address_type);
-    memory.copy(changetype<usize>(this), ip_address, select<usize>(i32(type == IPType.IPV4), 16, 4));
-    this.type = type;
-    this.port = load<u16>(ip_port);
-    this.flowInfo = load<u32>(ip_flow_info);
-    this.scopeId = load<u32>(ip_scope_id);
+    memory.copy(changetype<usize>(ip), ip_address, select<usize>(i32(type == IPType.IPV4), 16, 4));
+    ip.type = type;
+    ip.port = load<u16>(ip_port);
+    ip.flowInfo = load<u32>(ip_flow_info);
+    ip.scopeId = load<u32>(ip_scope_id);
+    return ip.
   }
 
   public get ip(): StaticArray<u8> {
@@ -66,7 +70,7 @@ function resolveDNSIterator(id: u64): IPResolution[] {
 
   // obtain the ip resolutions
   while (net.resolve_next(id, ip_address_type, ip_address, ip_port, ip_flow_info, ip_scope_id) == err_code.Success) {
-    value.push(new IPResolution()); // IPResolution will automatically load from the pointers
+    value.push(IPResolution.load()); // IPResolution will automatically load from the pointers
   }
 
   // always drop if successful
@@ -130,7 +134,18 @@ export class TCPSocket extends LunaticManaged {
     );
   }
 
-  static connectUnsafe(addr_type: IPType, addr_ptr: usize, port: u16, flow_info: u32, scope_id: u32, timeout: u32): Result<TCPSocket | null> {
+  /**
+   * Connect to an IP Address. Considdered unsafe because of pointer usage.
+   *
+   * @param {IPType} addr_type - The IP Address type.
+   * @param {usize} addr_ptr - A pointer to the IP Address.
+   * @param {u16} port - The port.
+   * @param {u32} flow_info - The flow info of a given ipv6 address.
+   * @param {u32} scope_id - The scope id of a given ipv6 address.
+   * @param {u32} timeout - How long to wait before the operation times out in milliseconds.
+   * @returns {Result<TCPSocket | null>} The resulting TCPSocket if the connection was successful.
+   */
+  @unsafe static connectUnsafe(addr_type: IPType, addr_ptr: usize, port: u16, flow_info: u32, scope_id: u32, timeout: u32): Result<TCPSocket | null> {
     assert(addr_type == 4 || addr_type == 6);
     let result = net.tcp_connect(
       addr_type,
@@ -143,16 +158,17 @@ export class TCPSocket extends LunaticManaged {
     );
     let id = load<u64>(id_ptr);
     if (result == err_code.Success) {
-      // setup memory to copy an IPResolution object
-      memory.copy(ip_address, addr_ptr, select<usize>(4, 16, addr_type == IPType.IPV4));
+      let ip = new IPResolution();
 
-      store<u32>(ip_address_type, addr_type);
-      store<u16>(ip_address_type, port);
-      store<u32>(ip_flow_info, flow_info);
-      store<u32>(ip_scope_id, scope_id);
+      // copy the address
+      memory.copy(changetype<usize>(ip), addr_ptr, select<usize>(4, 16, addr_type == IPType.IPV4));
 
-      // new IPResolution() copies from the previous pointers
-      return new Result<TCPSocket | null>(new TCPSocket(id, new IPResolution()), 0);
+      ip.type = addr_type;
+      ip.port = port;
+      ip.flowInfo = flow_info;
+      ip.scopeId = scope_id;
+
+      return new Result<TCPSocket | null>(new TCPSocket(id, ip), 0);
     }
     return new Result<TCPSocket | null>(null, id);
   }
