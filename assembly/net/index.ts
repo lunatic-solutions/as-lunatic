@@ -20,7 +20,7 @@ import { iovec } from "bindings/wasi";
 // @ts-ignore: @lazy!
 @lazy const opaque_ptr = memory.data(sizeof<u64>());
 
-export class IPResolution {
+export class IPAddress {
   // allocate 16 bytes for the address
   private _address_1: u64 = 0;
   private _address_2: u64 = 0;
@@ -31,15 +31,15 @@ export class IPResolution {
 
   constructor() {}
 
-  static load(): IPResolution {
-    let ip = new IPResolution();
+  static load(): IPAddress {
+    let ip = new IPAddress();
     let type = <IPType>load<u32>(ip_address_type);
     memory.copy(changetype<usize>(ip), ip_address, select<usize>(i32(type == IPType.IPV4), 16, 4));
     ip.type = type;
     ip.port = load<u16>(ip_port);
     ip.flowInfo = load<u32>(ip_flow_info);
     ip.scopeId = load<u32>(ip_scope_id);
-    return ip.
+    return ip;
   }
 
   public get ip(): StaticArray<u8> {
@@ -63,14 +63,14 @@ export const enum TCPResultType {
 /**
  * Resolve the contents of a DNS Iterator.
  * @param {u64} id - The dns iterator id.
- * @returns {IPResolution[]} The IPResolution array.
+ * @returns {IPAddress[]} The IPResolution array.
  */
-function resolveDNSIterator(id: u64): IPResolution[] {
-  let value: IPResolution[] = [];
+function resolveDNSIterator(id: u64): IPAddress[] {
+  let value: IPAddress[] = [];
 
   // obtain the ip resolutions
   while (net.resolve_next(id, ip_address_type, ip_address, ip_port, ip_flow_info, ip_scope_id) == err_code.Success) {
-    value.push(IPResolution.load()); // IPResolution will automatically load from the pointers
+    value.push(IPAddress.load()); // IPResolution will automatically load from the pointers
   }
 
   // always drop if successful
@@ -83,9 +83,9 @@ function resolveDNSIterator(id: u64): IPResolution[] {
  *
  * @param {string} host - The host to be resolved.
  * @param {u32} timeout - The timeout.
- * @returns {Result<IPResolution[] | null>} The resulting IPResolution set.
+ * @returns {Result<IPAddress[] | null>} The resulting IPResolution set.
  */
-export function resolve(host: string, timeout: u32 = 0): Result<IPResolution[] | null> {
+export function resolve(host: string, timeout: u32 = 0): Result<IPAddress[] | null> {
   // encode the string to utf8
   let name_ptr = String.UTF8.encode(host);
 
@@ -95,10 +95,10 @@ export function resolve(host: string, timeout: u32 = 0): Result<IPResolution[] |
   // process the result
   let id = load<u64>(id_ptr);
   if (result == err_code.Success) {
-    let value: IPResolution[] = resolveDNSIterator(id);
-    return new Result<IPResolution[] | null>(value);
+    let value: IPAddress[] = resolveDNSIterator(id);
+    return new Result<IPAddress[] | null>(value);
   }
-  return new Result<IPResolution[] | null>(null, id);
+  return new Result<IPAddress[] | null>(null, id);
 }
 
 /**
@@ -109,6 +109,17 @@ export class TCPSocket extends LunaticManaged {
   public buffer: StaticArray<u8> | null = null;
   /** Written byte count after calling write. */
   public byteCount: i32 = 0;
+
+  static connectIP(ip: IPAddress, timeout: u32 = 0): Result<TCPSocket | null> {
+    return TCPSocket.connectUnsafe(
+      ip.type,
+      changetype<usize>(ip),
+      ip.port,
+      ip.flowInfo,
+      ip.scopeId,
+      timeout,
+    );
+  }
 
   static connectIPV4(ip: StaticArray<u8>, port: u16, timeout: u32 = 0): Result<TCPSocket | null> {
     assert(ip.length >= 4);
@@ -158,7 +169,7 @@ export class TCPSocket extends LunaticManaged {
     );
     let id = load<u64>(id_ptr);
     if (result == err_code.Success) {
-      let ip = new IPResolution();
+      let ip = new IPAddress();
 
       // copy the address
       memory.copy(changetype<usize>(ip), addr_ptr, select<usize>(4, 16, addr_type == IPType.IPV4));
@@ -177,7 +188,7 @@ export class TCPSocket extends LunaticManaged {
     /** The tcp socket id on the host. */
     public id: u64,
     /** The IP Address of this socket. */
-    public ip: IPResolution
+    public ip: IPAddress
   ) {
     super(id, net.drop_tcp_listener);
   }
