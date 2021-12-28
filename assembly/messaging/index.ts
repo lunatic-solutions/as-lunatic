@@ -4,13 +4,17 @@ import { MessageType } from "../util";
 
 let emptyTagset = [] as StaticArray<i64>;
 
+/** Represents a message received from a mailbox. */
 export class Message<TMessage> {
+  /** The number tag associated with this message. */
   public tag: i64 = 0;
+  /** The internal buffer of this message. */
   private buffer: StaticArray<u8> | null = null;
 
   constructor(
     public type: MessageType,
   ) {
+    // if the message is a data message, read it
     if (type == MessageType.Data) {
       let size = message.data_size();
       let data = new StaticArray<u8>(<i32>size);
@@ -18,6 +22,8 @@ export class Message<TMessage> {
       assert(count == size);
       this.buffer = data;
       this.tag = message.get_tag();
+
+      // signals have tags too, usually representing the resource id that is signalling a parent
     } else if (type == MessageType.Signal) {
       this.tag = message.get_tag();
     }
@@ -32,6 +38,10 @@ export class Message<TMessage> {
   }
 }
 
+/**
+ * Mailbox is a dummy unmanaged reference, used to help receive messages of a specific type.
+ * It cannot be constructed.
+ */
 @unmanaged export class Mailbox<TMessage> {
   constructor() { ERROR("Cannot construct a mailbox."); }
 

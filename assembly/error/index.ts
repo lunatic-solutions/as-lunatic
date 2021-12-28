@@ -39,7 +39,10 @@ export class Result<T> {
     if (errId != u64.MAX_VALUE) set_finalize(changetype<usize>(this), errId, error.drop_error.index);
   }
 
-  /** Obtain the error string */
+  /**
+   * Obtain the error string. Retreives the error string lazily, and caches it, dropping the error
+   * resource.
+   */
   get errorString(): string {
     let errId = this.errId;
     if (errId === u64.MAX_VALUE) return "";
