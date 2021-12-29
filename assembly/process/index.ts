@@ -213,12 +213,14 @@ export class Process<TMessage> extends LunaticManaged {
     this.drop();
   }
 
+  /** Link the current process to this child process, returing the process tag. */
   link(): u64 {
     let tag = tagid++;
     process.link(tag, this.id);
     return tag;
   }
 
+  /** Unlink this child process from the current process. */
   unlink(): void {
     process.unlink(this.id);
   }
@@ -256,8 +258,10 @@ export class Module extends LunaticManaged {
   }
 }
 
+/** Represents an environment in which modules are allowed to be instantiated and run. */
 export class Environment extends LunaticManaged {
   constructor(
+    /** The id of this Environment. */
       public id: u64,
   ) {
       super(id, process.drop_environment);
@@ -394,7 +398,7 @@ export class Environment extends LunaticManaged {
 }
 
 
-// Configurations help create environments
+/** Represents an environment configuration, managed by lunatic. */
 export class Config extends LunaticManaged {
   public id: u64 = 0;
   private directories: Map<string, u64> = new Map<string, u64>();

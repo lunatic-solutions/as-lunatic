@@ -55,4 +55,11 @@ export class Result<T> {
 
     return errStr!;
   }
+
+  /** Panic if the value isn't truthy, using the message as the runtime error message. */
+  assertUnwrap(message: string | null = null): T {
+    if (message) assert(this.value, message);
+    else assert(this.value);
+    return this.value;
+  }
 }

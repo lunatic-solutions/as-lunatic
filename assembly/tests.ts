@@ -42,5 +42,4 @@ function test_tcp(): void {
   let inbound = server.accept();
   assert(inbound.value);
   p.value!.send(inbound.value!);
-  
 }
