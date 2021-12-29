@@ -104,6 +104,13 @@ export class TCPSocket extends LunaticManaged {
   /** Written byte count after calling write. */
   public byteCount: i32 = 0;
 
+  /**
+   * Create a TCP connection using the given IPAddress object as the connection server.
+   *
+   * @param {IPAddress} ip - The given IP Address.
+   * @param {u32} timeout - A timeout.
+   * @returns {Result<TCPSocket | null>} The socket if the connection was successful.
+   */
   static connectIP(ip: IPAddress, timeout: u32 = 0): Result<TCPSocket | null> {
     return TCPSocket.connectUnsafe(
       ip.type,
@@ -115,6 +122,14 @@ export class TCPSocket extends LunaticManaged {
     );
   }
 
+  /**
+   * Connect to the given IPV4 address with the given bytes and port.
+   *
+   * @param {StaticArray<u8>} ip - The IP address in bytes.
+   * @param {u32} port - The port of the connection.
+   * @param {u32} timeout - How long until a timeout will occur.
+   * @returns {Result<TCPSocket | null>} The socket if the connection was successful.
+   */
   static connectIPV4(ip: StaticArray<u8>, port: u16, timeout: u32 = 0): Result<TCPSocket | null> {
     assert(ip.length >= 4);
     return TCPSocket.connectUnsafe(
@@ -127,6 +142,16 @@ export class TCPSocket extends LunaticManaged {
     );
   }
 
+  /**
+   * Connect to the given IPV6 address with the given bytes and port.
+   *
+   * @param {StaticArray<u8>} ip - The IP address in bytes.
+   * @param {u32} port - The port of the connection.
+   * @param {u32} flow_info - The flow info of the ip address for the connection.
+   * @param {u32} scope_id - The scope id of the ip address for the connection.
+   * @param {u32} timeout - How long until a timeout will occur.
+   * @returns {Result<TCPSocket | null>} The socket if the connection was successful.
+   */
   static connectIPV6(ip: StaticArray<u8>, port: u16, flow_info: u32, scope_id: u32, timeout: u32 = 0): Result<TCPSocket | null> {
     assert(ip.length >= 16);
     return TCPSocket.connectUnsafe(

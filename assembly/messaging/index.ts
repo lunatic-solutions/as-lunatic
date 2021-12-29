@@ -45,6 +45,13 @@ export class Message<TMessage> {
 @unmanaged export class Mailbox<TMessage> {
   constructor() { ERROR("Cannot construct a mailbox."); }
 
+  /**
+   * Receive a message sent to this process.
+   *
+   * @param {StaticArray<i64> | null} tags - An array of tags, identifying the type of message to be received.
+   * @param {u32} timeout - A timeout for receiving messages in milliseconds.
+   * @returns {Message<TMessage>} A message to this process.
+   */
   receive(tags: StaticArray<i64> | null = null, timeout: u32 = 0): Message<TMessage> {
     tags = tags || emptyTagset;
     let tagsLength = tags!.length;
