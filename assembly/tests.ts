@@ -12,7 +12,7 @@ export function _start(): void {
 }
 
 function test_spawn_inherit_with(): void {
-  let p = Process.inherit_spawn_with<i32, i32>(42, (value: i32, mb: Mailbox<i32>): void => {
+  let p = Process.inheritSpawnWith<i32, i32>(42, (value: i32, mb: Mailbox<i32>): void => {
     assert(value == 42);
     trace("first success!")
     let message = mb.receive();
@@ -29,7 +29,7 @@ function test_tcp(): void {
   let result = TCPServer.bindIPv4([127, 0, 0, 1], port);
   if (!result.value) assert(false, result.errorString);
   let server = result.value!;
-  let p = Process.inherit_spawn<TCPSocket>((mb: Mailbox<TCPSocket>): void => {
+  let p = Process.inheritSpawn<TCPSocket>((mb: Mailbox<TCPSocket>): void => {
     let socket = mb.receive().value;
     assert(socket);
     assert(socket.read() === TCPResultType.Success);
