@@ -353,6 +353,7 @@ export class TCPSocket extends LunaticManaged {
  */
 export class TCPServer extends LunaticManaged {
   constructor(
+    /** The id of this TCPServer. */
     public id: u64
   ) {
     super(id, net.drop_tcp_listener);
