@@ -84,12 +84,12 @@ export class Process<TMessage> extends LunaticManaged {
     return new Result<Process<StaticArray<u8>> | null>(null, id);
   }
 
-  static inherit_spawn_with<TStart, TMessage>(start: TStart, func: (start: TStart, mb: Mailbox<TMessage>) => void): Result<Process<TMessage> | null> {
+  static inheritSpawnWith<TStart, TMessage>(start: TStart, func: (start: TStart, mb: Mailbox<TMessage>) => void): Result<Process<TMessage> | null> {
     // we need to wrap up the callback and the start value into the message
     let wrapped = new StartWrapper<TStart>(start, func.index);
 
     // create a regular process
-    let p = Process.inherit_spawn((mb: Mailbox<TMessage>): void => {
+    let p = Process.inheritSpawn((mb: Mailbox<TMessage>): void => {
 
       // create a fake mailbox that receives the first message of the process
       let startMb = changetype<Mailbox<StartWrapper<TStart>>>(0);
@@ -118,7 +118,7 @@ export class Process<TMessage> extends LunaticManaged {
    * @param {() => void} func - The callback for the process.
    * @returns {Result<Process | null>} the process if the creation was successful.
    */
-  static inherit_spawn<TMessage>(func: (mb: Mailbox<TMessage>) => void): Result<Process<TMessage> | null> {
+  static inheritSpawn<TMessage>(func: (mb: Mailbox<TMessage>) => void): Result<Process<TMessage> | null> {
     let paramsPtr = Parameters.reset()
       .i32(func.index)
       .ptr;

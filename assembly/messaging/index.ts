@@ -36,6 +36,14 @@ export class Message<TMessage> {
     assert(this.type == MessageType.Data);
     return ASON.deserialize<TMessage>(this.buffer!);
   }
+
+  /**
+   * Obtain the raw buffer.
+   */
+  get raw(): StaticArray<u8> {
+    assert(this.type == MessageType.Data);
+    return this.buffer!;
+  }
 }
 
 /**
