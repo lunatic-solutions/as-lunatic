@@ -18,7 +18,7 @@ export class StartWrapper<T> {
 }
 
 /** This utf-8 string is the name of the export that gets called when a process bootstraps. */
-const bootstrap_utf8 = [0x5f, 0x5f, // "__"
+const bootstrapUTF8 = [0x5f, 0x5f, // "__"
   0x6c, 0x75, 0x6e, 0x61, 0x74, 0x69, 0x63, // "lunatic"
   0x5f, // "_"
   0x70, 0x72, 0x6f, 0x63, 0x65, 0x73, 0x73, // "process"
@@ -29,6 +29,8 @@ const bootstrap_utf8 = [0x5f, 0x5f, // "__"
 
 let pid = process.this_handle();
 let tagid: u64 = 0;
+
+/** This class represents a lunatic process, and is managed by the lunatic runtime. */
 export class Process<TMessage> extends LunaticManaged {
 
   /**
@@ -84,6 +86,13 @@ export class Process<TMessage> extends LunaticManaged {
     return new Result<Process<StaticArray<u8>> | null>(null, id);
   }
 
+  /**
+   * Spawn a process in the current environment with a start value and a given function as a callback.
+   *
+   * @param {TStart} start - The start value of the thread.
+   * @param {(start: TStart, mb: Mailbox<TMessage>) => void} func - The callback that accepts the start value and the mailbox.
+   * @returns {Result<Process<TMessage> | null>} The created process.
+   */
   static inheritSpawnWith<TStart, TMessage>(start: TStart, func: (start: TStart, mb: Mailbox<TMessage>) => void): Result<Process<TMessage> | null> {
     // we need to wrap up the callback and the start value into the message
     let wrapped = new StartWrapper<TStart>(start, func.index);
@@ -126,8 +135,8 @@ export class Process<TMessage> extends LunaticManaged {
     // store the function pointer bytes little endian (lower bytes in front)
     let result = process.inherit_spawn(
       pid,
-      changetype<usize>(bootstrap_utf8),
-      <usize>bootstrap_utf8.length,
+      changetype<usize>(bootstrapUTF8),
+      <usize>bootstrapUTF8.length,
       paramsPtr,
       17, // 17 * 1
       id_ptr,
@@ -142,7 +151,8 @@ export class Process<TMessage> extends LunaticManaged {
   }
 
   constructor(
-    private id: u64,
+    /** The id of the process. */
+    public id: u64,
   ) {
     super(id, process.drop_process);
   }
@@ -252,7 +262,8 @@ export class Process<TMessage> extends LunaticManaged {
  */
 export class Module extends LunaticManaged {
   constructor(
-      public id: u64,
+    /** The id of the module */
+    public id: u64,
   ) {
       super(id, process.drop_module);
   }
@@ -400,7 +411,9 @@ export class Environment extends LunaticManaged {
 
 /** Represents an environment configuration, managed by lunatic. */
 export class Config extends LunaticManaged {
+  /** The configuration id. */
   public id: u64 = 0;
+  /** A map of directories that were successfully preopened. */
   private directories: Map<string, u64> = new Map<string, u64>();
 
   constructor(max_memory: u64, max_fuel: u64) {
