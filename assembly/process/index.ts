@@ -42,6 +42,7 @@ export class Process<TMessage> extends LunaticManaged {
     process.sleep_ms(ms);
   }
 
+  /** Get the unique identifier for this process. */
   static id(): StaticArray<u8> {
     let id = new StaticArray<u8>(16);
     process.id(pid, changetype<usize>(id));
@@ -51,9 +52,9 @@ export class Process<TMessage> extends LunaticManaged {
   /**
    * Spawn a process from a module, and provide up to three function parameters with a tag.
    *
-   * @param {Module} module - The module being spawned
-   * @param {string} func - The exported function name being called
-   * @param {Parameters} params - The function parameters
+   * @param {Module} module - The module for the spawned process.
+   * @param {string} func - The name of the exported function being called. Must be exported.
+   * @param {Parameters} params - The function parameters.
    * @returns {Result<Process<StaticArray<u8>> | null>} the result of creating a process, or an error string.
    */
   static spawn(module: Module, func: string, params: Parameters): Result<Process<StaticArray<u8>> | null> {
@@ -318,7 +319,7 @@ export class Environment extends LunaticManaged {
    * @param {StaticArray<u8>} array The web assembly plugin.
    * @returns {Result<Module | null>} the module if it was successful.
    */
-  addModuleUnsafe(bytes: usize, len: usize): Result<Module | null> {
+  @unsafe addModuleUnsafe(bytes: usize, len: usize): Result<Module | null> {
       let result = process.add_module(this.id, bytes, len, id_ptr);
       let moduleId = load<u64>(id_ptr);
       if (result == err_code.Success) {
@@ -507,7 +508,7 @@ export class Config extends LunaticManaged {
    * @param {StaticArray<u8>} array The web assembly plugin.
    * @returns {Result<bool>} true if it was successful.
    */
-  addPluginUnsafe(bytes: usize, len: usize): Result<bool> {
+  @unsafe addPluginUnsafe(bytes: usize, len: usize): Result<bool> {
     let result = process.add_plugin(this.id, bytes, len, id_ptr);
     let pluginId = load<u64>(id_ptr);
     if (result == err_code.Success) {

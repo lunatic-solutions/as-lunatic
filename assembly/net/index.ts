@@ -419,6 +419,10 @@ export class TCPServer extends LunaticManaged {
     ERROR("TCPServer cannot be deserialized.");
   }
 
+  /**
+   * Accept a TCP connection. This method blocks the current thread indefinitely, waiting for an
+   * incoming TCP connection.
+   */
   accept(): Result<TCPSocket | null> {
     let result = net.tcp_accept(this.id, id_ptr, opaque_ptr);
     let id = load<u64>(id_ptr);
