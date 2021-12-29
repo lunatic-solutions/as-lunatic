@@ -4,22 +4,13 @@ import { err_code, IPType, LunaticManaged, iovec_vector } from "../util";
 import { iovec } from "bindings/wasi";
 
 
-
-// ip address constant pointers
-// @ts-ignore: @lazy!
-@lazy const ip_address = memory.data(16);
-// @ts-ignore: @lazy!
-@lazy const ip_address_type = memory.data(sizeof<u32>());
-// @ts-ignore: @lazy!
-@lazy const ip_port = memory.data(sizeof<u16>());
-// @ts-ignore: @lazy!
-@lazy const ip_flow_info = memory.data(sizeof<u32>());
-// @ts-ignore: @lazy!
-@lazy const ip_scope_id = memory.data(sizeof<u32>());
-
 // @ts-ignore: @lazy!
 @lazy const opaque_ptr = memory.data(sizeof<u64>());
 
+// @ts-ignore: @lazy!
+@lazy const ip_address_ptr = memory.data(offsetof<IPAddress>());
+
+/** Represents an IP Address, v6 or v4. */
 export class IPAddress {
   // allocate 16 bytes for the address
   private _address_1: u64 = 0;
@@ -31,17 +22,14 @@ export class IPAddress {
 
   constructor() {}
 
+  /** Load an IPAddress object from the DNS Iterator pointer. */
   static load(): IPAddress {
     let ip = new IPAddress();
-    let type = <IPType>load<u32>(ip_address_type);
-    memory.copy(changetype<usize>(ip), ip_address, select<usize>(i32(type == IPType.IPV4), 16, 4));
-    ip.type = type;
-    ip.port = load<u16>(ip_port);
-    ip.flowInfo = load<u32>(ip_flow_info);
-    ip.scopeId = load<u32>(ip_scope_id);
+    memory.copy(changetype<usize>(ip), ip_address_ptr, offsetof<IPAddress>());
     return ip;
   }
 
+  /** Perform a memcopy of the IP address and return a new buffer. */
   public get ip(): StaticArray<u8> {
     let type = this.type;
     if (type == IPType.None) assert(false);
@@ -69,8 +57,14 @@ function resolveDNSIterator(id: u64): IPAddress[] {
   let value: IPAddress[] = [];
 
   // obtain the ip resolutions
-  while (net.resolve_next(id, ip_address_type, ip_address, ip_port, ip_flow_info, ip_scope_id) == err_code.Success) {
-    value.push(IPAddress.load()); // IPResolution will automatically load from the pointers
+  while (net.resolve_next(id,
+    ip_address_ptr + offsetof<IPAddress>("type"),
+    ip_address_ptr,
+    ip_address_ptr + offsetof<IPAddress>("port"),
+    ip_address_ptr + offsetof<IPAddress>("flow_info"),
+    ip_address_ptr + offsetof<IPAddress>("scope_id")) == err_code.Success) {
+    // IPResolution will automatically load from the pointers
+    value.push(IPAddress.load());
   }
 
   // always drop if successful
