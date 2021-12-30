@@ -60,21 +60,17 @@ import { htDel, htGet, htSet } from "./HashTable";
   }
 }
 
+/** IPAddress types defined by the lunatic runtime. */
 export const enum IPType {
   None = 0,
   IPV4 = 4,
   IPV6 = 6,
 }
 
-let id = 0;
 // @ts-ignore: global decorator
 @global export function __lunatic_finalize(ptr: usize): void {
   let result = htDel(ptr);
-  if (result) {
-    trace("cleaning up", 1, <f64>id);
-    id++;
-    call_indirect(result.cb, result.held)
-  }
+  if (result) call_indirect(result.cb, result.held);
 }
 
 /** Set the finalization record for this reference. */
@@ -87,9 +83,13 @@ export function hasFinalize(ptr: usize): bool {
   return htGet(ptr) != null;
 }
 
+/** The message type when calling `mailbox.receive()`. */
 export const enum MessageType {
+  /** Represents a data message, the value must be unpacked. */
   Data = 0,
+  /** Represents a signal message, a process has been affected. */
   Signal = 1,
+  /** A receive timeout means that no message was received. */
   Timeout = 9027,
 }
 
