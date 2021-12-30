@@ -7,7 +7,7 @@
   "scripts": {
     "asbuild": "asc --debug assembly/tests.ts --outFile build/test.wasm --config asconfig.json",
     "run:test": "lunatic build/test.wasm",
-    "run": "run-s asbuild run:test"
+    "test": "run-s asbuild run:test"
   },
   "repository": {
     "type": "git",
