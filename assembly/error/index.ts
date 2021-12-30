@@ -1,5 +1,5 @@
 import { error } from "../bindings";
-import { setFinalize } from "../util";
+import { htSet } from "as-disposable";
 
 
 /** A predefined location to store id and error output. */
@@ -36,7 +36,7 @@ export class Result<T> {
     /** Used by the underlying lunatic call to identify an error if it exists. */
     private errId: u64 = u64.MAX_VALUE,
   ) {
-    if (errId != u64.MAX_VALUE) setFinalize(changetype<usize>(this), errId, error.drop_error.index);
+    if (errId != u64.MAX_VALUE) htSet(changetype<usize>(this), errId, error.drop_error.index);
   }
 
   /**

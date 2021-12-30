@@ -1,7 +1,8 @@
 import { Result, idPtr } from "../error";
 import { net } from "../bindings";
-import { ErrCode, IPType, LunaticManaged, iovec_vector } from "../util";
+import { ErrCode, IPType, iovec_vector } from "../util";
 import { iovec } from "bindings/wasi";
+import { ASManaged } from "as-disposable";
 
 
 // @ts-ignore: @lazy!
@@ -98,7 +99,7 @@ export function resolve(host: string, timeout: u32 = 0): Result<IPAddress[] | nu
 /**
  * A TCP Socket that can be written to or read from.
  */
-export class TCPSocket extends LunaticManaged {
+export class TCPSocket extends ASManaged {
   /** The resulting read buffer. */
   public buffer: StaticArray<u8> | null = null;
   /** Written byte count after calling write. */
@@ -351,7 +352,7 @@ export class TCPSocket extends LunaticManaged {
  *
  * Construct one with the `TCPServer.bind()` method.
  */
-export class TCPServer extends LunaticManaged {
+export class TCPServer extends ASManaged {
   constructor(
     /** The id of this TCPServer. */
     public id: u64

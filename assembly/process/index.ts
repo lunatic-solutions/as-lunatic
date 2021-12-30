@@ -1,8 +1,9 @@
 import { Result, idPtr } from "../error";
-import { Parameters, LunaticManaged, ErrCode, MessageType } from "../util";
+import { Parameters, ErrCode, MessageType } from "../util";
 import { Mailbox } from "../messaging";
 import { ASON } from "@ason/assembly";
 import { message, process } from "../bindings";
+import { ASManaged } from "as-disposable";
 
 /**
  * A wrapper reference to be serialized that contains a start message and a callback for a
@@ -31,7 +32,7 @@ let pid = process.this_handle();
 let tagid: u64 = 0;
 
 /** This class represents a lunatic process, and is managed by the lunatic runtime. */
-export class Process<TMessage> extends LunaticManaged {
+export class Process<TMessage> extends ASManaged {
 
   /**
    * Sleep the current process for ms number of milliseconds.
@@ -261,7 +262,7 @@ export class Process<TMessage> extends LunaticManaged {
 /**
  * This class represents a WebAssembly module.
  */
-export class Module extends LunaticManaged {
+export class Module extends ASManaged {
   constructor(
     /** The id of the module */
     public id: u64,
@@ -271,7 +272,7 @@ export class Module extends LunaticManaged {
 }
 
 /** Represents an environment in which modules are allowed to be instantiated and run. */
-export class Environment extends LunaticManaged {
+export class Environment extends ASManaged {
   constructor(
     /** The id of this Environment. */
       public id: u64,
@@ -411,7 +412,7 @@ export class Environment extends LunaticManaged {
 
 
 /** Represents an environment configuration, managed by lunatic. */
-export class Config extends LunaticManaged {
+export class Config extends ASManaged {
   /** The configuration id. */
   public id: u64 = 0;
   /** A map of directories that were successfully preopened. */

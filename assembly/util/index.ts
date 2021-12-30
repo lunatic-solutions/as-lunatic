@@ -1,5 +1,4 @@
 import { iovec } from "bindings/wasi";
-import { htDel, htGet, htSet } from "./HashTable";
 
 //%  - 0x7F => i32
 //%  - 0x7E => i64
@@ -67,21 +66,6 @@ export const enum IPType {
   IPV6 = 6,
 }
 
-// @ts-ignore: global decorator
-@global export function __lunatic_finalize(ptr: usize): void {
-  let result = htDel(ptr);
-  if (result) call_indirect(result.cb, result.held);
-}
-
-/** Set the finalization record for this reference. */
-export function setFinalize(ptr: usize, held: u64, cb: u32): void {
-  htSet(ptr, held, cb);
-}
-
-/** Check to see if a reference has a finalization record still. */
-export function hasFinalize(ptr: usize): bool {
-  return htGet(ptr) != null;
-}
 
 /** The message type when calling `mailbox.receive()`. */
 export const enum MessageType {
@@ -97,34 +81,6 @@ export const enum MessageType {
 export const enum ErrCode {
   Success,
   Fail,
-}
-
-/** Represents an object that is managed by lunatic. Requires the resource become dropped. */
-export abstract class LunaticManaged {
-
-  constructor(
-    held: u64,
-    finalize: (val: u64) => void,
-  ) {
-    setFinalize(changetype<usize>(this), held, finalize.index);
-  }
-
-  /** Returns if the resource has not been dropped yet. */
-  get dropped(): bool {
-    return !hasFinalize(changetype<usize>(this));
-  }
-
-  /** Drop the resource manually if it hasn't been dropped already. */
-  dispose(): void {
-    if (hasFinalize(changetype<usize>(this))) {
-      __lunatic_finalize(changetype<usize>(this));
-    }
-  }
-
-  /** Remove the finalization record without calling the finalization callback. */
-  preventFinalize(): void {
-    htDel(changetype<usize>(this));
-  }
 }
 
 /** A helper class for collecting iovecs. */
