@@ -1,9 +1,9 @@
 import { error } from "../bindings";
-import { set_finalize } from "../util";
+import { setFinalize } from "../util";
 
 
 /** A predefined location to store id and error output. */
-export const id_ptr = memory.data(sizeof<u64>());
+export const idPtr = memory.data(sizeof<u64>());
 
 /**
  * Obtain an error string from an error id. This function will trap if the
@@ -36,7 +36,7 @@ export class Result<T> {
     /** Used by the underlying lunatic call to identify an error if it exists. */
     private errId: u64 = u64.MAX_VALUE,
   ) {
-    if (errId != u64.MAX_VALUE) set_finalize(changetype<usize>(this), errId, error.drop_error.index);
+    if (errId != u64.MAX_VALUE) setFinalize(changetype<usize>(this), errId, error.drop_error.index);
   }
 
   /**
@@ -58,8 +58,9 @@ export class Result<T> {
 
   /** Panic if the value isn't truthy, using the message as the runtime error message. */
   assertUnwrap(message: string | null = null): T {
-    if (message) assert(this.value, message);
-    else assert(this.value);
+    if (this.errId != u64.MAX_VALUE) {
+      assert(false, message ? message! : this.errStr!);
+    }
     return this.value;
   }
 }

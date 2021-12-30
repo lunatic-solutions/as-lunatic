@@ -1,6 +1,6 @@
-import { Result, id_ptr } from "../error";
+import { Result, idPtr } from "../error";
 import { net } from "../bindings";
-import { err_code, IPType, LunaticManaged, iovec_vector } from "../util";
+import { ErrCode, IPType, LunaticManaged, iovec_vector } from "../util";
 import { iovec } from "bindings/wasi";
 
 
@@ -8,7 +8,7 @@ import { iovec } from "bindings/wasi";
 @lazy const opaque_ptr = memory.data(sizeof<u64>());
 
 // @ts-ignore: @lazy!
-@lazy const ip_address_ptr = memory.data(offsetof<IPAddress>());
+@lazy const ipAddressPointer = memory.data(offsetof<IPAddress>());
 
 /** Represents an IP Address, v6 or v4. */
 export class IPAddress {
@@ -25,7 +25,7 @@ export class IPAddress {
   /** Load an IPAddress object from the DNS Iterator pointer. */
   static load(): IPAddress {
     let ip = new IPAddress();
-    memory.copy(changetype<usize>(ip), ip_address_ptr, offsetof<IPAddress>());
+    memory.copy(changetype<usize>(ip), ipAddressPointer, offsetof<IPAddress>());
     return ip;
   }
 
@@ -58,11 +58,11 @@ function resolveDNSIterator(id: u64): IPAddress[] {
 
   // obtain the ip resolutions
   while (net.resolve_next(id,
-    ip_address_ptr + offsetof<IPAddress>("type"),
-    ip_address_ptr,
-    ip_address_ptr + offsetof<IPAddress>("port"),
-    ip_address_ptr + offsetof<IPAddress>("flow_info"),
-    ip_address_ptr + offsetof<IPAddress>("scope_id")) == err_code.Success) {
+    ipAddressPointer + offsetof<IPAddress>("type"),
+    ipAddressPointer,
+    ipAddressPointer + offsetof<IPAddress>("port"),
+    ipAddressPointer + offsetof<IPAddress>("flow_info"),
+    ipAddressPointer + offsetof<IPAddress>("scope_id")) == ErrCode.Success) {
     // IPResolution will automatically load from the pointers
     value.push(IPAddress.load());
   }
@@ -81,14 +81,14 @@ function resolveDNSIterator(id: u64): IPAddress[] {
  */
 export function resolve(host: string, timeout: u32 = 0): Result<IPAddress[] | null> {
   // encode the string to utf8
-  let name_ptr = String.UTF8.encode(host);
+  let namePtr = String.UTF8.encode(host);
 
   // resolve the host
-  let result = net.resolve(changetype<usize>(name_ptr), <usize>name_ptr.byteLength, timeout, id_ptr);
+  let result = net.resolve(changetype<usize>(namePtr), <usize>namePtr.byteLength, timeout, idPtr);
 
   // process the result
-  let id = load<u64>(id_ptr);
-  if (result == err_code.Success) {
+  let id = load<u64>(idPtr);
+  if (result == ErrCode.Success) {
     let value: IPAddress[] = resolveDNSIterator(id);
     return new Result<IPAddress[] | null>(value);
   }
@@ -184,10 +184,10 @@ export class TCPSocket extends LunaticManaged {
       flow_info,
       scope_id,
       timeout,
-      id_ptr,
+      idPtr,
     );
-    let id = load<u64>(id_ptr);
-    if (result == err_code.Success) {
+    let id = load<u64>(idPtr);
+    if (result == ErrCode.Success) {
       let ip = new IPAddress();
 
       // copy the address
@@ -228,14 +228,14 @@ export class TCPSocket extends LunaticManaged {
     while (true) {
       // TCP_READ_VECTOR_SIZE is managed by `--use TCP_READ_VECTOR_SIZE={some const value}`
       let buff = heap.alloc(TCP_READ_VECTOR_SIZE);
-      let read_result = net.tcp_read(id, buff, TCP_READ_VECTOR_SIZE, timeout, id_ptr);
-      if (read_result == err_code.Success) {
+      let read_result = net.tcp_read(id, buff, TCP_READ_VECTOR_SIZE, timeout, idPtr);
+      if (read_result == ErrCode.Success) {
         // get bytes read
-        let bytes_read = load<u64>(id_ptr);
+        let bytes_read = load<u64>(idPtr);
 
         // if no bytes were read on a success, the socket was closed
         if (bytes_read == 0) {
-          result_buffer.free_children();
+          result_buffer.freeChildren();
           this.buffer = null;
           heap.free(changetype<usize>(buff));
           return TCPResultType.Closed;
@@ -257,7 +257,7 @@ export class TCPSocket extends LunaticManaged {
     }
 
     // free all the internal buffers and copy them into a static array
-    let result = result_buffer.to_static_array();
+    let result = result_buffer.toStaticArray();
     heap.free(changetype<usize>(result_buffer));
     this.buffer = result;
     return TCPResultType.Success;
@@ -329,10 +329,10 @@ export class TCPSocket extends LunaticManaged {
     vec.buf_len = len;
 
     // call tcp_write_vectored
-    let result = net.tcp_write_vectored(this.id, vec, 1, timeout, id_ptr);
-    let count = load<u64>(id_ptr);
+    let result = net.tcp_write_vectored(this.id, vec, 1, timeout, idPtr);
+    let count = load<u64>(idPtr);
 
-    if (result == err_code.Success) {
+    if (result == ErrCode.Success) {
       if (count == 0) {
         return new Result<TCPResultType>(TCPResultType.Closed);
       }
@@ -402,9 +402,9 @@ export class TCPServer extends LunaticManaged {
     flowInfo: u32,
     scopeId: u32,
   ): Result<TCPServer | null> {
-    let result = net.tcp_bind(addressType, addressPtr, port, flowInfo, scopeId, id_ptr);
-    let id = load<u64>(id_ptr);
-    if (result == err_code.Success) {
+    let result = net.tcp_bind(addressType, addressPtr, port, flowInfo, scopeId, idPtr);
+    let id = load<u64>(idPtr);
+    if (result == ErrCode.Success) {
       return new Result<TCPServer | null>(new TCPServer(id));
     }
     return new Result<TCPServer | null>(null, id);
@@ -425,9 +425,9 @@ export class TCPServer extends LunaticManaged {
    * incoming TCP connection.
    */
   accept(): Result<TCPSocket | null> {
-    let result = net.tcp_accept(this.id, id_ptr, opaque_ptr);
-    let id = load<u64>(id_ptr);
-    if (result == err_code.Success) {
+    let result = net.tcp_accept(this.id, idPtr, opaque_ptr);
+    let id = load<u64>(idPtr);
+    if (result == ErrCode.Success) {
       let dns_iterator = load<u64>(opaque_ptr);
       let ipResolutions = resolveDNSIterator(dns_iterator);
       assert(ipResolutions.length == 1);

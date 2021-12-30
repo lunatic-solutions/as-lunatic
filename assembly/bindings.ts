@@ -1,5 +1,5 @@
 import { iovec } from "bindings/wasi";
-import { IPType, MessageType, err_code, Parameters } from "./util";
+import { IPType, MessageType, ErrCode, Parameters } from "./util";
 
 export namespace process {
     // @ts-ignore
@@ -10,34 +10,34 @@ export namespace process {
     export declare function drop_config(config_id: u64): void;
     // @ts-ignore
     @external("lunatic::process", "allow_namespace")
-    export declare function allow_namespace(config_id: u64, namespace_str_ptr: usize, namespace_str_len: u32): err_code;
+    export declare function allow_namespace(config_id: u64, namespace_str_ptr: usize, namespace_str_len: u32): ErrCode;
     // @ts-ignore
     @external("lunatic::process", "preopen_dir")
-    export declare function preopen_dir(config_id: u64, dir_str_ptr: usize, dir_str_len: usize, id_ptr: usize): err_code;
+    export declare function preopen_dir(config_id: u64, dir_str_ptr: usize, dir_str_len: usize, id_ptr: usize): ErrCode;
     // @ts-ignore
     @external("lunatic::process", "create_environment")
-    export declare function create_environment(config_id: u64, id_ptr: usize): err_code;
+    export declare function create_environment(config_id: u64, id_ptr: usize): ErrCode;
     // @ts-ignore
     @external("lunatic::process", "drop_environment")
     export declare function drop_environment(env_id: u64): void;
     // @ts-ignore
     @external("lunatic::process", "add_plugin")
-    export declare function add_plugin(config_id: u64, plugin_data_ptr: usize, plugin_data_len: u32, id_ptr: usize): err_code;
+    export declare function add_plugin(config_id: u64, plugin_data_ptr: usize, plugin_data_len: u32, id_ptr: usize): ErrCode;
     // @ts-ignore
     @external("lunatic::process", "add_module")
-    export declare function add_module(env_id: u64, module_data_ptr: usize, module_data_len: u32, id_ptr: usize): err_code;
+    export declare function add_module(env_id: u64, module_data_ptr: usize, module_data_len: u32, id_ptr: usize): ErrCode;
     // @ts-ignore
     @external("lunatic::process", "add_this_module")
-    export declare function add_this_module(env_id: u64, id_ptr: usize): err_code;
+    export declare function add_this_module(env_id: u64, id_ptr: usize): ErrCode;
     // @ts-ignore
     @external("lunatic::process", "drop_module")
     export declare function drop_module(mod_id: u64): void;
     // @ts-ignore
     @external("lunatic::process", "spawn")
-    export declare function spawn(link: u64, module_id: u64, func_str_ptr: usize, func_str_len: usize, params_ptr: usize, params_len: u32, id_ptr: usize): err_code;
+    export declare function spawn(link: u64, module_id: u64, func_str_ptr: usize, func_str_len: usize, params_ptr: usize, params_len: u32, id_ptr: usize): ErrCode;
     // @ts-ignore
     @external("lunatic::process", "inherit_spawn")
-    export declare function inherit_spawn(link: u64, func_str_ptr: usize, func_str_len: usize, params_ptr: usize, params_len: u32, id_ptr: usize): err_code;
+    export declare function inherit_spawn(link: u64, func_str_ptr: usize, func_str_len: usize, params_ptr: usize, params_len: u32, id_ptr: usize): ErrCode;
     // @ts-ignore
     @external("lunatic::process", "drop_process")
     export declare function drop_process(process_id: u64): void;
@@ -69,10 +69,10 @@ export namespace process {
 
     // @ts-ignore
     @external("lunatic::process", "register")
-    export declare function register(name_ptr: usize, name_len: usize, version_ptr: usize, version_len: usize, env_id: u64, process_id: u64): err_code;
+    export declare function register(name_ptr: usize, name_len: usize, version_ptr: usize, version_len: usize, env_id: u64, process_id: u64): ErrCode;
     // @ts-ignore
     @external("lunatic::process", "unregister")
-    export declare function unregister(name_ptr: usize, name_len: usize, version_ptr: usize, version_len: usize, env_id: u64): err_code;
+    export declare function unregister(name_ptr: usize, name_len: usize, version_ptr: usize, version_len: usize, env_id: u64): ErrCode;
 
     // @ts-ignore
     @external("lunatic::process", "lookup")
@@ -167,7 +167,7 @@ export namespace net {
      */
     // @ts-ignore: external is valid here
     @external("lunatic::networking", "resolve")
-    export declare function resolve(name_str_ptr: usize, name_str_len: usize, timeout: u32, id_ptr: usize): err_code;
+    export declare function resolve(name_str_ptr: usize, name_str_len: usize, timeout: u32, id_ptr: usize): ErrCode;
 
     /**
      * Drop a dns iterator.
@@ -211,7 +211,7 @@ export namespace net {
      */
     // @ts-ignore: external is valid here
     @external("lunatic::networking", "resolve_next")
-    export declare function resolve_next(dns_iter_id: u64, addr_type_ptr: usize, add_u8_ptr: usize, port_u16_ptr: usize, flow_info_u32_ptr: usize, scope_id_u32_ptr: usize): err_code;
+    export declare function resolve_next(dns_iter_id: u64, addr_type_ptr: usize, add_u8_ptr: usize, port_u16_ptr: usize, flow_info_u32_ptr: usize, scope_id_u32_ptr: usize): ErrCode;
 
     /**
      * Creates a new TCP listener, which will be bound to the specified address. The returned listener
@@ -229,7 +229,7 @@ export namespace net {
      */
     // @ts-ignore: external is valid here
     @external("lunatic::networking", "tcp_bind")
-    export declare function tcp_bind(addr_type: IPType, addr_u8_ptr: usize, port: u16, flow_info: u32, scope_id: u32, id_u64_ptr: usize): err_code;
+    export declare function tcp_bind(addr_type: IPType, addr_u8_ptr: usize, port: u16, flow_info: u32, scope_id: u32, id_u64_ptr: usize): ErrCode;
 
     /**
      * Accept a TCPListener.
@@ -237,11 +237,11 @@ export namespace net {
      * @param listener_id - The TCPListener.
      * @param id_ptr - A pointer to a u64 that will contain the TCPServer id or the error.
      * @param socket_addr_id_ptr - A pointer to a u64 that will contain a dns iterator.
-     * @returns {err_code} - `err_code.Success` If the value written to `id_ptr` is an error or a socket id.
+     * @returns {ErrCode} - `err_code.Success` If the value written to `id_ptr` is an error or a socket id.
      */
     // @ts-ignore: external is valid here
     @external("lunatic::networking", "tcp_accept")
-    export declare function tcp_accept(listener_id: u64, id_ptr: usize, socket_addr_id_ptr: usize): err_code;
+    export declare function tcp_accept(listener_id: u64, id_ptr: usize, socket_addr_id_ptr: usize): ErrCode;
 
     /**
      * Read from a tcp stream.
@@ -254,7 +254,7 @@ export namespace net {
      */
     // @ts-ignore: external is valid here
     @external("lunatic::networking", "tcp_read")
-    export declare function tcp_read(stream_id: u64, buffer_ptr: usize, buffer_len: usize, timeout: u32, opaque_ptr: usize): err_code;
+    export declare function tcp_read(stream_id: u64, buffer_ptr: usize, buffer_len: usize, timeout: u32, opaque_ptr: usize): ErrCode;
 
     /**
      * Write bytes to a stream.
@@ -267,7 +267,7 @@ export namespace net {
      */
     // @ts-ignore: external is valid here
     @external("lunatic::networking", "tcp_write_vectored")
-    export declare function tcp_write_vectored(stream_id: u64, ciovec_array_ptr: iovec, ciovec_array_len: u32, timeout: u32, opaque_ptr: usize): err_code;
+    export declare function tcp_write_vectored(stream_id: u64, ciovec_array_ptr: iovec, ciovec_array_len: u32, timeout: u32, opaque_ptr: usize): ErrCode;
 
     /**
      * Create a new tcp connection to a TCP Server.
@@ -290,5 +290,5 @@ export namespace net {
         scope_id: u32,
         timeout: u32,
         id_u64_ptr: u32,
-    ): err_code;
+    ): ErrCode;
 }

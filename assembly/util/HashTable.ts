@@ -1,7 +1,7 @@
 import { E_ALLOCATION_TOO_LARGE, E_KEYNOTFOUND } from "util/error";
 
 /** A simple hashtable entry in the resulting flat c-array. */
-@unmanaged class ht_entry {
+@unmanaged class HTEntry {
     key: usize;
     held: u64;
     cb: u32;
@@ -10,7 +10,7 @@ import { E_ALLOCATION_TOO_LARGE, E_KEYNOTFOUND } from "util/error";
 
 
 /** Always points to the currently active table of references. */
-let entries: usize = heap.alloc(offsetof<ht_entry>() * LUNATIC_FINALIZATION_ENTRY_COUNT);
+let entries: usize = heap.alloc(offsetof<HTEntry>() * LUNATIC_FINALIZATION_ENTRY_COUNT);
 /** HashTable capacity. */
 let capacity: usize = <usize>LUNATIC_FINALIZATION_ENTRY_COUNT;
 /** Current active item count. */
@@ -26,7 +26,7 @@ const FNV_PRIME: u64 = 1099511628211;
  * @param {usize} ptr - The pointer to be hashed.
  * @returns The pointer hash.
  */
-export function hash_key(ptr: usize): u64 {
+export function hashKey(ptr: usize): u64 {
     let hash: u64 = FNV_OFFSET;
     for (let i: usize = 0; i < sizeof<usize>(); i++) {
         hash ^= <u64>((ptr >>> (i << 3)) & <usize>0xFF);
@@ -39,10 +39,10 @@ export function hash_key(ptr: usize): u64 {
  * Get a finalization entry based on the pointer.
  *
  * @param key - The pointer used by the entry.
- * @returns {ht_entry | null} - The entry or null if it is not found.
+ * @returns {HTEntry | null} - The entry or null if it is not found.
  */
-export function ht_get(key: usize): ht_entry | null {
-    let hash = hash_key(key);
+export function htGet(key: usize): HTEntry | null {
+    let hash = hashKey(key);
     // size_t index = (size_t)(hash & (uint64_t)(table->capacity - 1));
     let index: usize = <usize>(hash & <u64>(capacity - 1));
 
@@ -50,7 +50,7 @@ export function ht_get(key: usize): ht_entry | null {
     for (let i: usize = 0; i < capacity; i++) {
         // loop over the entries until we find 0 or key
         let targetIndex = (index + i) % capacity;
-        let entry = changetype<ht_entry>(entries + targetIndex * offsetof<ht_entry>());
+        let entry = changetype<HTEntry>(entries + targetIndex * offsetof<HTEntry>());
 
         // empty space means empty partition.
         if (entry.key == 0) break;
@@ -74,14 +74,14 @@ export function ht_get(key: usize): ht_entry | null {
  * @param {u32} cb - The callback index.
  * @returns The entry used.
  */
-export function ht_set(key: usize, held: u64, cb: u32): ht_entry {
+export function htSet(key: usize, held: u64, cb: u32): HTEntry {
 
     if (length >= capacity >>> 1) {
-        ht_expand();
+        htExpand();
     }
 
     // Set entry and update length.
-    return ht_set_entry(key, held, cb);
+    return htSetEntry(key, held, cb);
 }
 
 /**
@@ -92,9 +92,9 @@ export function ht_set(key: usize, held: u64, cb: u32): ht_entry {
  * @param {u32} cb - The callback index.
  * @returns The entry used.
  */
-function ht_set_entry(key: usize, held: u64, cb: u32): ht_entry {
+function htSetEntry(key: usize, held: u64, cb: u32): HTEntry {
      // AND hash with capacity-1 to ensure it's within entries array.
-    let hash = hash_key(key);
+    let hash = hashKey(key);
      // size_t index = (size_t)(hash & (uint64_t)(capacity - 1));
     let index: usize = <usize>(hash & <u64>(capacity - 1));
 
@@ -102,7 +102,7 @@ function ht_set_entry(key: usize, held: u64, cb: u32): ht_entry {
     for (let i: usize = 0; i < capacity; i++) {
         // loop over the entries until we find 0 or key
         let targetIndex = (index + i) % capacity;
-        let entry = changetype<ht_entry>(entries + targetIndex * offsetof<ht_entry>());
+        let entry = changetype<HTEntry>(entries + targetIndex * offsetof<HTEntry>());
 
         // we can use the space if the key is already set, the entry is free, or it's empty space
         if (entry.key == 0 || entry.key == key || entry.free) {
@@ -129,15 +129,15 @@ function ht_set_entry(key: usize, held: u64, cb: u32): ht_entry {
  * @param {usize} key - The pointer.
  * @returns The table entry. The entry must be manually zeroed afterwards, but not freed.
  */
-export function ht_del(key: usize): ht_entry | null {
-    let hash = hash_key(key);
+export function htDel(key: usize): HTEntry | null {
+    let hash = hashKey(key);
     // size_t index = (size_t)(hash & (uint64_t)(capacity - 1));
     let index: usize = <usize>(hash & <u64>(capacity - 1));
 
     // loop until we find the appropriate entry, or we hit 0
     for (let i: usize = 0; i < capacity; i++) {
         let targetIndex = (index + i) % capacity;
-        let entry = changetype<ht_entry>(entries + targetIndex * offsetof<ht_entry>());
+        let entry = changetype<HTEntry>(entries + targetIndex * offsetof<HTEntry>());
 
         // if there is no pointer here, it's unused space.
         if (entry.key == 0) break;
@@ -157,14 +157,14 @@ export function ht_del(key: usize): ht_entry | null {
 }
 
 /** Realocate more table size. This function may *never* be called mid finalization. */
-export function ht_expand(): void {
+export function htExpand(): void {
     // increase the capacity
     let newCapacity = capacity << 1;
     let oldCapacity = capacity;
     if (newCapacity < capacity) assert(false, "Cannot allocate more finalization resources.");
 
     // allocate a new table
-    let newTableByteLength = offsetof<ht_entry>() * newCapacity;
+    let newTableByteLength = offsetof<HTEntry>() * newCapacity;
     let newTable = heap.alloc(newTableByteLength);
     let oldTable = entries;
     // assert the values are 0
@@ -177,11 +177,11 @@ export function ht_expand(): void {
 
     for (let i: usize = 0; i < oldCapacity; i++) {
         // for each non-null entry
-        let entry = changetype<ht_entry>(oldTable + i * offsetof<ht_entry>());
+        let entry = changetype<HTEntry>(oldTable + i * offsetof<HTEntry>());
         if (entry.key == 0 || entry.free) continue;
 
         // set it on the new table
-        ht_set_entry(entry.key, entry.held, entry.cb);
+        htSetEntry(entry.key, entry.held, entry.cb);
     }
 
     // the table was previously resized

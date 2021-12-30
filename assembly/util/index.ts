@@ -1,5 +1,5 @@
 import { iovec } from "bindings/wasi";
-import { ht_del, ht_get, ht_set } from "./HashTable";
+import { htDel, htGet, htSet } from "./HashTable";
 
 //%  - 0x7F => i32
 //%  - 0x7E => i64
@@ -8,46 +8,46 @@ import { ht_del, ht_get, ht_set } from "./HashTable";
 // @ts-ignore: lazy decorator
 @lazy const params = memory.data(51); // ( 16(v128) + 1(type) ) * 3(count)
 // @ts-ignore: lazy decorator
-@lazy let param_count = 0;
+@lazy let paramCount = 0;
 // @ts-ignore: lazy decorator
-@lazy let param_offset = 0;
+@lazy let paramOffset = 0;
 
 /** Unmanaged Tag class used for tagging parameters for remote function calls when starting a process. */
 @unmanaged export class Parameters {
   static reset(): Parameters {
-    param_count = 0;
-    param_offset = 0;
+    paramCount = 0;
+    paramOffset = 0;
     // Yes. This is a fake null reference
     return changetype<Parameters>(params);
   }
 
   /** Tag an i32 parameter. */
   i32(val: i32): Parameters {
-    assert(param_count < 3);
-    param_count++;
-    store<u8>(params + param_offset, <u8>0x7F);
-    store<i32>(params + param_offset, val, 1);
-    param_offset += 17;
+    assert(paramCount < 3);
+    paramCount++;
+    store<u8>(params + paramOffset, <u8>0x7F);
+    store<i32>(params + paramOffset, val, 1);
+    paramOffset += 17;
     return this;
   }
 
   /** Tag an i64 parameter. */
   i64(val: i64): Parameters {
-    assert(param_count < 3);
-    param_count++;
-    store<u8>(params + param_offset, <u8>0x7E);
-    store<i64>(params + param_offset, val, 1);
-    param_offset += 17;
+    assert(paramCount < 3);
+    paramCount++;
+    store<u8>(params + paramOffset, <u8>0x7E);
+    store<i64>(params + paramOffset, val, 1);
+    paramOffset += 17;
     return this;
   }
 
   /** Tag a v128 parameter. */
   v128(val: v128): Parameters {
-    assert(param_count < 3);
-    param_count++;
-    store<u8>(params + param_offset, <u8>0x7B);
-    v128.store(params + param_offset, val, 1);
-    param_offset += 17; // 16(v128) + 1
+    assert(paramCount < 3);
+    paramCount++;
+    store<u8>(params + paramOffset, <u8>0x7B);
+    v128.store(params + paramOffset, val, 1);
+    paramOffset += 17; // 16(v128) + 1
     return this;
   }
 
@@ -56,7 +56,7 @@ import { ht_del, ht_get, ht_set } from "./HashTable";
   }
 
   get byteLength(): usize {
-    return param_count * 17;
+    return paramCount * 17;
   }
 }
 
@@ -69,7 +69,7 @@ export const enum IPType {
 let id = 0;
 // @ts-ignore: global decorator
 @global export function __lunatic_finalize(ptr: usize): void {
-  let result = ht_del(ptr);
+  let result = htDel(ptr);
   if (result) {
     trace("cleaning up", 1, <f64>id);
     id++;
@@ -78,13 +78,13 @@ let id = 0;
 }
 
 /** Set the finalization record for this reference. */
-export function set_finalize(ptr: usize, held: u64, cb: u32): void {
-  ht_set(ptr, held, cb);
+export function setFinalize(ptr: usize, held: u64, cb: u32): void {
+  htSet(ptr, held, cb);
 }
 
 /** Check to see if a reference has a finalization record still. */
-export function has_finalize(ptr: usize): bool {
-  return ht_get(ptr) != null;
+export function hasFinalize(ptr: usize): bool {
+  return htGet(ptr) != null;
 }
 
 export const enum MessageType {
@@ -94,32 +94,36 @@ export const enum MessageType {
 }
 
 /** Success enum to describe the results of syscalls. The value `0` is successful. */
-export const enum err_code {
+export const enum ErrCode {
   Success,
   Fail,
 }
 
+/** Represents an object that is managed by lunatic. Requires the resource become dropped. */
 export abstract class LunaticManaged {
 
   constructor(
     held: u64,
     finalize: (val: u64) => void,
   ) {
-    set_finalize(changetype<usize>(this), held, finalize.index);
+    setFinalize(changetype<usize>(this), held, finalize.index);
   }
 
+  /** Returns if the resource has not been dropped yet. */
   get dropped(): bool {
-    return has_finalize(changetype<usize>(this));
+    return !hasFinalize(changetype<usize>(this));
   }
 
+  /** Drop the resource. */
   dispose(): void {
-    if (has_finalize(changetype<usize>(this))) {
+    if (hasFinalize(changetype<usize>(this))) {
       __lunatic_finalize(changetype<usize>(this));
     }
   }
 
+  /** Remove the finalization record without calling the finalization callback. */
   preventFinalize(): void {
-    ht_del(changetype<usize>(this));
+    htDel(changetype<usize>(this));
   }
 }
 
@@ -138,7 +142,7 @@ export abstract class LunaticManaged {
     vec.buf_len = len;
   }
 
-  conditionally_increase_capacity(): void {
+  conditionallyIncreaseCapacity(): void {
     let capacity = this.capacity;
     if (this.index == this.capacity) {
       capacity = capacity << 1;
@@ -147,7 +151,7 @@ export abstract class LunaticManaged {
     }
   }
 
-  to_static_array(): StaticArray<u8> {
+  toStaticArray(): StaticArray<u8> {
 
     // sum up the buffer lengths
     let sum = 0;
@@ -174,7 +178,7 @@ export abstract class LunaticManaged {
     return reset;
   }
 
-  free_children(): void {
+  freeChildren(): void {
     // free each child
     let vec = this.vec;
     let count = this.index;

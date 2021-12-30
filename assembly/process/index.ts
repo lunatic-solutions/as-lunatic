@@ -1,5 +1,5 @@
-import { Result, id_ptr } from "../error";
-import { Parameters, LunaticManaged, err_code, MessageType } from "../util";
+import { Result, idPtr } from "../error";
+import { Parameters, LunaticManaged, ErrCode, MessageType } from "../util";
 import { Mailbox } from "../messaging";
 import { ASON } from "@ason/assembly";
 import { message, process } from "../bindings";
@@ -76,12 +76,12 @@ export class Process<TMessage> extends LunaticManaged {
       params.byteLength,
 
       // output id
-      id_ptr,
+      idPtr,
     );
 
     // obtain the id, error, or process id
-    let id = load<u64>(id_ptr);
-    if (result == err_code.Success) {
+    let id = load<u64>(idPtr);
+    if (result == ErrCode.Success) {
       return new Result<Process<StaticArray<u8>> | null>(new Process(id));
     }
     return new Result<Process<StaticArray<u8>> | null>(null, id);
@@ -140,12 +140,12 @@ export class Process<TMessage> extends LunaticManaged {
       <usize>bootstrapUTF8.length,
       paramsPtr,
       17, // 17 * 1
-      id_ptr,
+      idPtr,
     );
 
-    let spawnID = load<u64>(id_ptr);
+    let spawnID = load<u64>(idPtr);
 
-    if (result == err_code.Success) {
+    if (result == ErrCode.Success) {
       return new Result<Process<TMessage> | null>(new Process(spawnID));
     }
     return new Result<Process<TMessage> | null>(null, spawnID);
@@ -320,9 +320,9 @@ export class Environment extends LunaticManaged {
    * @returns {Result<Module | null>} the module if it was successful.
    */
   @unsafe addModuleUnsafe(bytes: usize, len: usize): Result<Module | null> {
-      let result = process.add_module(this.id, bytes, len, id_ptr);
-      let moduleId = load<u64>(id_ptr);
-      if (result == err_code.Success) {
+      let result = process.add_module(this.id, bytes, len, idPtr);
+      let moduleId = load<u64>(idPtr);
+      if (result == ErrCode.Success) {
         return new Result<Module | null>(new Module(moduleId));
       }
       return new Result<Module | null>(null, moduleId);
@@ -334,9 +334,9 @@ export class Environment extends LunaticManaged {
    * @returns {Result<Module | null>} The module if it was successful.
    */
   addThisModule(): Result<Module | null> {
-      let result = process.add_this_module(this.id, id_ptr);
-      let moduleId = load<u64>(id_ptr);
-      if (result == err_code.Success) {
+      let result = process.add_this_module(this.id, idPtr);
+      let moduleId = load<u64>(idPtr);
+      if (result == ErrCode.Success) {
         return new Result<Module | null>(new Module(moduleId));
       }
       return new Result<Module | null>(null, moduleId);
@@ -363,7 +363,7 @@ export class Environment extends LunaticManaged {
         eid,
         pid,
       );
-      return result == err_code.Success;
+      return result == ErrCode.Success;
   }
 
   /**
@@ -383,7 +383,7 @@ export class Environment extends LunaticManaged {
         <usize>procVersion.byteLength,
         this.id,
       );
-      return result == err_code.Success;
+      return result == ErrCode.Success;
   }
 
   /**
@@ -405,7 +405,7 @@ export class Environment extends LunaticManaged {
         eid,
         pid,
       );
-      return result == err_code.Success;
+      return result == ErrCode.Success;
   }
 }
 
@@ -431,7 +431,7 @@ export class Config extends LunaticManaged {
    */
   allowNamespace(namespace: string): bool {
       let buff = String.UTF8.encode(namespace);
-      return process.allow_namespace(this.id, changetype<usize>(buff), buff.byteLength) == err_code.Success;
+      return process.allow_namespace(this.id, changetype<usize>(buff), buff.byteLength) == ErrCode.Success;
   }
 
   /**
@@ -444,9 +444,9 @@ export class Config extends LunaticManaged {
     // strings need to be encoded every time we pass them up to the host
     let dirStr = String.UTF8.encode(directory);
     // call preopen
-    let result = process.preopen_dir(this.id, changetype<usize>(dirStr), dirStr.byteLength, id_ptr);
-    let dirId  = load<u64>(id_ptr);
-    if (result == err_code.Success) {
+    let result = process.preopen_dir(this.id, changetype<usize>(dirStr), dirStr.byteLength, idPtr);
+    let dirId  = load<u64>(idPtr);
+    if (result == ErrCode.Success) {
       this.directories.set(directory, dirId);
       return new Result<bool>(true);
     }
@@ -460,9 +460,9 @@ export class Config extends LunaticManaged {
    * @returns {Result<Environment | null>} The environment if it was successful.
    */
   createEnvironment(): Result<Environment | null> {
-    let result = process.create_environment(this.id, id_ptr);
-    let id = load<u64>(id_ptr);
-    if (result == err_code.Success) {
+    let result = process.create_environment(this.id, idPtr);
+    let id = load<u64>(idPtr);
+    if (result == ErrCode.Success) {
       return new Result<Environment | null>(new Environment(id));
     }
     return new Result<Environment | null>(null, id);
@@ -509,9 +509,9 @@ export class Config extends LunaticManaged {
    * @returns {Result<bool>} true if it was successful.
    */
   @unsafe addPluginUnsafe(bytes: usize, len: usize): Result<bool> {
-    let result = process.add_plugin(this.id, bytes, len, id_ptr);
-    let pluginId = load<u64>(id_ptr);
-    if (result == err_code.Success) {
+    let result = process.add_plugin(this.id, bytes, len, idPtr);
+    let pluginId = load<u64>(idPtr);
+    if (result == ErrCode.Success) {
       return new Result<bool>(true);
     }
     return new Result<bool>(false, pluginId);
