@@ -135,6 +135,7 @@ export abstract class LunaticManaged {
 
   constructor() {}
 
+  /** Push a buffer to be concatenated. */
   push(ptr: usize, len: usize): void {
     assert(this.index < this.capacity);
     let vec = changetype<iovec>(this.vec + <usize>(this.index++) * offsetof<iovec>());
@@ -142,6 +143,7 @@ export abstract class LunaticManaged {
     vec.buf_len = len;
   }
 
+  /** Potentially increase the capacity to store buffers on this vector. */
   conditionallyIncreaseCapacity(): void {
     let capacity = this.capacity;
     if (this.index == this.capacity) {
@@ -151,6 +153,7 @@ export abstract class LunaticManaged {
     }
   }
 
+  /** Finally concatenate the buffers into a managed static array, freeing the underlying pointers. */
   toStaticArray(): StaticArray<u8> {
 
     // sum up the buffer lengths
@@ -178,6 +181,7 @@ export abstract class LunaticManaged {
     return reset;
   }
 
+  /** Free the stored internal buffers without concatenating them. */
   freeChildren(): void {
     // free each child
     let vec = this.vec;
