@@ -114,7 +114,7 @@ export abstract class LunaticManaged {
     return !hasFinalize(changetype<usize>(this));
   }
 
-  /** Drop the resource. */
+  /** Drop the resource manually if it hasn't been dropped already. */
   dispose(): void {
     if (hasFinalize(changetype<usize>(this))) {
       __lunatic_finalize(changetype<usize>(this));
