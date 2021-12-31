@@ -152,6 +152,21 @@ export class Process<TMessage> extends ASManaged {
     return new Result<Process<TMessage> | null>(null, spawnID);
   }
 
+  /**
+   * Defines what happens to this process if one of the linked processes notifies us that it died.
+   *
+   * There are 2 options:
+   * 1. `trap == false` the received signal will be turned into a signal message and put into the mailbox.
+   * 2. `trap == true` the process will die and notify all linked processes of its death.
+   *
+   * Default option is `false`.
+   *
+   * @param {bool} trap - Defines how this current process should behave when a child process fails.
+   */
+  static dieWhenLinkDies(trap: bool = true): void {
+    process.die_when_link_dies(trap);
+  }
+
   constructor(
     /** The id of the process. */
     public id: u64,

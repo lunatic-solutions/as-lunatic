@@ -52,7 +52,7 @@ export namespace process {
     export declare function sleep_ms(ms: u64): void;
     // @ts-ignore
     @external("lunatic::process", "die_when_link_dies")
-    export declare function die_when_link_dies(trap: u32): void
+    export declare function die_when_link_dies(trap: bool): void
     // @ts-ignore
     @external("lunatic::process", "this")
     export declare function this_handle(): u64;
