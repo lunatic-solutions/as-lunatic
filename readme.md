@@ -29,7 +29,7 @@ Finally, export a `_start()` function so that the main thread knows what functio
 
 > Note: any code that does not reside in the _start() method will execute every time a new `thread.Process` is created.
 
-# Process
+## Process
 
 To create another process and make work happen in parallel, use a `thread.Process` object.
 
@@ -37,44 +37,22 @@ A simple process might look like this:
 
 ```ts
   // Test simple process
-  let simpleValueProcess = Process.spawn(42, (val: i32) => {
+  let simpleValueProcess = Process.inheritSpawnWith<i32, i32>(42, (val: i32, mb: Mailbox<i32>) => {
     assert(val == 42);
+    // we expect a data message
+    let message = mb.receive();
+    assert(message.type == MessageType.Data);
+    assert(message.value == 120);
   });
-  // make sure the process is finished
-  assert(simpleValueProcess.join());
+
+  assert(simpleValueProcess.value);
+  // send a value to the child process.
+  simpleValueProcess.value!.send(120);
 ```
 
-Lunatic will spin up another WebAssembly instance of your wasm module and execute your callback on another thread. Under the hood, the value passed to `Process.spawn()` will be serialized using `ASON`, and everything will happen seamlessly. If more data needs to be passed between `Process`es, a `Channel` can be used to send different kinds of messages.
+Lunatic will spin up another WebAssembly instance of your wasm module and execute your callback on another thread. Under the hood, the value passed to `Process.inheritSpawnWith()` will be serialized using `ASON`, and everything will happen seamlessly. If more data needs to be passed between `Process`es, the provided `Mailbox<TMessage>` can be used to send messages of type `TMessage`.
 
-# Channel
-
-To create a `Channel`, simply call `Channel.create<T>()` where `T` is an `ASON` serializable message.
-
-```ts
-import { Channel } from "as-lunatic";
-
-export function _start(): void {
-  // create a channel
-  let workChannel = Channel.create<StaticArray<u8>>(0);
-
-  // send some work
-  workChannel.send([1, 2, 3, 4]);
-  workChannel.send([5, 6, 7, 8]);
-  workChannel.send([9, 10, 11, 12]);
-
-  // Channels are serializable in ASON
-  Thread.start(
-    workChannel,
-    (workChannel: Channel<StaticArray<u8>>) => {
-      workChannel.receive(); // [1, 2, 3, 4]
-      workChannel.receive(); // [5, 6, 7, 8]
-      workChannel.receive(); // [9, 10, 11, 12]
-    },
-  );
-}
-```
-
-# TCP
+## TCP Servers
 
 To open a TCP server, use the net module.
 
@@ -82,10 +60,10 @@ To open a TCP server, use the net module.
 import { TCPServer, TCPStream } from "as-lunatic";
 
 // bind the server to an ip address and a port
-let server = TCPServer.bind([127, 0, 0, 1], TCP_PORT);
+let server = TCPServer.bindIPv4([127, 0, 0, 1], TCP_PORT);
 
 
-function processSocket(socket: TCPStream): void {
+function processSocket(socket: TCPStream, mailbox: Mailbox<i32>): void {
   // do something with the accepted tcp socket here
 }
 
@@ -94,8 +72,7 @@ let stream: TCPStream;
 // blocks until a socket is accepted
 while (stream = server.accept()) {
   // pass the socket off to another process
-  Thread.start<TCPStream>(stream, processThisStream);
-  stream.drop(); // when passing a stream off to another process, always drop it
+  Process.spawnInheritWith<TCPStream, i32>(stream, processSocket);
 }
 ```
 
@@ -104,12 +81,29 @@ To open a TCP connection, use a `TCPSocket`.
 ```ts
 import { TCPStream } from "net";
 
-let stream = TCPStream.connect([192, 168, 1, 1], PORT);
-let buffer: StaticArray<u8>;
+let stream = TCPStream.connectIPV4([192, 168, 1, 1], PORT);
+let timeout = 0;
 
 // socket.read() blocks until bytes are read
-while (buffer = stream.read()) {
-  // echo the result back to the socket until it's closed
+while (true) {
+  // returns a result type, with no timeout, blocks the current thread
+  let result = stream.read(timeout);
+
+  if (result.type == TCPResultType.Success) {
+    // read the stream.buffer property for the incoming data
+    let buffer = stream.buffer;
+    // echo the socket
+    stream.writeStaticArray(buffer);
+  } else if (result.type == TCPResultType.Timeout) {
+    // the read request timed out, not the socket
+    continue;
+  } else if (result.type == TCPResultType.Error) {
+    // the socket was closed because of error
+    break;
+  } else {
+    // the socket was closed normally TCPResultType.Closed
+    break;
+  }
   stream.writeBuffer(buffer);
 }
 ```
@@ -119,9 +113,10 @@ It's also possible to resolve an IP address from a domain.
 ```ts
 import { resolve } from "as-lunatic";
 // blocks thread execution
-let ip: StaticArray<u8> = resolve("mydomain.com");
+let ips: IPAddress[] = resolve("mydomain.com");
 ```
-# License
+
+## License
 
 ```
 The MIT License (MIT)
