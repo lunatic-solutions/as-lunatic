@@ -470,6 +470,22 @@ export class Config extends ASManaged {
   }
 
   /**
+   * Create a remote environment from the given configuration with the given name. If an environment
+   * cannot be created, it will return `null` and write the error description to `err_str`.
+   *
+   * @returns {Result<Environment | null>} The environment if it was successful.
+   */
+  createRemoveEnvironment(name: string): Result<Environment | null> {
+    let buff = String.UTF8.encode(name);
+    let result = process.create_remote_environment(this.id, changetype<usize>(name), buff.byteLength, idPtr);
+    let id = load<u64>(idPtr);
+    if (result == ErrCode.Success) {
+      return new Result<Environment | null>(new Environment(id));
+    }
+    return new Result<Environment | null>(null, id);
+  }
+
+  /**
    * Add a plugin from an ArrayBuffer that represents a wasm module. If adding the plugin
    * fails, the `err_str` global will contain the error string.
    *
