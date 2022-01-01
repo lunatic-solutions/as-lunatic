@@ -62,8 +62,8 @@ function resolveDNSIterator(id: u64): IPAddress[] {
     ipAddressPointer + offsetof<IPAddress>("type"),
     ipAddressPointer,
     ipAddressPointer + offsetof<IPAddress>("port"),
-    ipAddressPointer + offsetof<IPAddress>("flow_info"),
-    ipAddressPointer + offsetof<IPAddress>("scope_id")) == ErrCode.Success) {
+    ipAddressPointer + offsetof<IPAddress>("flowInfo"),
+    ipAddressPointer + offsetof<IPAddress>("scopeId")) == ErrCode.Success) {
     // IPResolution will automatically load from the pointers
     value.push(IPAddress.load());
   }
