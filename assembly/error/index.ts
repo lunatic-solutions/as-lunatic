@@ -59,7 +59,7 @@ export class Result<T> {
   /** Panic if the value isn't truthy, using the message as the runtime error message. */
   assertUnwrap(message: string | null = null): T {
     if (this.errId != u64.MAX_VALUE) {
-      assert(false, message ? message! : this.errStr!);
+      assert(false, message ? message : this.errStr!);
     }
     return this.value;
   }

@@ -114,14 +114,14 @@ export const enum ErrCode {
 
     // sum up the buffer lengths
     let sum = 0;
-    let count = this.index;
+    let count = <usize>this.index;
     let vec = this.vec;
     for (let i: usize = 0; i < count; i++) {
-      sum += changetype<iovec>(vec + i * offsetof<iovec>()).buf_len;
+      sum += <i32>changetype<iovec>(vec + i * offsetof<iovec>()).buf_len;
     }
 
     // get the return value
-    let reset = new StaticArray<u8>(<i32>sum);
+    let reset = new StaticArray<u8>(sum);
     let running_ptr = changetype<usize>(reset);
 
     // copy each buffer
