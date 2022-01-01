@@ -103,7 +103,7 @@ export class TCPSocket extends ASManaged {
   /** The resulting read buffer. */
   public buffer: StaticArray<u8> | null = null;
   /** Written byte count after calling write. */
-  public byteCount: i32 = 0;
+  public byteCount: u32 = 0;
 
   /**
    * Create a TCP connection using the given IPAddress object as the connection server.
@@ -337,7 +337,7 @@ export class TCPSocket extends ASManaged {
       if (count == 0) {
         return new Result<TCPResultType>(TCPResultType.Closed);
       }
-      this.byteCount = count;
+      this.byteCount = <u32>count;
       return new Result<TCPResultType>(TCPResultType.Success);
     } else {
       // count is actually an index to an error
