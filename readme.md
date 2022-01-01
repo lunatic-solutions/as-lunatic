@@ -4,7 +4,7 @@ Instructions for use:
 
 First, install `assemblyscript`, and `as-lunatic`.
 
-```
+```sh
 npm install --save-dev assemblyscript as-lunatic
 ```
 
@@ -27,30 +27,34 @@ import * as lunatic from "as-lunatic";
 
 Finally, export a `_start()` function so that the main thread knows what function to execute when lunatic starts up.
 
-> Note: any code that does not reside in the _start() method will execute every time a new `thread.Process` is created.
+> Note: any code that does not reside in the _start() method will execute every time a new `Process` is created.
 
 ## Process
 
-To create another process and make work happen in parallel, use a `thread.Process` object.
+To create another process and make work happen in parallel, use a `Process` object.
 
 A simple process might look like this:
 
 ```ts
-  // Test simple process
-  let simpleValueProcess = Process.inheritSpawnWith<i32, i32>(42, (val: i32, mb: Mailbox<i32>) => {
-    assert(val == 42);
-    // we expect a data message
-    let message = mb.receive();
-    assert(message.type == MessageType.Data);
-    assert(message.value == 120);
-  });
+import { Process } from "as-lunatic";
 
-  assert(simpleValueProcess.value);
-  // send a value to the child process.
-  simpleValueProcess.value!.send(120);
+// Test simple process
+let simpleValueProcess = Process.inheritSpawnWith<i32, i32>(42, (val: i32, mb: Mailbox<i32>) => {
+  assert(val == 42);
+  // we expect a data message
+  let message = mb.receive();
+  assert(message.type == MessageType.Data);
+  assert(message.value == 120);
+});
+
+assert(simpleValueProcess.value);
+// send a value to the child process.
+simpleValueProcess.value!.send(120);
 ```
 
-Lunatic will spin up another WebAssembly instance of your wasm module and execute your callback on another thread. Under the hood, the value passed to `Process.inheritSpawnWith()` will be serialized using `ASON`, and everything will happen seamlessly. If more data needs to be passed between `Process`es, the provided `Mailbox<TMessage>` can be used to send messages of type `TMessage`.
+Lunatic will create another `Process`, instantiate the current WebAssembly module on it, and execute the callback with a tiny bit of overhead. Under the hood, the value passed to `Process.inheritSpawnWith()` will be serialized using `ASON` which is a serialization algorithm designed just for AssemblyScript references.
+
+To receive messages on this process, use the `Mailbox<TMessage>` parameter
 
 ## TCP Servers
 
@@ -59,52 +63,54 @@ To open a TCP server, use the net module.
 ```ts
 import { TCPServer, TCPStream } from "as-lunatic";
 
-// bind the server to an ip address and a port
-let server = TCPServer.bindIPv4([127, 0, 0, 1], TCP_PORT);
-
-
 function processSocket(socket: TCPStream, mailbox: Mailbox<i32>): void {
   // do something with the accepted tcp socket here
 }
 
-let stream: TCPStream;
+export function _start(): void {
+  // bind the server to an ip address and a port
+  let server = TCPServer.bindIPv4([127, 0, 0, 1], TCP_PORT);
 
-// blocks until a socket is accepted
-while (stream = server.accept()) {
-  // pass the socket off to another process
-  Process.spawnInheritWith<TCPStream, i32>(stream, processSocket);
+  let stream: TCPStream;
+  // blocks until a socket is accepted
+  while (stream = server.accept()) {
+    // pass the socket off to another process
+    Process.spawnInheritWith<TCPStream, i32>(stream, processSocket);
+  }
 }
 ```
 
-To open a TCP connection, use a `TCPSocket`.
+To open a TCP connection to another server, use a `TCPSocket`.
 
 ```ts
 import { TCPStream } from "net";
 
-let stream = TCPStream.connectIPV4([192, 168, 1, 1], PORT);
-let timeout = 0;
-
-// socket.read() blocks until bytes are read
-while (true) {
-  // returns a result type, with no timeout, blocks the current thread
-  let result = stream.read(timeout);
-
-  if (result.type == TCPResultType.Success) {
-    // read the stream.buffer property for the incoming data
-    let buffer = stream.buffer;
-    // echo the socket
-    stream.writeStaticArray(buffer);
-  } else if (result.type == TCPResultType.Timeout) {
-    // the read request timed out, not the socket
-    continue;
-  } else if (result.type == TCPResultType.Error) {
-    // the socket was closed because of error
-    break;
-  } else {
-    // the socket was closed normally TCPResultType.Closed
-    break;
+export function _start(): void {
+  let stream = TCPStream.connectIPV4([192, 168, 1, 1], PORT);
+  let timeout = 0;
+  
+  // socket.read() blocks until bytes are read
+  while (true) {
+    // returns a result type, with no timeout, blocks the current thread
+    let result = stream.read(timeout);
+  
+    if (result.type == TCPResultType.Success) {
+      // read the stream.buffer property for the incoming data
+      let buffer = stream.buffer;
+      // echo the socket
+      stream.writeStaticArray(buffer);
+    } else if (result.type == TCPResultType.Timeout) {
+      // the read request timed out, not the socket
+      continue;
+    } else if (result.type == TCPResultType.Error) {
+      // the socket was closed because of error
+      break;
+    } else {
+      // the socket was closed normally TCPResultType.Closed
+      break;
+    }
+    stream.writeBuffer(buffer);
   }
-  stream.writeBuffer(buffer);
 }
 ```
 
@@ -112,13 +118,16 @@ It's also possible to resolve an IP address from a domain.
 
 ```ts
 import { resolve } from "as-lunatic";
-// blocks thread execution
-let ips: IPAddress[] = resolve("mydomain.com");
+
+export function _start(): void {
+  // blocks thread execution
+  let ips: IPAddress[] = resolve("mydomain.com");
+}
 ```
 
 ## License
 
-```
+```txt
 The MIT License (MIT)
 Copyright © 2021 Joshua Tenner and Bernard Kolobara
 
