@@ -12,8 +12,8 @@
       "abort=__lunatic_abort",
       "trace=__lunatic_trace",
       "seed=__lunatic_seed",
-      "LUNATIC_TCP_READ_VECTOR_INITIAL_COUNT=4",
-      "LUNATIC_TCP_READ_VECTOR_SIZE=1048576"
+      "TCP_READ_VECTOR_INITIAL_COUNT=4",
+      "TCP_READ_VECTOR_SIZE=1048576"
     ],
     "transform": ["@ason/transform"],
     "exportTable": true
