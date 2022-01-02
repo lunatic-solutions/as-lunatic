@@ -1,5 +1,5 @@
 import { Result, idPtr } from "../error";
-import { net } from "../bindings";
+import { net, message } from "../bindings";
 import { ErrCode, IPType, iovec_vector } from "../util";
 import { iovec } from "bindings/wasi";
 import { ASManaged } from "as-disposable";
@@ -344,6 +344,32 @@ export class TCPSocket extends ASManaged {
       return new Result<TCPResultType>(TCPResultType.Error, count);
     }
   }
+
+  clone(): TCPSocket {
+    return new TCPSocket(net.clone_tcp_stream(this.id), this.ip);
+  }
+
+  /** Utilized by ason to serialize a socket. */
+  __asonSerialize(): StaticArray<u8> {
+    let id = net.clone_tcp_stream(this.id);
+    let messageId = message.push_tcp_stream(id);
+    let buff = new StaticArray<u8>(sizeof<u64>() + offsetof<IPAddress>());
+    let ptr = changetype<usize>(buff);
+    store<u64>(ptr, messageId);
+    memory.copy(ptr + sizeof<u64>(), changetype<usize>(this.ip), offsetof<IPAddress>());
+    return buff;
+  }
+
+  /** Utilized by ason to deserialize a socket. */
+  __asonDeserialize(buff: StaticArray<u8>): void {
+    let ptr = changetype<usize>(buff);
+    let messageId = load<u64>(ptr);
+    let id = message.take_tcp_stream(messageId);
+    let ip = __new(offsetof<IPAddress>(), idof<IPAddress>());
+    memory.copy(ip, ptr + sizeof<u64>(), offsetof<IPAddress>());
+    this.id = id;
+    this.ip = changetype<IPAddress>(ip);
+  }
 }
 
 /**
@@ -364,7 +390,16 @@ export class TCPServer extends ASManaged {
    * Bind a TCPServer to an IPV4 address.
    *
    * @param {StaticArray<u8>} ip - Must be at least 4 bytes long, the first four bytes will be used.
-   * @param {u16} port - The port to bind to.
+   * @param {u16} port - The port to bin
+
+
+export function clone_tcp_stream(id: number): number {
+  throw new Error("Function not implemented.");
+}
+export function clone_tcp_stream(id: number): number {
+    throw new Error("Function not implemented.");
+  }
+d to.
    * @returns {Result<TCPServer | null>} The resulting TCPServer or an error.
    */
   static bindIPv4(ip: StaticArray<u8>, port: u16): Result<TCPServer | null> {

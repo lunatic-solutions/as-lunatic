@@ -200,6 +200,16 @@ export namespace net {
     export declare function drop_tcp_stream(id: u64): void;
 
     /**
+     * Clone a TCPStream.
+     *
+     * @param id - The id of the socket.
+     * @returns The internal id for this tcp stream in this message.
+     */
+    // @ts-ignore: external is valid here
+    @external("lunatic::networking", "clone_tcp_stream")
+    export declare function clone_tcp_stream(id: u64): u64;
+
+    /**
      * Takes the next socket address from DNS iterator and writes it to the passed pointers.
      * Address type is going to be a value of `4` or `6`, representing v4 or v6 addresses. The
      * caller needs to reserve enough space at `addr_u8_ptr` for both values to fit in (16 bytes).
@@ -207,10 +217,10 @@ export namespace net {
      *
      * @param {u64} dns_iter_id - The DNS Iterator.
      * @param {usize} addr_type_ptr - A pointer to the address type.
-     * @param {usize} add_u8_ptr 
-     * @param {usize} port_u16_ptr 
-     * @param {usize} flow_info_u32_ptr 
-     * @param {usize} scope_id_u32_ptr 
+     * @param {usize} add_u8_ptr - A pointer to the address bytes
+     * @param {usize} port_u16_ptr - A pointer to the port
+     * @param {usize} flow_info_u32_ptr - A pointer to the IP Address's flow info
+     * @param {usize} scope_id_u32_ptr - A pointer to IP Address's scope id
      */
     // @ts-ignore: external is valid here
     @external("lunatic::networking", "resolve_next")

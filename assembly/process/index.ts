@@ -108,15 +108,16 @@ export class Process<TMessage> extends ASManaged {
 
       // we know it must be a Data message
       assert(startMessage.type == MessageType.Data);
+      let unpacked = startMessage.value;
+      assert(unpacked);
 
       // call the start message callback with the start value
-      call_indirect(startMessage.value.index, startMessage.value.start, mb);
+      call_indirect(unpacked!.value.index, unpacked!.value.start, mb);
     });
 
     // if process creation was successful, send the first message which should be a TStart wrapper
     if (p.value) {
-      let message = ASON.serialize(wrapped);
-      p.value!.sendBufferUnsafe(message);
+      p.value!.sendReference<StartWrapper<TStart>>(wrapped);
     }
 
     // finally return the process wrapper
@@ -195,12 +196,27 @@ export class Process<TMessage> extends ASManaged {
    * @param {i64} tag - The message tag.
    */
   send(msg: TMessage, tag: i64 = 0): void {
+    message.create_data(tag, 0);
     let buffer = ASON.serialize<TMessage>(msg);
     let bufferLength = <usize>buffer.length;
-    message.create_data(tag, bufferLength);
     message.write_data(changetype<usize>(buffer), bufferLength);
     message.send(this.id);
   }
+
+  /**
+   * Send a message with an optional tag.
+   *
+   * @param {TMessage} msg - The message being sent.
+   * @param {i64} tag - The message tag.
+   */
+  sendReference<UMessage>(msg: UMessage, tag: i64 = 0): void {
+    message.create_data(tag, 0);
+    let buffer = ASON.serialize<UMessage>(msg);
+    let bufferLength = <usize>buffer.length;
+    message.write_data(changetype<usize>(buffer), bufferLength);
+    message.send(this.id);
+  }
+
 
   /**
    * Send a raw buffer unsafely to the process. This is unsafe, because mailboxes are strongly typed.
@@ -221,9 +237,9 @@ export class Process<TMessage> extends ASManaged {
    * @param {u32} timeout - The timeout in milliseconds.
    */
   request(msg: TMessage, timeout: u32 = 0): void {
+    message.create_data(0, 0);
     let buffer = ASON.serialize<TMessage>(msg);
     let bufferLength = <usize>buffer.length;
-    message.create_data(0, bufferLength);
     message.write_data(changetype<usize>(buffer), bufferLength);
     message.send_receive_skip_search(this.id, timeout);
   }

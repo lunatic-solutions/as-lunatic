@@ -4,12 +4,16 @@ import { MessageType } from "../util";
 
 let emptyTagset = [] as StaticArray<i64>;
 
+class Box<T> { constructor(public value: T) {} }
+
 /** Represents a message received from a mailbox. */
 export class Message<TMessage> {
   /** The number tag associated with this message. */
   public tag: i64 = 0;
   /** The internal buffer of this message. */
   private buffer: StaticArray<u8> | null = null;
+  /** The received value. */
+  public value: Box<TMessage> | null = null;
 
   constructor(
     public type: MessageType,
@@ -22,19 +26,12 @@ export class Message<TMessage> {
       assert(count == size);
       this.buffer = data;
       this.tag = message.get_tag();
+      this.value = new Box<TMessage>(ASON.deserialize<TMessage>(data));
 
       // signals have tags too, usually representing the resource id that is signalling a parent
     } else if (type == MessageType.Signal) {
       this.tag = message.get_tag();
     }
-  }
-
-  /**
-   * Obtain the message value if and only if the message type is MessageType.Value.
-   */
-  get value(): TMessage {
-    assert(this.type == MessageType.Data);
-    return ASON.deserialize<TMessage>(this.buffer!);
   }
 
   /**
