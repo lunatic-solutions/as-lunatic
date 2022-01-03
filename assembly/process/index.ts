@@ -189,6 +189,8 @@ export class Process<TMessage> extends ASManaged {
     return new Environment(process.this_env());
   }
 
+  private serializer: ASON.Serializer<TMessage> = new ASON.Serializer<TMessage>();
+
   /**
    * Send a message with an optional tag.
    *
@@ -197,7 +199,7 @@ export class Process<TMessage> extends ASManaged {
    */
   send(msg: TMessage, tag: i64 = 0): void {
     message.create_data(tag, 0);
-    let buffer = ASON.serialize<TMessage>(msg);
+    let buffer = this.serializer.serialize(msg);
     let bufferLength = <usize>buffer.length;
     message.write_data(changetype<usize>(buffer), bufferLength);
     message.send(this.id);
@@ -286,6 +288,7 @@ export class Process<TMessage> extends ASManaged {
   /** Utilized by ason to deserialize a process. */
   __asonDeserialize(buffer: StaticArray<u8>): void {
       assert(buffer.length == sizeof<u64>());
+      this.serializer = new ASON.Serializer<TMessage>();
       this.id = message.take_process(load<u64>(changetype<usize>(buffer)));
   }
 }
