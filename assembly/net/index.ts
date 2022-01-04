@@ -235,7 +235,7 @@ export class TCPSocket extends ASManaged {
       if (bytesRead == 0) return new Result<TCPResultType>(TCPResultType.Closed);
 
       // copy the bytes to a new static array
-      let buffer = new StaticArray<u8>(bytesRead);
+      let buffer = new StaticArray<u8>(<i32>bytesRead);
       memory.copy(changetype<usize>(buffer), ptr, <usize>bytesRead);
 
       // store the result
