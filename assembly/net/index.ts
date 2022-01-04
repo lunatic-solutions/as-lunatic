@@ -210,7 +210,7 @@ export class TCPSocket extends ASManaged {
     /** The IP Address of this socket. */
     public ip: IPAddress
   ) {
-    super(id, net.drop_tcp_listener);
+    super(id, net.drop_tcp_stream);
   }
 
   /**
