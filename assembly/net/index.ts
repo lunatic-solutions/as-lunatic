@@ -380,16 +380,7 @@ export class TCPServer extends ASManaged {
    * Bind a TCPServer to an IPV4 address.
    *
    * @param {StaticArray<u8>} ip - Must be at least 4 bytes long, the first four bytes will be used.
-   * @param {u16} port - The port to bin
-
-
-export function clone_tcp_stream(id: number): number {
-  throw new Error("Function not implemented.");
-}
-export function clone_tcp_stream(id: number): number {
-    throw new Error("Function not implemented.");
-  }
-d to.
+   * @param {u16} port - The port to bind to.
    * @returns {Result<TCPServer | null>} The resulting TCPServer or an error.
    */
   static bindIPv4(ip: StaticArray<u8>, port: u16): Result<TCPServer | null> {
