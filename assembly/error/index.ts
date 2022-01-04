@@ -57,10 +57,16 @@ export class Result<T> {
   }
 
   /** Panic if the value isn't truthy, using the message as the runtime error message. */
-  assertUnwrap(message: string | null = null): T {
-    if (this.errId != u64.MAX_VALUE) {
+  expect(message: string | null = null): T {
+    // cannot simply assert the value, because calling `this.errStr` might throw an error if the value is ok
+    if (!this.isOk()) {
       assert(false, message ? message : this.errStr!);
     }
     return this.value;
+  }
+
+  /** Check to see if the `Result` is okay. */
+  isOk(): bool {
+    return this.errId == u64.MAX_VALUE;
   }
 }
