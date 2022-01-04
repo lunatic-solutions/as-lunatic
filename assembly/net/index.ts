@@ -1,6 +1,6 @@
 import { Result, idPtr } from "../error";
 import { net, message } from "../bindings";
-import { ErrCode, IPType, iovec_vector } from "../util";
+import { ErrCode, IPType, TCPErrCode } from "../util";
 import { iovec } from "bindings/wasi";
 import { ASManaged } from "as-disposable";
 
@@ -103,7 +103,7 @@ export class TCPSocket extends ASManaged {
   /** The resulting read buffer. */
   public buffer: StaticArray<u8> | null = null;
   /** Written byte count after calling write. */
-  public byteCount: u32 = 0;
+  public byteCount: usize = 0;
 
   /**
    * Create a TCP connection using the given IPAddress object as the connection server.
@@ -219,49 +219,39 @@ export class TCPSocket extends ASManaged {
    * @param {u32} timeout - How long a read should wait until the request times out.
    * @returns {StaticArray<u8>} The resulting buffer.
    */
-  read(timeout: u32 = 0): TCPResultType {
-    // setup
-    let result_buffer = new iovec_vector(); // unmanaged! must be freed
+  read(timeout: u32 = 0): Result<TCPResultType> {
+
+    // Static data memory pointer
+    let ptr = memory.data(TCP_READ_VECTOR_SIZE);
     let id = this.id;
 
-    let count = 0;
-    // for each successful read
-    while (true) {
-      // TCP_READ_VECTOR_SIZE is managed by `--use TCP_READ_VECTOR_SIZE={some const value}`
-      let buff = heap.alloc(TCP_READ_VECTOR_SIZE);
-      let read_result = net.tcp_read(id, buff, TCP_READ_VECTOR_SIZE, timeout, idPtr);
-      if (read_result == ErrCode.Success) {
-        // get bytes read
-        let bytes_read = load<u64>(idPtr);
+    // call tcp read
+    let readResult = net.tcp_read(id, ptr, TCP_READ_VECTOR_SIZE, timeout, idPtr);
+    let bytesRead = load<u64>(idPtr);
 
-        // if no bytes were read on a success, the socket was closed
-        if (bytes_read == 0) {
-          result_buffer.freeChildren();
-          this.buffer = null;
-          heap.free(changetype<usize>(buff));
-          return TCPResultType.Closed;
-        }
+    if (readResult == TCPErrCode.Success) {
 
-        // give ownership of buffer to result_buffer
-        result_buffer.push(buff, <usize>bytes_read);
-      } else {
-        // free the buffer and continue execution
-        heap.free(buff);
-        break;
-      }
-      count++;
+      // if no bytes were read, the socket is closed
+      if (bytesRead == 0) return new Result<TCPResultType>(TCPResultType.Closed);
+
+      // copy the bytes to a new static array
+      let buffer = new StaticArray<u8>(bytesRead);
+      memory.copy(changetype<usize>(buffer), ptr, <usize>bytesRead);
+
+      // store the result
+      this.buffer = buffer;
+      this.byteCount = <usize>bytesRead;
+
+      // return success
+      return new Result<TCPResultType>(TCPResultType.Success);
+    } else if (readResult == TCPErrCode.Fail) {
+      // failure means that bytesRead has an error id
+      return new Result<TCPResultType>(TCPResultType.Error, bytesRead);
+    } else {
+      // this must be a timeout
+      assert(readResult == TCPErrCode.Timeout);
+      return new Result<TCPResultType>(TCPResultType.Timeout);
     }
-
-    // if success was never returned, user defined timeout
-    if (count == 0) {
-      return TCPResultType.Timeout;
-    }
-
-    // free all the internal buffers and copy them into a static array
-    let result = result_buffer.toStaticArray();
-    heap.free(changetype<usize>(result_buffer));
-    this.buffer = result;
-    return TCPResultType.Success;
   }
 
   /**

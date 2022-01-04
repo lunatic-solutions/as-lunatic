@@ -77,6 +77,16 @@ export const enum MessageType {
   Timeout = 9027,
 }
 
+/** TCP Reads can result in Timeouts, so we use a slightly different enum. */
+export const enum TCPErrCode {
+  /** The TCP Read was successful. */
+  Success,
+  /** The TCP Read resulted in some kind of an error or a disconnect and the socket is now closed. */
+  Fail,
+  /** The TCP Read resulted in a timeout, the socket is still open, but no bytes were read. */
+  Timeout = 9027,
+};
+
 /** Success enum to describe the results of syscalls. The value `0` is successful. */
 export const enum ErrCode {
   Success,

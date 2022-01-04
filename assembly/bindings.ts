@@ -1,5 +1,5 @@
 import { iovec } from "bindings/wasi";
-import { IPType, MessageType, ErrCode, Parameters } from "./util";
+import { IPType, MessageType, ErrCode, TCPErrCode } from "./util";
 
 export namespace process {
     // @ts-ignore
@@ -257,7 +257,7 @@ export namespace net {
     export declare function tcp_accept(listener_id: u64, id_ptr: usize, socket_addr_id_ptr: usize): ErrCode;
 
     /**
-     * Read from a tcp stream.
+     * Read from a tcp stream. This function does the following things.
      *
      * @param stream_id - The TCP Stream to be read from.
      * @param buffer_ptr - The pointer to the buffer.
@@ -267,7 +267,7 @@ export namespace net {
      */
     // @ts-ignore: external is valid here
     @external("lunatic::networking", "tcp_read")
-    export declare function tcp_read(stream_id: u64, buffer_ptr: usize, buffer_len: usize, timeout: u32, opaque_ptr: usize): ErrCode;
+    export declare function tcp_read(stream_id: u64, buffer_ptr: usize, buffer_len: usize, timeout: u32, opaque_ptr: usize): TCPErrCode;
 
     /**
      * Write bytes to a stream.
