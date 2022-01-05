@@ -26,7 +26,7 @@ export function getError(id: u64): string {
   return value;
 }
 
-/** Represents the result of a lunatic call, that could have possibly errored. */
+/** Represents the result of a lunatic call that could have possibly errored. */
 export class Result<T> {
   private errStr: string | null = null;
 
