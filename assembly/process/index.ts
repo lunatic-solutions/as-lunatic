@@ -117,7 +117,7 @@ export class Process<TMessage> extends ASManaged {
 
     // if process creation was successful, send the first message which should be a TStart wrapper
     if (p.value) {
-      p.value!.sendReference<StartWrapper<TStart>>(wrapped);
+      p.value!.sendUnsafe<StartWrapper<TStart>>(wrapped);
     }
 
     // finally return the process wrapper
@@ -197,7 +197,7 @@ export class Process<TMessage> extends ASManaged {
    * @param {TMessage} msg - The message being sent.
    * @param {i64} tag - The message tag.
    */
-  send(msg: TMessage, tag: i64 = 0): void {
+  send<UMessage extends TMessage>(msg: UMessage, tag: i64 = 0): void {
     message.create_data(tag, 0);
     let buffer = this.serializer.serialize(msg);
     let bufferLength = <usize>buffer.length;
@@ -211,7 +211,7 @@ export class Process<TMessage> extends ASManaged {
    * @param {TMessage} msg - The message being sent.
    * @param {i64} tag - The message tag.
    */
-  sendReference<UMessage>(msg: UMessage, tag: i64 = 0): void {
+  @unsafe sendUnsafe<UMessage>(msg: UMessage, tag: i64 = 0): void {
     message.create_data(tag, 0);
     let buffer = ASON.serialize<UMessage>(msg);
     let bufferLength = <usize>buffer.length;
