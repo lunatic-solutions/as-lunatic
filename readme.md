@@ -94,7 +94,6 @@ export function _start(): void {
 
 Lunatic will create another `Process`, instantiate the current WebAssembly module on it, and execute the callback with a tiny bit of overhead. `as-lunatic` will use `ASON` to transfer and serialize messages sent to child processes.
 
-
 ## TCP Servers
 
 To open a TCP server, use the static methods on the `TCPServer` class.

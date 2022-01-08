@@ -65,10 +65,10 @@ export namespace process {
 
     // @ts-ignore
     @external("lunatic::process", "link")
-    export declare function link(tag: i64, process_id: u64): usize
+    export declare function link(tag: i64, process_id: u64): void;
     // @ts-ignore
     @external("lunatic::process", "unlink")
-    export declare function unlink(process_id: u64): usize
+    export declare function unlink(process_id: u64): void;
 
     // @ts-ignore
     @external("lunatic::process", "register")
