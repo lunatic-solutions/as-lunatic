@@ -567,3 +567,4 @@ export class Config extends ASManaged {
 }
 
 export * from "./EventListener";
+export * from "./Task";
