@@ -70,3 +70,24 @@ export class Result<T> {
     return this.errId == u64.MAX_VALUE;
   }
 }
+
+export class UnmanagedResult<T> {
+  constructor(
+    /** The result of a high level primitive call. */
+    public value: T,
+    /** The error string if any. */
+    public error: string | null = null
+  ) {}
+
+  /** Check to see if the result is okay. */
+  isOk(): bool {
+    return !this.error;
+  }
+
+  expect(msg: string | null = null): T {
+    if (!this.isOk()) {
+      assert(false, msg ? msg : this.error!);
+    }
+    return this.value;
+  }
+}

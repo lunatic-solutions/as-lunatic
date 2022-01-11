@@ -382,7 +382,7 @@ export class Environment extends ASManaged {
    * @param {string} version - The version of the process.
    * @returns {bool} true if the process was registered.
    */
-   register<TMessage>(proc: Process<TMessage>, name: string, version: string): bool {
+  register<TMessage>(proc: Process<TMessage>, name: string, version: string): bool {
       let pid = load<u64>(changetype<usize>(proc), offsetof<Process<TMessage>>("id"));
       let eid = this.id;
       let procName = String.UTF8.encode(name);
@@ -565,3 +565,5 @@ export class Config extends ASManaged {
     return new Result<bool>(false, pluginId);
   }
 }
+
+export * from "./EventListener";
