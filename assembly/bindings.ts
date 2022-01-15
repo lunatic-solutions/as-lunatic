@@ -302,6 +302,31 @@ export namespace net {
         flow_info: u32,
         scope_id: u32,
         timeout: u32,
-        id_u64_ptr: u32,
+        id_u64_ptr: usize,
     ): ErrCode;
+
+    /**
+     * Get the IP address associated with this listener.
+     *
+     * @param {u64} tcp_listener_id - The tcp_listener id.
+     * @param {usize} id_u64_ptr - The u64 pointer to write the dns iterator to.
+     */
+    // @ts-ignore: external is valid here
+    @external("lunatic:net", "addr_local")
+    export declare function addr_local(
+        tcp_listener_id: u64,
+        id_u64_ptr: usize,
+    ): ErrCode
+}
+
+export namespace version {
+    // @ts-ignore: external is valid here
+    @external("lunatic::version", "major")
+    export declare function major(): i32;
+    // @ts-ignore: external is valid here
+    @external("lunatic::version", "minor")
+    export declare function minor(): i32;
+    // @ts-ignore: external is valid here
+    @external("lunatic::version", "patch")
+    export declare function patch(): i32;
 }

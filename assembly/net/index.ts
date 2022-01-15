@@ -371,7 +371,8 @@ export class TCPSocket extends ASManaged {
 export class TCPServer extends ASManaged {
   constructor(
     /** The id of this TCPServer. */
-    public id: u64
+    public id: u64,
+    public ip: IPAddress,
   ) {
     super(id, net.drop_tcp_listener);
   }
@@ -422,7 +423,16 @@ export class TCPServer extends ASManaged {
     let result = net.tcp_bind(addressType, addressPtr, port, flowInfo, scopeId, idPtr);
     let id = load<u64>(idPtr);
     if (result == ErrCode.Success) {
-      return new Result<TCPServer | null>(new TCPServer(id));
+      let ipResult = net.local_addr(id, idPtr);
+      let iteratorId = load<u64>(idPtr);
+      if (ipResult == ErrCode.Success) {
+        let ipAddress = resolveDNSIterator(iteratorId);
+        assert(ipAddress.length == 1);
+        let server = new TCPServer(id, ipAddress[0]);
+        return new Result<TCPServer | null>(server);
+      }
+      net.drop_tcp_listener(id);
+      return new Result<TCPServer | null>(null, iteratorId);
     }
     return new Result<TCPServer | null>(null, id);
   }
