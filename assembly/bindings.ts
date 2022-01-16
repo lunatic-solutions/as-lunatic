@@ -312,8 +312,8 @@ export namespace net {
      * @param {usize} id_u64_ptr - The u64 pointer to write the dns iterator to.
      */
     // @ts-ignore: external is valid here
-    @external("lunatic:net", "addr_local")
-    export declare function addr_local(
+    @external("lunatic:net", "local_addr")
+    export declare function local_addr(
         tcp_listener_id: u64,
         id_u64_ptr: usize,
     ): ErrCode
