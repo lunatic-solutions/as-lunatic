@@ -54,7 +54,7 @@ export const enum TCPResultType {
  * @param {u64} id - The dns iterator id.
  * @returns {IPAddress[]} The IPResolution array.
  */
-function resolveDNSIterator(id: u64): IPAddress[] {
+export function resolveDNSIterator(id: u64): IPAddress[] {
   let value: IPAddress[] = [];
 
   // obtain the ip resolutions
