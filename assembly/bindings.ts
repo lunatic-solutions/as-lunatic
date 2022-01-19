@@ -287,7 +287,7 @@ export namespace net {
      */
     // @ts-ignore: external is valid here
     @external("lunatic::networking", "tcp_write_vectored")
-    export declare function tcp_write_vectored(stream_id: u64, ciovec_array_ptr: iovec, ciovec_array_len: u32, timeout: u32, opaque_ptr: usize): ErrCode;
+    export declare function tcp_write_vectored(stream_id: u64, ciovec_array_ptr: iovec, ciovec_array_len: u32, timeout: u32, opaque_ptr: usize): NetworkErrCode;
 
     /**
      * Create a new tcp connection to a TCP Server.

@@ -249,6 +249,7 @@ export class TCPSocket extends ASManaged {
       // failure means that bytesRead has an error id
       return new Result<NetworkResultType>(NetworkResultType.Error, bytesRead);
     } else {
+      error.drop_error(bytesRead);
       // this must be a timeout
       assert(readResult == NetworkErrCode.Timeout);
       return new Result<NetworkResultType>(NetworkResultType.Timeout);
@@ -324,15 +325,19 @@ export class TCPSocket extends ASManaged {
     let result = net.tcp_write_vectored(this.id, vec, 1, timeout, idPtr);
     let count = load<u64>(idPtr);
 
-    if (result == ErrCode.Success) {
+    if (result == NetworkErrCode.Success) {
       if (count == 0) {
         return new Result<NetworkResultType>(NetworkResultType.Closed);
       }
       this.byteCount = <u32>count;
       return new Result<NetworkResultType>(NetworkResultType.Success);
-    } else {
+    } else if (result == NetworkErrCode.Fail) {
       // count is actually an index to an error
       return new Result<NetworkResultType>(NetworkResultType.Error, count);
+    } else {
+      error.drop_error(count);
+      assert(result == NetworkErrCode.Timeout);
+      return new Result<NetworkResultType>(NetworkResultType.Timeout);
     }
   }
 
