@@ -600,11 +600,16 @@ export class UDPSocket extends ASManaged {
     );
     let bytesWritten = load<u64>(opaquePtr);
     if (result == NetworkErrCode.Success) {
+      // create a managed copy of the buffer
       let buffer = new StaticArray<u8>(<i32>bytesWritten);
+      memory.copy(changetype<usize>(buffer), udpBuffer, <usize>bytesWritten);
+
+      // get the ip address
       let dnsId = load<u64>(idPtr);
       let ips = resolveDNSIterator(dnsId);
       assert(ips.length == 1);
-      memory.copy(changetype<usize>(buffer), udpBuffer, <usize>bytesWritten);
+
+      // set the buffer, bytecount and ip
       this.buffer = buffer;
       this.byteCount = <usize>bytesWritten;
       this.ip = unchecked(ips[0]);
@@ -612,7 +617,6 @@ export class UDPSocket extends ASManaged {
     } else if (result == NetworkErrCode.Fail) {
       return new Result<NetworkResultType>(NetworkResultType.Error, bytesWritten);
     } else {
-      error.drop_error(bytesWritten);
       assert(result == NetworkErrCode.Timeout);
       return new Result<NetworkResultType>(NetworkResultType.Timeout);
     }
