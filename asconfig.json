@@ -13,7 +13,8 @@
       "trace=__lunatic_trace",
       "seed=__lunatic_seed",
       "TCP_READ_VECTOR_INITIAL_COUNT=4",
-      "TCP_READ_VECTOR_SIZE=1048576"
+      "TCP_READ_VECTOR_SIZE=1048576",
+      "UDP_READ_BUFFER_SIZE=1048576"
     ],
     "transform": ["@ason/transform"],
     "exportTable": true

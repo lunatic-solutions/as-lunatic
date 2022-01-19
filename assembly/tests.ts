@@ -3,7 +3,7 @@ import {
   TCPSocket,
   Process,
   Mailbox,
-  TCPResultType,
+  NetworkResultType,
   MessageType,
 } from "./index";
 
@@ -32,7 +32,7 @@ function test_tcp(): void {
   let p = Process.inheritSpawn<TCPSocket>((mb: Mailbox<TCPSocket>): void => {
     let socket = mb.receive().value;
     assert(socket);
-    assert(socket.read() === TCPResultType.Success);
+    assert(socket!.value.read().value === NetworkResultType.Success);
   });
   assert(p.value);
   TCPSocket.connectIPV4([127, 0, 0, 1], port).value!.writeUnsafe(

@@ -2,7 +2,7 @@ import { TCPSocket } from "./index";
 import { Process } from "../process";
 import { UnmanagedResult } from "../Error";
 import { Mailbox } from "../messaging";
-import { TCPResultType } from "./index";
+import { NetworkResultType } from "./index";
 export abstract class SocketListener {
     public timeout: u32 = 0;
     public abstract onInitialize(): void;
@@ -32,13 +32,13 @@ export class SocketReader {
                     let result = socket.read(listener.timeout);
                     if (result.isOk()) {
                         let readStatus = result.expect();
-                        if (readStatus == TCPResultType.Closed) {
+                        if (readStatus == NetworkResultType.Closed) {
                             listener.onClose();
                             break;
-                        } else if (readStatus == TCPResultType.Timeout) {
+                        } else if (readStatus == NetworkResultType.Timeout) {
                             if (listener.onTimeout()) break;
                             continue;
-                        } else if (readStatus == TCPResultType.Success) {
+                        } else if (readStatus == NetworkResultType.Success) {
                             if (listener.onRead(socket.buffer!)) break;
                             continue;
                         }

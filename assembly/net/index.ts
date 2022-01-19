@@ -1,12 +1,13 @@
 import { Result, idPtr } from "../error";
 import { net, message } from "../bindings";
-import { ErrCode, IPType, TCPErrCode } from "../util";
+import { ErrCode, IPType, NetworkErrCode as NetworkErrCode } from "../util";
 import { iovec } from "bindings/wasi";
 import { ASManaged } from "as-disposable";
+import { error } from "..";
 
 
 // @ts-ignore: @lazy!
-@lazy const opaque_ptr = memory.data(sizeof<u64>());
+@lazy const opaquePtr = memory.data(sizeof<u64>());
 
 // @ts-ignore: @lazy!
 @lazy const ipAddressPointer = memory.data(offsetof<IPAddress>());
@@ -42,7 +43,7 @@ export class IPAddress {
 
 /** The different tcp read results. */
 
-export const enum TCPResultType {
+export const enum NetworkResultType {
   Success,
   Timeout,
   Closed,
@@ -219,7 +220,7 @@ export class TCPSocket extends ASManaged {
    * @param {u32} timeout - How long a read should wait until the request times out.
    * @returns {StaticArray<u8>} The resulting buffer.
    */
-  read(timeout: u32 = 0): Result<TCPResultType> {
+  read(timeout: u32 = 0): Result<NetworkResultType> {
 
     // Static data memory pointer
     let ptr = memory.data(TCP_READ_VECTOR_SIZE);
@@ -229,10 +230,10 @@ export class TCPSocket extends ASManaged {
     let readResult = net.tcp_read(id, ptr, TCP_READ_VECTOR_SIZE, timeout, idPtr);
     let bytesRead = load<u64>(idPtr);
 
-    if (readResult == TCPErrCode.Success) {
+    if (readResult == NetworkErrCode.Success) {
 
       // if no bytes were read, the socket is closed
-      if (bytesRead == 0) return new Result<TCPResultType>(TCPResultType.Closed);
+      if (bytesRead == 0) return new Result<NetworkResultType>(NetworkResultType.Closed);
 
       // copy the bytes to a new static array
       let buffer = new StaticArray<u8>(<i32>bytesRead);
@@ -243,14 +244,14 @@ export class TCPSocket extends ASManaged {
       this.byteCount = <usize>bytesRead;
 
       // return success
-      return new Result<TCPResultType>(TCPResultType.Success);
-    } else if (readResult == TCPErrCode.Fail) {
+      return new Result<NetworkResultType>(NetworkResultType.Success);
+    } else if (readResult == NetworkErrCode.Fail) {
       // failure means that bytesRead has an error id
-      return new Result<TCPResultType>(TCPResultType.Error, bytesRead);
+      return new Result<NetworkResultType>(NetworkResultType.Error, bytesRead);
     } else {
       // this must be a timeout
-      assert(readResult == TCPErrCode.Timeout);
-      return new Result<TCPResultType>(TCPResultType.Timeout);
+      assert(readResult == NetworkErrCode.Timeout);
+      return new Result<NetworkResultType>(NetworkResultType.Timeout);
     }
   }
 
@@ -260,7 +261,7 @@ export class TCPSocket extends ASManaged {
    * @param {T extends ArrayBufferView} array - A static array to write the TCPStream
    * @param {u32} timeout - The amount of time to wait and timeout in milliseconds.
    */
-  writeTypedArray<T extends ArrayBufferView>(array: T, timeout: u32 = 0): Result<TCPResultType> {
+  writeTypedArray<T extends ArrayBufferView>(array: T, timeout: u32 = 0): Result<NetworkResultType> {
     return this.writeUnsafe(array.dataStart, <usize>array.byteLength, timeout);
   }
 
@@ -269,10 +270,10 @@ export class TCPSocket extends ASManaged {
    *
    * @param {T extends Array<U>} array - A static array to write the TCPStream
    * @param {u32} timeout - The amount of time to wait and timeout in milliseconds.
-   * @returns {Result<TCPResultType>} A wrapper to a TCPResultType. If an error occured, the
+   * @returns {Result<NetworkResultType>} A wrapper to a TCPResultType. If an error occured, the
    * errorString property will return a string describing the error.
    */
-  writeArray<T extends Array<U>, U>(array: T, timeout: u32 = 0): Result<TCPResultType> {
+  writeArray<T extends Array<U>, U>(array: T, timeout: u32 = 0): Result<NetworkResultType> {
     if (isReference<U>()) ERROR("Cannot call writeArray if type of U is a reference.");
     let byteLength = (<usize>array.length) << alignof<U>();
     return this.writeUnsafe(array.dataStart, byteLength, timeout);
@@ -283,10 +284,10 @@ export class TCPSocket extends ASManaged {
    *
    * @param {T extends StaticArray<U>} array - A static array to write the TCPStream
    * @param {u32} timeout - The amount of time to wait and timeout in milliseconds.
-   * @returns {Result<TCPResultType>} A wrapper to a TCPResultType. If an error occured, the
+   * @returns {Result<NetworkResultType>} A wrapper to a TCPResultType. If an error occured, the
    * errorString property will return a string describing the error.
    */
-  writeStaticArray<T extends StaticArray<U>, U>(array: T, timeout: u32 = 0): Result<TCPResultType> {
+  writeStaticArray<T extends StaticArray<U>, U>(array: T, timeout: u32 = 0): Result<NetworkResultType> {
     if (isReference<U>()) ERROR("Cannot call writeStaticArray if type of U is a reference.");
     let byteLength = (<usize>array.length) << alignof<U>();
     return this.writeUnsafe(changetype<usize>(array), byteLength, timeout);
@@ -297,10 +298,10 @@ export class TCPSocket extends ASManaged {
    *
    * @param {ArrayBuffer} buffer - The buffer to be written.
    * @param {u32} timeout - The amount of time to wait and timeout in milliseconds.
-   * @returns {Result<TCPResultType>} A wrapper to a TCPResultType. If an error occured, the
+   * @returns {Result<NetworkResultType>} A wrapper to a TCPResultType. If an error occured, the
    * errorString property will return a string describing the error.
    */
-  writeBuffer(buffer: ArrayBuffer, timeout: u32 = 0): Result<TCPResultType> {
+  writeBuffer(buffer: ArrayBuffer, timeout: u32 = 0): Result<NetworkResultType> {
     return this.writeUnsafe(changetype<usize>(buffer), <usize>buffer.byteLength, timeout);
   }
 
@@ -310,10 +311,10 @@ export class TCPSocket extends ASManaged {
    * @param {usize} ptr - The pointer to the data being written.
    * @param {usize} len - The length of the data being written.
    * @param {u32} timeout - The amount of time to wait and timeout in milliseconds.
-   * @returns {Result<TCPResultType>} A wrapper to a TCPResultType. If an error occured, the
+   * @returns {Result<NetworkResultType>} A wrapper to a TCPResultType. If an error occured, the
    * errorString property will return a string describing the error.
    */
-  @unsafe writeUnsafe(ptr: usize, len: usize, timeout: u32 = 0): Result<TCPResultType> {
+  @unsafe writeUnsafe(ptr: usize, len: usize, timeout: u32 = 0): Result<NetworkResultType> {
     // Statically allocate an iovec for writing data
     let vec = changetype<iovec>(memory.data(offsetof<iovec>()));
     vec.buf = ptr;
@@ -325,13 +326,13 @@ export class TCPSocket extends ASManaged {
 
     if (result == ErrCode.Success) {
       if (count == 0) {
-        return new Result<TCPResultType>(TCPResultType.Closed);
+        return new Result<NetworkResultType>(NetworkResultType.Closed);
       }
       this.byteCount = <u32>count;
-      return new Result<TCPResultType>(TCPResultType.Success);
+      return new Result<NetworkResultType>(NetworkResultType.Success);
     } else {
       // count is actually an index to an error
-      return new Result<TCPResultType>(TCPResultType.Error, count);
+      return new Result<NetworkResultType>(NetworkResultType.Error, count);
     }
   }
 
@@ -452,14 +453,183 @@ export class TCPServer extends ASManaged {
    * incoming TCP connection.
    */
   accept(): Result<TCPSocket | null> {
-    let result = net.tcp_accept(this.id, idPtr, opaque_ptr);
+    let result = net.tcp_accept(this.id, idPtr, opaquePtr);
     let id = load<u64>(idPtr);
     if (result == ErrCode.Success) {
-      let dns_iterator = load<u64>(opaque_ptr);
+      let dns_iterator = load<u64>(opaquePtr);
       let ipResolutions = resolveDNSIterator(dns_iterator);
       assert(ipResolutions.length == 1);
       return new Result<TCPSocket | null>(new TCPSocket(id, unchecked(ipResolutions[0])))
     }
     return new Result<TCPSocket | null>(null, id);
   }
+}
+
+export class UDPSocket extends ASManaged {
+  static bindAddress(addr: IPAddress): Result<UDPSocket | null> {
+    return UDPSocket.bindUnsafe(
+      addr.type,
+      changetype<usize>(addr),
+      addr.port,
+      addr.flowInfo,
+      addr.scopeId,
+    );
+  }
+
+  static bindIPV4(ip: StaticArray<u8>, port: u16 = 0): Result<UDPSocket | null> {
+    assert(ip.length >= 4);
+    return UDPSocket.bindUnsafe(
+      IPType.IPV4,
+      changetype<usize>(ip),
+      port,
+      0,
+      0,
+    );
+  }
+  static bindIPV6(ip: StaticArray<u8>, port: u16 = 0, flowInfo: u32, scopeId: u32): Result<UDPSocket | null> {
+    assert(ip.length >= 16);
+    return UDPSocket.bindUnsafe(
+      IPType.IPV6,
+      changetype<usize>(ip),
+      port,
+      flowInfo,
+      scopeId,
+    );
+  }
+
+  @unsafe static bindUnsafe(
+    addressType: IPType,
+    addressPtr: usize,
+    port: u16,
+    flowInfo: u32,
+    scopeId: u32,
+
+  ): Result<UDPSocket | null> {
+    let result = net.udp_bind(
+      addressType,
+      addressPtr,
+      port,
+      flowInfo,
+      scopeId,
+      idPtr,
+    );
+    let socketId = load<u64>(idPtr);
+    if (result == ErrCode.Success) {
+      return new Result<UDPSocket | null>(new UDPSocket(socketId));
+    }
+    return new Result<UDPSocket | null>(null, socketId);
+  }
+
+  constructor(
+    public id: u64,
+  ) {
+    super(id, net.drop_udp_socket);
+  }
+
+  public byteCount: usize = 0;
+
+  public buffer: StaticArray<u8> | null = null;
+  public ip: IPAddress | null = null;
+
+   /** Utilized by ason to serialize a socket. */
+  __asonSerialize(): StaticArray<u8> {
+    let id = net.clone_tcp_stream(this.id);
+    let messageId = message.push_udp_socket(id);
+    let buff = new StaticArray<u8>(sizeof<u64>());
+    let ptr = changetype<usize>(buff);
+    store<u64>(ptr, messageId);
+    // memory.copy(ptr + sizeof<u64>(), changetype<usize>(this.ip), offsetof<IPAddress>());
+    return buff;
+  }
+
+  __asonDeserialize(buffer: StaticArray<u8>): void {
+    assert(buffer.length == sizeof<u64>());
+    let id = load<u64>(changetype<usize>(buffer));
+    this.id = message.take_udp_socket(id);
+  }
+
+  /**
+   * Send a buffer to the given address using udp.
+   *
+   * @param {StaticArray<u8>} buffer - The buffer to send.
+   * @param {IPAddress} addr - The IPAddress to send to.
+   * @param {u32} timeout - How long to wait until the operation times out.
+   * @returns {Result<NetworkResultType>} The result of sending a message to the given IPAddress using the socket.
+   */
+  sendTo(buffer: StaticArray<u8>, addr: IPAddress, timeout: u32 = 0): Result<NetworkResultType> {
+    let result = net.udp_send_to(
+      this.id,
+      changetype<usize>(buffer),
+      <usize>buffer.length,
+      addr.type,
+      changetype<usize>(addr),
+      addr.port,
+      addr.flowInfo,
+      addr.scopeId,
+      timeout,
+      idPtr,
+    );
+    let bytesWritten = load<u64>(idPtr);
+    if (result == NetworkErrCode.Success) {
+      if (bytesWritten == 0) return new Result<NetworkResultType>(NetworkResultType.Closed);
+      this.byteCount = <usize>bytesWritten;
+      return new Result<NetworkResultType>(NetworkResultType.Success);
+    } else if (result == NetworkErrCode.Fail) {
+      return new Result<NetworkResultType>(NetworkResultType.Error, bytesWritten);
+    } else {
+      error.drop_error(bytesWritten);
+      assert(result == NetworkErrCode.Timeout);
+      return new Result<NetworkResultType>(NetworkResultType.Timeout);
+    }
+  }
+
+  read(timeout: u32 = 0): Result<NetworkResultType> {
+    let udpBuffer = memory.data(UDP_READ_BUFFER_SIZE);
+    let result = net.udp_read(
+      this.id,
+      udpBuffer,
+      UDP_READ_BUFFER_SIZE,
+      timeout,
+      opaquePtr,
+      idPtr,
+    );
+    let bytesWritten = load<u64>(opaquePtr);
+    if (result == NetworkErrCode.Success) {
+      let buffer = new StaticArray<u8>(bytesWritten);
+      let dnsId = load<u64>(idPtr);
+      let ips = resolveDNSIterator(dnsId);
+      assert(ips.length == 1);
+      memory.copy(changetype<usize>(buffer), udpBuffer, <usize>bytesWritten);
+      this.buffer = buffer;
+      this.byteCount = bytesWritten;
+      this.ip = unchecked(ips[0]);
+      return new Result<NetworkResultType>(NetworkResultType.Success);
+    } else if (result == NetworkErrCode.Fail) {
+      return new Result<NetworkResultType>(NetworkResultType.Error, bytesWritten);
+    } else {
+      error.drop_error(bytesWritten);
+      assert(result == NetworkErrCode.Timeout);
+      return new Result<NetworkResultType>(NetworkResultType.Timeout);
+    }
+  }
+
+  /** Set or get if this socket should broadcast. */
+  get broadcast(): bool {
+    return net.get_udp_socket_broadcast(this.id);
+  }
+
+  set broadcast(value: bool) {
+    net.set_udp_socket_broadcast(this.id, value);
+  }
+
+  /** Set or get the time to live for this socket. */
+  get ttl(): u32 {
+    return net.get_udp_socket_ttl(this.id);
+  }
+
+  set ttl(value: u32) {
+    net.set_udp_socket_ttl(this.id, value);
+  }
+
+
 }

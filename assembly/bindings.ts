@@ -1,5 +1,6 @@
 import { iovec } from "bindings/wasi";
-import { IPType, MessageType, ErrCode, TCPErrCode } from "./util";
+import { NetworkResultType } from ".";
+import { IPType, MessageType, ErrCode, NetworkErrCode } from "./util";
 
 export namespace process {
     // @ts-ignore
@@ -116,6 +117,12 @@ export namespace message {
     // @ts-ignore: decorator
     @external("lunatic::message", "send")
     export declare function send(process_id: u64): void;
+    // @ts-ignore: decorator
+    @external("lunatic::message", "push_udp_socket")
+    export declare function push_udp_socket(socket_id: u64): u64;
+    // @ts-ignore: decorator
+    @external("lunatic::message", "take_udp_socket")
+    export declare function take_udp_socket(resource_id: u64): u64;
     // @ts-ignore: decorator
     @external("lunatic::message", "send_receive_skip_search")
     export declare function send_receive_skip_search(process_id: u64, timeout: u32): u32;
@@ -267,7 +274,7 @@ export namespace net {
      */
     // @ts-ignore: external is valid here
     @external("lunatic::networking", "tcp_read")
-    export declare function tcp_read(stream_id: u64, buffer_ptr: usize, buffer_len: usize, timeout: u32, opaque_ptr: usize): TCPErrCode;
+    export declare function tcp_read(stream_id: u64, buffer_ptr: usize, buffer_len: usize, timeout: u32, opaque_ptr: usize): NetworkErrCode;
 
     /**
      * Write bytes to a stream.
@@ -316,7 +323,123 @@ export namespace net {
     export declare function local_addr(
         tcp_listener_id: u64,
         id_u64_ptr: usize,
-    ): ErrCode
+    ): ErrCode;
+
+  /**
+   * Bind to a udp socket to the given address
+   *
+   * @param {IPType} addr_type - The address type of the address being bound to.
+   * @param {usize} addr_u8_ptr - A pointer to the address octets being bound to.
+   * @param {u16} port - The port of the address being boudn to.
+   * @param {u32} flow_info 
+   * @param {u32} scope_id 
+   * @param {usize} id_u64_ptr 
+   */
+  // @ts-ignore: External is valid here
+  @external ("lunatic::networking", "udp_bind")
+  export declare function udp_bind(
+    addr_type: IPType,
+    addr_u8_ptr: usize,
+    port: u16,
+    flow_info: u32,
+    scope_id: u32,
+    id_u64_ptr: u32,
+  ): ErrCode;
+
+  /**
+   * Read data from a socket.
+   *
+   * @param {u64} socket_id - The socket id of the socket being read from.
+   * @param {usize} buffer_ptr - A pointer to a buffer to read the bytes.
+   * @param {usize} buffer_len - The length of that buffer.
+   * @param {u32} timeout - How long to wait before a read times out.
+   * @param {usize} opaque_ptr - A pointer to write the number of bytes written.
+   * @param {usize} dns_iter_ptr - A pointer to the generated dns_iterator to obtain the ip address.
+   */
+  // @ts-ignore: External is valid here
+  @external ("lunatic::networking", "udp_read")
+  export declare function udp_read(
+    socket_id: u64,
+    buffer_ptr: usize,
+    buffer_len: u32,
+    timeout: u32,
+    opaque_ptr: usize,
+    dns_iter_ptr: usize,
+  ): NetworkErrCode;
+
+  /**
+   * Send data from a socket to an Address.
+   *
+   * @param {u64} socket_id -The socket id.
+   * @param {usize} buffer_ptr - A pointer to an array of bytes.
+   * @param {usize} buffer_len - The length of that byte array.
+   * @param {IPAddress} addr_type - The IP Address type being sent to.
+   * @param {usize} addr_u8_ptr - The IP Address being sent to.
+   * @param {u16} port - The port of the IP Address being sent to.
+   * @param {u32} flow_info - The flow info of the IP Address being sent to.
+   * @param {u32} scope_id - The scope id of the IP Address being sent to.
+   * @param {u32} timeout - The ammount of time before a socket write timeout occurs.
+   * @param {usize} opaque_ptr - A pointer to the number of bytes written, or the error id.
+   */
+  // @ts-ignore: external valid here
+  @external("lunatic::networking", "udp_send_to")
+  export declare function udp_send_to(
+    socket_id: u64,
+    buffer_ptr: u32,
+    buffer_len: u32,
+    addr_type: u32,
+    addr_u8_ptr: u32,
+    port: u32,
+    flow_info: u32,
+    scope_id: u32,
+    timeout: u32,
+    opaque_ptr: usize,
+  ): NetworkErrCode;
+
+  /**
+   * Drop a udp socket.
+   *
+   * @param {u64} socket_id - The socket to be dropped.
+   */
+  // @ts-ignore: external valid here
+  @external("lunatic::networking", "drop_udp_socket")
+  export declare function drop_udp_socket(socket_id: u64): void;
+
+  /**
+   * Get the broadcast value for this socket.
+   *
+   * @param socket_id - The socket id of the socket.
+   */
+  // @ts-ignore: external valid here
+  @external("lunatic::networking", "get_udp_socket_broadcast")
+  export declare function get_udp_socket_broadcast(socket_id: u64): bool;
+
+  /**
+   * Set the broadcast value for this socket.
+   *
+   * @param socket_id 
+   */
+  // @ts-ignore: external valid here
+  @external("lunatic::networking", "set_udp_socket_broadcast")
+  export declare function set_udp_socket_broadcast(socket_id: u64, broadcast: bool): void;
+
+  /**
+   * Get the ttl value for this socket.
+   *
+   * @param socket_id - The socket id of the socket.
+   */
+  // @ts-ignore: external valid here
+  @external("lunatic::networking", "get_udp_socket_ttl")
+  export declare function get_udp_socket_ttl(socket_id: u64): u32;
+
+  /**
+   * Set the ttl value for this socket.
+   *
+   * @param socket_id - The socket id of the socket.
+   */
+  // @ts-ignore: external valid here
+  @external("lunatic::networking", "set_udp_socket_ttl")
+  export declare function set_udp_socket_ttl(socket_id: u64, ttl: u32): void;
 }
 
 export namespace version {
