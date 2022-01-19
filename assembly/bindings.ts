@@ -385,10 +385,10 @@ export namespace net {
   @external("lunatic::networking", "udp_send_to")
   export declare function udp_send_to(
     socket_id: u64,
-    buffer_ptr: u32,
-    buffer_len: u32,
+    buffer_ptr: usize,
+    buffer_len: usize,
     addr_type: u32,
-    addr_u8_ptr: u32,
+    addr_u8_ptr: usize,
     port: u32,
     flow_info: u32,
     scope_id: u32,

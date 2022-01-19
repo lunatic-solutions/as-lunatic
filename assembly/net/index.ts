@@ -606,7 +606,7 @@ export class UDPSocket extends ASManaged {
       assert(ips.length == 1);
       memory.copy(changetype<usize>(buffer), udpBuffer, <usize>bytesWritten);
       this.buffer = buffer;
-      this.byteCount = bytesWritten;
+      this.byteCount = <usize>bytesWritten;
       this.ip = unchecked(ips[0]);
       return new Result<NetworkResultType>(NetworkResultType.Success);
     } else if (result == NetworkErrCode.Fail) {
