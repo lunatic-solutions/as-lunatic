@@ -491,7 +491,7 @@ export class UDPSocket extends ASManaged {
       0,
     );
   }
-  static bindIPV6(ip: StaticArray<u8>, port: u16 = 0, flowInfo: u32, scopeId: u32): Result<UDPSocket | null> {
+  static bindIPV6(ip: StaticArray<u8>, port: u16 = 0, flowInfo: u32 = 0, scopeId: u32 = 0): Result<UDPSocket | null> {
     assert(ip.length >= 16);
     return UDPSocket.bindUnsafe(
       IPType.IPV6,
