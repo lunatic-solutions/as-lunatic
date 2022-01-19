@@ -343,7 +343,7 @@ export namespace net {
     port: u16,
     flow_info: u32,
     scope_id: u32,
-    id_u64_ptr: u32,
+    id_u64_ptr: usize,
   ): ErrCode;
 
   /**

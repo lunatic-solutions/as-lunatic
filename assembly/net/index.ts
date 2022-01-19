@@ -600,7 +600,7 @@ export class UDPSocket extends ASManaged {
     );
     let bytesWritten = load<u64>(opaquePtr);
     if (result == NetworkErrCode.Success) {
-      let buffer = new StaticArray<u8>(bytesWritten);
+      let buffer = new StaticArray<u8>(<i32>bytesWritten);
       let dnsId = load<u64>(idPtr);
       let ips = resolveDNSIterator(dnsId);
       assert(ips.length == 1);
