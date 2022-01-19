@@ -533,7 +533,7 @@ export class UDPSocket extends ASManaged {
 
    /** Utilized by ason to serialize a socket. */
   __asonSerialize(): StaticArray<u8> {
-    let id = net.clone_tcp_stream(this.id);
+    let id = net.clone_udp_socket(this.id);
     let messageId = message.push_udp_socket(id);
     let buff = new StaticArray<u8>(sizeof<u64>());
     let ptr = changetype<usize>(buff);
@@ -631,5 +631,8 @@ export class UDPSocket extends ASManaged {
     net.set_udp_socket_ttl(this.id, value);
   }
 
-
+  /** Clone the current socket. */
+  clone(): UDPSocket {
+    return new UDPSocket(net.clone_udp_socket(this.id));
+  }
 }

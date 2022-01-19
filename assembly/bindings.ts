@@ -440,6 +440,15 @@ export namespace net {
   // @ts-ignore: external valid here
   @external("lunatic::networking", "set_udp_socket_ttl")
   export declare function set_udp_socket_ttl(socket_id: u64, ttl: u32): void;
+
+  /**
+   * Clone the socket by it's id.
+   *
+   * @param socket_id - The socket id of the socket.
+   */
+  // @ts-ignore: external valid here
+  @external("lunatic::networking", "clone_udp_socket")
+  export declare function clone_udp_socket(socket_id: u64): u64;
 }
 
 export namespace version {
