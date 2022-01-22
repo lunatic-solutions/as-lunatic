@@ -429,7 +429,7 @@ export class TCPServer extends ASManaged {
     let result = net.tcp_bind(addressType, addressPtr, port, flowInfo, scopeId, idPtr);
     let id = load<u64>(idPtr);
     if (result == ErrCode.Success) {
-      let ipResult = net.local_addr(id, idPtr);
+      let ipResult = net.tcp_local_addr(id, idPtr);
       let iteratorId = load<u64>(idPtr);
       if (ipResult == ErrCode.Success) {
         let ipAddress = resolveDNSIterator(iteratorId);
@@ -536,7 +536,7 @@ export class UDPSocket extends ASManaged {
   public buffer: StaticArray<u8> | null = null;
   public ip: IPAddress | null = null;
 
-   /** Utilized by ason to serialize a socket. */
+  /** Utilized by ason to serialize a socket. */
   __asonSerialize(): StaticArray<u8> {
     let id = net.clone_udp_socket(this.id);
     let messageId = message.push_udp_socket(id);
@@ -547,6 +547,7 @@ export class UDPSocket extends ASManaged {
     return buff;
   }
 
+  /** Utilized by ason to deserialize a socket. */
   __asonDeserialize(buffer: StaticArray<u8>): void {
     assert(buffer.length == sizeof<u64>());
     let id = load<u64>(changetype<usize>(buffer));
@@ -588,9 +589,45 @@ export class UDPSocket extends ASManaged {
     }
   }
 
-  read(timeout: u32 = 0): Result<NetworkResultType> {
+  /**
+   * Send a buffer to the connected address using udp.
+   *
+   * @param {StaticArray<u8>} buffer - The buffer to send.
+   * @param {IPAddress} addr - The IPAddress to send to.
+   * @param {u32} timeout - How long to wait until the operation times out.
+   * @returns {Result<NetworkResultType>} The result of sending a message to the given IPAddress using the socket.
+   */
+  send(buffer: StaticArray<u8>, timeout: u32 = 0): Result<NetworkResultType> {
+    let result = net.udp_send (
+      this.id,
+      changetype<usize>(buffer),
+      <usize>buffer.length,
+      timeout,
+      idPtr,
+    );
+    let bytesWritten = load<u64>(idPtr);
+    if (result == NetworkErrCode.Success) {
+      if (bytesWritten == 0) return new Result<NetworkResultType>(NetworkResultType.Closed);
+      this.byteCount = <usize>bytesWritten;
+      return new Result<NetworkResultType>(NetworkResultType.Success);
+    } else if (result == NetworkErrCode.Fail) {
+      return new Result<NetworkResultType>(NetworkResultType.Error, bytesWritten);
+    } else {
+      error.drop_error(bytesWritten);
+      assert(result == NetworkErrCode.Timeout);
+      return new Result<NetworkResultType>(NetworkResultType.Timeout);
+    }
+  }
+
+  /**
+   * Receive a buffer from a given address.
+   *
+   * @param timeout - How long it should take until timeout
+   * @returns {Result<NetworkResultType>} The result of attempting to receive a message.
+   */
+  receiveFrom(timeout: u32 = 0): Result<NetworkResultType> {
     let udpBuffer = memory.data(UDP_READ_BUFFER_SIZE);
-    let result = net.udp_read(
+    let result = net.udp_receive_from(
       this.id,
       udpBuffer,
       UDP_READ_BUFFER_SIZE,
@@ -613,6 +650,39 @@ export class UDPSocket extends ASManaged {
       this.buffer = buffer;
       this.byteCount = <usize>bytesWritten;
       this.ip = unchecked(ips[0]);
+      return new Result<NetworkResultType>(NetworkResultType.Success);
+    } else if (result == NetworkErrCode.Fail) {
+      return new Result<NetworkResultType>(NetworkResultType.Error, bytesWritten);
+    } else {
+      assert(result == NetworkErrCode.Timeout);
+      return new Result<NetworkResultType>(NetworkResultType.Timeout);
+    }
+  }
+
+  /**
+   * Receive a buffer from the connected address.
+   *
+   * @param timeout - How long it should take until timeout
+   * @returns {Result<NetworkResultType>} The result of attempting to receive a message.
+   */
+  receive(timeout: u32 = 0): Result<NetworkResultType> {
+    let udpBuffer = memory.data(UDP_READ_BUFFER_SIZE);
+    let result = net.udp_receive(
+      this.id,
+      udpBuffer,
+      UDP_READ_BUFFER_SIZE,
+      timeout,
+      opaquePtr,
+    );
+    let bytesWritten = load<u64>(opaquePtr);
+    if (result == NetworkErrCode.Success) {
+      // create a managed copy of the buffer
+      let buffer = new StaticArray<u8>(<i32>bytesWritten);
+      memory.copy(changetype<usize>(buffer), udpBuffer, <usize>bytesWritten);
+
+      // set the buffer, bytecount and ip
+      this.buffer = buffer;
+      this.byteCount = <usize>bytesWritten;
       return new Result<NetworkResultType>(NetworkResultType.Success);
     } else if (result == NetworkErrCode.Fail) {
       return new Result<NetworkResultType>(NetworkResultType.Error, bytesWritten);

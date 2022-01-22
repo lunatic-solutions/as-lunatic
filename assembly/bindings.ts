@@ -3,21 +3,61 @@ import { NetworkResultType } from ".";
 import { IPType, MessageType, ErrCode, NetworkErrCode } from "./util";
 
 export namespace process {
-    // @ts-ignore
-    @external("lunatic::process", "create_config")
-    export declare function create_config(max_memory: u64, max_fuel: u64): u64;
-    // @ts-ignore
-    @external("lunatic::process", "drop_config")
-    export declare function drop_config(config_id: u64): void;
-    // @ts-ignore
-    @external("lunatic::process", "allow_namespace")
-    export declare function allow_namespace(config_id: u64, namespace_str_ptr: usize, namespace_str_len: u32): ErrCode;
-    // @ts-ignore
-    @external("lunatic::process", "preopen_dir")
-    export declare function preopen_dir(config_id: u64, dir_str_ptr: usize, dir_str_len: usize, id_ptr: usize): ErrCode;
-    // @ts-ignore
-    @external("lunatic::process", "create_environment")
-    export declare function create_environment(config_id: u64, id_ptr: usize): ErrCode;
+  /**
+   * Create a configuration for an environment.
+   *
+   * @param {u64} max_memory - How much memory should be allocated to this config.
+   * @param {u64} max_fuel - How much fuel can be used by this configuration.
+   * @returns The configuration id.
+   */
+  // @ts-ignore
+  @external("lunatic::process", "create_config")
+  export declare function create_config(max_memory: u64, max_fuel: u64): u64;
+
+  /**
+   * Drop a configuration.
+   *
+   * @param {u64} config_id - The id of the configuration.
+   */
+  // @ts-ignore
+  @external("lunatic::process", "drop_config")
+  export declare function drop_config(config_id: u64): void;
+
+  /**
+   * Allow a set of function namespaces to be usable by the environments using
+   * this configuration.
+   *
+   * @param {u64} config_id - The configuration.
+   * @param {usize} namespace_str_ptr - A pointer to the namespace string.
+   * @param {usize} namespace_str_len - How long the namespace string is in bytes.
+   * @return {ErrCode} If the call was successful.
+   */
+  // @ts-ignore
+  @external("lunatic::process", "allow_namespace")
+  export declare function allow_namespace(config_id: u64, namespace_str_ptr: usize, namespace_str_len: u32): ErrCode;
+  /**
+   * Preopen a directory. Returns an error if the directory cannot be preopened.
+   *
+   * @param {u64} config_id - The configuration id.
+   * @param {usize} dir_str_ptr - The directory to be preopened. (utf8)
+   * @param {usize} dir_str_len - The length of `dir_str_ptr`.
+   * @param {usuze} id_ptr - A pointer to a u64 to write an error if the directory cannot be preopened.
+   * @returns If the directory was preopened.
+   */
+  // @ts-ignore
+  @external("lunatic::process", "preopen_dir")
+  export declare function preopen_dir(config_id: u64, dir_str_ptr: usize, dir_str_len: usize, id_ptr: usize): ErrCode;
+  /**
+   * Create an environment from the current configuration.
+   *
+   * @param {u64} config_id - The configuration id.
+   * @param {usize} id_ptr - A pointer to a u64 that will either contain the error id,
+   *                         or the environment id.
+   * @returns If the environment was created.
+   */
+  // @ts-ignore
+  @external("lunatic::process", "create_environment")
+  export declare function create_environment(config_id: u64, id_ptr: usize): ErrCode;
     // @ts-ignore
     @external("lunatic::process", "create_remote_environment")
     export declare function create_remote_environment(config_id: u64, name_ptr: usize, name_len: usize, id_ptr: usize): ErrCode;
@@ -319,9 +359,22 @@ export namespace net {
      * @param {usize} id_u64_ptr - The u64 pointer to write the dns iterator to.
      */
     // @ts-ignore: external is valid here
-    @external("lunatic:net", "local_addr")
-    export declare function local_addr(
+    @external("lunatic:net", "tcp_local_addr")
+    export declare function tcp_local_addr(
         tcp_listener_id: u64,
+        id_u64_ptr: usize,
+    ): ErrCode;
+
+    /**
+     * Get the IP address associated with this socket.
+     *
+     * @param {u64} socket_id - The socket id.
+     * @param {usize} id_u64_ptr - The u64 pointer to write the dns iterator to.
+     */
+    // @ts-ignore: external is valid here
+    @external("lunatic:net", "udp_local_addr")
+    export declare function udp_local_addr(
+        socket_id: u64,
         id_u64_ptr: usize,
     ): ErrCode;
 
@@ -331,9 +384,9 @@ export namespace net {
    * @param {IPType} addr_type - The address type of the address being bound to.
    * @param {usize} addr_u8_ptr - A pointer to the address octets being bound to.
    * @param {u16} port - The port of the address being boudn to.
-   * @param {u32} flow_info 
-   * @param {u32} scope_id 
-   * @param {usize} id_u64_ptr 
+   * @param {u32} flow_info - The flow info of the ip address.
+   * @param {u32} scope_id - The scope_id of the ip address.
+   * @param {usize} id_u64_ptr - A pointer to write the socket id to.
    */
   // @ts-ignore: External is valid here
   @external ("lunatic::networking", "udp_bind")
@@ -357,8 +410,28 @@ export namespace net {
    * @param {usize} dns_iter_ptr - A pointer to the generated dns_iterator to obtain the ip address.
    */
   // @ts-ignore: External is valid here
-  @external ("lunatic::networking", "udp_read")
-  export declare function udp_read(
+  @external ("lunatic::networking", "udp_receive")
+  export declare function udp_receive(
+    socket_id: u64,
+    buffer_ptr: usize,
+    buffer_len: u32,
+    timeout: u32,
+    opaque_ptr: usize,
+  ): NetworkErrCode;
+
+  /**
+   * Read data from a socket.
+   *
+   * @param {u64} socket_id - The socket id of the socket being read from.
+   * @param {usize} buffer_ptr - A pointer to a buffer to read the bytes.
+   * @param {usize} buffer_len - The length of that buffer.
+   * @param {u32} timeout - How long to wait before a read times out.
+   * @param {usize} opaque_ptr - A pointer to write the number of bytes written.
+   * @param {usize} dns_iter_ptr - A pointer to the generated dns_iterator to obtain the ip address.
+   */
+  // @ts-ignore: External is valid here
+  @external ("lunatic::networking", "udp_receive_from")
+  export declare function udp_receive_from(
     socket_id: u64,
     buffer_ptr: usize,
     buffer_len: u32,
@@ -397,6 +470,25 @@ export namespace net {
   ): NetworkErrCode;
 
   /**
+   * Send data from a socket to the socket's connected address.
+   *
+   * @param {u64} socket_id -The socket id.
+   * @param {usize} buffer_ptr - A pointer to an array of bytes.
+   * @param {usize} buffer_len - The length of that byte array.
+   * @param {u32} timeout - The ammount of time before a socket write timeout occurs.
+   * @param {usize} opaque_ptr - A pointer to the number of bytes written, or the error id.
+   */
+  // @ts-ignore: external valid here
+  @external("lunatic::networking", "udp_send")
+  export declare function udp_send(
+    socket_id: u64,
+    buffer_ptr: usize,
+    buffer_len: usize,
+    timeout: u32,
+    opaque_ptr: usize,
+  ): NetworkErrCode;
+
+  /**
    * Drop a udp socket.
    *
    * @param {u64} socket_id - The socket to be dropped.
@@ -414,11 +506,12 @@ export namespace net {
   @external("lunatic::networking", "get_udp_socket_broadcast")
   export declare function get_udp_socket_broadcast(socket_id: u64): bool;
 
-  /**
-   * Set the broadcast value for this socket.
-   *
-   * @param socket_id 
-   */
+/**
+ * Set the udp socket to broadcast.
+ *
+ * @param {u64} socket_id - The socket id of the socket being set.
+ * @param {bool} broadcast - The broadcast value.
+ */
   // @ts-ignore: external valid here
   @external("lunatic::networking", "set_udp_socket_broadcast")
   export declare function set_udp_socket_broadcast(socket_id: u64, broadcast: bool): void;
@@ -435,7 +528,8 @@ export namespace net {
   /**
    * Set the ttl value for this socket.
    *
-   * @param socket_id - The socket id of the socket.
+   * @param {u64} socket_id - The socket id of the socket.
+   * @param {bool} ttl - The ttl value
    */
   // @ts-ignore: external valid here
   @external("lunatic::networking", "set_udp_socket_ttl")
