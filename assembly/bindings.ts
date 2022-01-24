@@ -58,9 +58,19 @@ export namespace process {
   // @ts-ignore
   @external("lunatic::process", "create_environment")
   export declare function create_environment(config_id: u64, id_ptr: usize): ErrCode;
-    // @ts-ignore
-    @external("lunatic::process", "create_remote_environment")
-    export declare function create_remote_environment(config_id: u64, name_ptr: usize, name_len: usize, id_ptr: usize): ErrCode;
+  /**
+   * Create a remote environment node.
+   *
+   * @param {u6} config_id - The configuration for the remote environment.
+   * @param {usize} name_ptr - The name of the environment.
+   * @param {usize} name_len - The size of the utf8 name string.
+   * @param {usize} id_ptr - A pointer to a u64 that will contain the Environment id, or
+   *                         the error id if the environment could not be created.
+   * @returns {ErrCode} Success if the remote environment was created.
+   */
+  // @ts-ignore
+  @external("lunatic::process", "create_remote_environment")
+  export declare function create_remote_environment(config_id: u64, name_ptr: usize, name_len: usize, id_ptr: usize): ErrCode;
     // @ts-ignore
     @external("lunatic::process", "drop_environment")
     export declare function drop_environment(env_id: u64): void;
