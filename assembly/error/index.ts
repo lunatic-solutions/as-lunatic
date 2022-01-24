@@ -57,12 +57,17 @@ export class Result<T> {
   }
 
   /** Panic if the value isn't truthy, using the message as the runtime error message. */
-  expect(message: string | null = null): T {
+  expect(message: string | null = null): NonNullable<T> {
     // cannot simply assert the value, because calling `this.errStr` might throw an error if the value is ok
     if (!this.isOk()) {
       assert(false, message ? message : this.errStr!);
     }
-    return this.value;
+    if (isNullable<T>()) {
+      return this.value!;
+    } else {
+      // @ts-ignore: this cannot be nullable
+      return this.value;
+    }
   }
 
   /** Check to see if the `Result` is okay. */
@@ -84,10 +89,15 @@ export class UnmanagedResult<T> {
     return !this.error;
   }
 
-  expect(msg: string | null = null): T {
+  expect(msg: string | null = null): NonNullable<T> {
     if (!this.isOk()) {
       assert(false, msg ? msg : this.error!);
     }
-    return this.value;
+    if (isNullable<T>()) {
+      return this.value!;
+    } else {
+      // @ts-ignore: not nullable
+      return this.value;
+    }
   }
 }
