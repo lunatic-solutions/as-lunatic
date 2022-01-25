@@ -196,7 +196,7 @@ export class Process<TMessage> extends ASManaged {
    * @param {i64} tag - The message tag.
    */
   send<UMessage extends TMessage>(msg: UMessage, tag: i64 = 0): void {
-    message.create_data(tag, 0);
+    message.create_data(tag, MESSAGE_BUFFER_PREALLOC_SIZE);
     let buffer = ASON.serialize(msg);
     let bufferLength = <usize>buffer.length;
     message.write_data(changetype<usize>(buffer), bufferLength);
@@ -210,7 +210,7 @@ export class Process<TMessage> extends ASManaged {
    * @param {i64} tag - The message tag.
    */
   @unsafe sendUnsafe<UMessage>(msg: UMessage, tag: i64 = 0): void {
-    message.create_data(tag, 0);
+    message.create_data(tag, MESSAGE_BUFFER_PREALLOC_SIZE);
     let buffer = ASON.serialize<UMessage>(msg);
     let bufferLength = <usize>buffer.length;
     message.write_data(changetype<usize>(buffer), bufferLength);
@@ -219,7 +219,8 @@ export class Process<TMessage> extends ASManaged {
 
 
   /**
-   * Send a raw buffer unsafely to the process. This is unsafe, because mailboxes are strongly typed.
+   * Send a raw buffer unsafely to the process. This is unsafe, because mailboxes
+   * are typically strongly typed.
    *
    * @param {StaticArray<u8>} msg - The buffer to be sent.
    * @param {i64} tag - The tag of the message.
@@ -237,7 +238,7 @@ export class Process<TMessage> extends ASManaged {
    * @param {u32} timeout - The timeout in milliseconds.
    */
   request<UMessage extends TMessage>(msg: UMessage, timeout: u32 = 0): void {
-    message.create_data(0, 0);
+    message.create_data(0, MESSAGE_BUFFER_PREALLOC_SIZE);
     let buffer = ASON.serialize(msg);
     let bufferLength = <usize>buffer.length;
     message.write_data(changetype<usize>(buffer), bufferLength);

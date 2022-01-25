@@ -222,17 +222,16 @@ export namespace message {
     export declare function send_receive_skip_search(process_id: u64, timeout: u32): u32;
 
     /**
-     * Receive a message with a tag if given, a preallocated buffer capacity
-     * (which grows based on need,) and a timeout.
+     * Receive a message with a set of tags if given and a timeout.
      *
      * @param tag - A message tag to look for.
-     * @param buffer_capacity - A preallocated buffer capacity hint.
+     * @param tag_length - A preallocated buffer capacity hint.
      * @param timeout - A timespan for how long it takes for receiving a message to timeout.
      * @returns {MessageType} The type of lunatic message being received.
      */
     // @ts-ignore: decorator
     @external("lunatic::message", "receive")
-    export declare function receive(tag: usize /* *const i64 */, buffer_capacity: usize, timeout: u32): MessageType;
+    export declare function receive(tag: usize /* *const i64 */, tag_length: usize, timeout: u32): MessageType;
 }
 
 export namespace error {
