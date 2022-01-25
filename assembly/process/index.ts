@@ -237,7 +237,7 @@ export class Process<TMessage> extends ASManaged {
    * @param {TMessage} message - The message being sent.
    * @param {u32} timeout - The timeout in milliseconds.
    */
-  request<UMessage extends TMessage>(msg: UMessage, timeout: u32 = 0): void {
+  sendReceiveSkipSearch<UMessage extends TMessage>(msg: UMessage, timeout: u32 = 0): void {
     message.create_data(0, MESSAGE_BUFFER_PREALLOC_SIZE);
     let buffer = ASON.serialize(msg);
     let bufferLength = <usize>buffer.length;
