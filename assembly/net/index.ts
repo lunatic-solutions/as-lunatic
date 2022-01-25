@@ -1,6 +1,6 @@
 import { Result, idPtr } from "../error";
 import { net, message } from "../bindings";
-import { ErrCode, IPType, NetworkErrCode as NetworkErrCode } from "../util";
+import { ErrCode, IPType, TimeoutErrCode as TimeoutErrCode } from "../util";
 import { iovec } from "bindings/wasi";
 import { ASManaged } from "as-disposable";
 import { error } from "..";
@@ -230,7 +230,7 @@ export class TCPSocket extends ASManaged {
     let readResult = net.tcp_read(id, ptr, TCP_READ_VECTOR_SIZE, timeout, idPtr);
     let bytesRead = load<u64>(idPtr);
 
-    if (readResult == NetworkErrCode.Success) {
+    if (readResult == TimeoutErrCode.Success) {
 
       // if no bytes were read, the socket is closed
       if (bytesRead == 0) return new Result<NetworkResultType>(NetworkResultType.Closed);
@@ -245,13 +245,13 @@ export class TCPSocket extends ASManaged {
 
       // return success
       return new Result<NetworkResultType>(NetworkResultType.Success);
-    } else if (readResult == NetworkErrCode.Fail) {
+    } else if (readResult == TimeoutErrCode.Fail) {
       // failure means that bytesRead has an error id
       return new Result<NetworkResultType>(NetworkResultType.Error, bytesRead);
     } else {
       error.drop_error(bytesRead);
       // this must be a timeout
-      assert(readResult == NetworkErrCode.Timeout);
+      assert(readResult == TimeoutErrCode.Timeout);
       return new Result<NetworkResultType>(NetworkResultType.Timeout);
     }
   }
@@ -325,18 +325,18 @@ export class TCPSocket extends ASManaged {
     let result = net.tcp_write_vectored(this.id, vec, 1, timeout, idPtr);
     let count = load<u64>(idPtr);
 
-    if (result == NetworkErrCode.Success) {
+    if (result == TimeoutErrCode.Success) {
       if (count == 0) {
         return new Result<NetworkResultType>(NetworkResultType.Closed);
       }
       this.byteCount = <u32>count;
       return new Result<NetworkResultType>(NetworkResultType.Success);
-    } else if (result == NetworkErrCode.Fail) {
+    } else if (result == TimeoutErrCode.Fail) {
       // count is actually an index to an error
       return new Result<NetworkResultType>(NetworkResultType.Error, count);
     } else {
       error.drop_error(count);
-      assert(result == NetworkErrCode.Timeout);
+      assert(result == TimeoutErrCode.Timeout);
       return new Result<NetworkResultType>(NetworkResultType.Timeout);
     }
   }
@@ -576,15 +576,15 @@ export class UDPSocket extends ASManaged {
       idPtr,
     );
     let bytesWritten = load<u64>(idPtr);
-    if (result == NetworkErrCode.Success) {
+    if (result == TimeoutErrCode.Success) {
       if (bytesWritten == 0) return new Result<NetworkResultType>(NetworkResultType.Closed);
       this.byteCount = <usize>bytesWritten;
       return new Result<NetworkResultType>(NetworkResultType.Success);
-    } else if (result == NetworkErrCode.Fail) {
+    } else if (result == TimeoutErrCode.Fail) {
       return new Result<NetworkResultType>(NetworkResultType.Error, bytesWritten);
     } else {
       error.drop_error(bytesWritten);
-      assert(result == NetworkErrCode.Timeout);
+      assert(result == TimeoutErrCode.Timeout);
       return new Result<NetworkResultType>(NetworkResultType.Timeout);
     }
   }
@@ -606,15 +606,15 @@ export class UDPSocket extends ASManaged {
       idPtr,
     );
     let bytesWritten = load<u64>(idPtr);
-    if (result == NetworkErrCode.Success) {
+    if (result == TimeoutErrCode.Success) {
       if (bytesWritten == 0) return new Result<NetworkResultType>(NetworkResultType.Closed);
       this.byteCount = <usize>bytesWritten;
       return new Result<NetworkResultType>(NetworkResultType.Success);
-    } else if (result == NetworkErrCode.Fail) {
+    } else if (result == TimeoutErrCode.Fail) {
       return new Result<NetworkResultType>(NetworkResultType.Error, bytesWritten);
     } else {
       error.drop_error(bytesWritten);
-      assert(result == NetworkErrCode.Timeout);
+      assert(result == TimeoutErrCode.Timeout);
       return new Result<NetworkResultType>(NetworkResultType.Timeout);
     }
   }
@@ -636,7 +636,7 @@ export class UDPSocket extends ASManaged {
       idPtr,
     );
     let bytesWritten = load<u64>(opaquePtr);
-    if (result == NetworkErrCode.Success) {
+    if (result == TimeoutErrCode.Success) {
       // create a managed copy of the buffer
       let buffer = new StaticArray<u8>(<i32>bytesWritten);
       memory.copy(changetype<usize>(buffer), udpBuffer, <usize>bytesWritten);
@@ -651,10 +651,10 @@ export class UDPSocket extends ASManaged {
       this.byteCount = <usize>bytesWritten;
       this.ip = unchecked(ips[0]);
       return new Result<NetworkResultType>(NetworkResultType.Success);
-    } else if (result == NetworkErrCode.Fail) {
+    } else if (result == TimeoutErrCode.Fail) {
       return new Result<NetworkResultType>(NetworkResultType.Error, bytesWritten);
     } else {
-      assert(result == NetworkErrCode.Timeout);
+      assert(result == TimeoutErrCode.Timeout);
       return new Result<NetworkResultType>(NetworkResultType.Timeout);
     }
   }
@@ -675,7 +675,7 @@ export class UDPSocket extends ASManaged {
       opaquePtr,
     );
     let bytesWritten = load<u64>(opaquePtr);
-    if (result == NetworkErrCode.Success) {
+    if (result == TimeoutErrCode.Success) {
       // create a managed copy of the buffer
       let buffer = new StaticArray<u8>(<i32>bytesWritten);
       memory.copy(changetype<usize>(buffer), udpBuffer, <usize>bytesWritten);
@@ -684,10 +684,10 @@ export class UDPSocket extends ASManaged {
       this.buffer = buffer;
       this.byteCount = <usize>bytesWritten;
       return new Result<NetworkResultType>(NetworkResultType.Success);
-    } else if (result == NetworkErrCode.Fail) {
+    } else if (result == TimeoutErrCode.Fail) {
       return new Result<NetworkResultType>(NetworkResultType.Error, bytesWritten);
     } else {
-      assert(result == NetworkErrCode.Timeout);
+      assert(result == TimeoutErrCode.Timeout);
       return new Result<NetworkResultType>(NetworkResultType.Timeout);
     }
   }

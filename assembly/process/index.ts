@@ -1,5 +1,5 @@
 import { Result, idPtr } from "../error";
-import { Parameters, ErrCode, MessageType } from "../util";
+import { Parameters, ErrCode, NetworkErrCode, MessageType } from "../util";
 import { Mailbox } from "../messaging";
 import { ASON } from "@ason/assembly";
 import { message, process } from "../bindings";
@@ -232,17 +232,17 @@ export class Process<TMessage> extends ASManaged {
   }
 
   /**
-   * Send a message with a request acknowledgement.
+   * Send a message and skip search.
    *
    * @param {TMessage} message - The message being sent.
    * @param {u32} timeout - The timeout in milliseconds.
    */
-  sendReceiveSkipSearch<UMessage extends TMessage>(msg: UMessage, timeout: u32 = 0): void {
+  sendReceiveSkipSearch<UMessage extends TMessage>(msg: UMessage, timeout: u32 = 0): NetworkErrCode {
     message.create_data(0, MESSAGE_BUFFER_PREALLOC_SIZE);
     let buffer = ASON.serialize(msg);
     let bufferLength = <usize>buffer.length;
     message.write_data(changetype<usize>(buffer), bufferLength);
-    message.send_receive_skip_search(this.id, timeout);
+    return message.send_receive_skip_search(this.id, timeout);
   }
 
   /** Drop a process. */

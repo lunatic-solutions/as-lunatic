@@ -1,6 +1,6 @@
 import { iovec } from "bindings/wasi";
 import { NetworkResultType } from ".";
-import { IPType, MessageType, ErrCode, NetworkErrCode } from "./util";
+import { IPType, MessageType, ErrCode, TimeoutErrCode } from "./util";
 
 export namespace process {
   /**
@@ -219,7 +219,7 @@ export namespace message {
     export declare function take_udp_socket(resource_id: u64): u64;
     // @ts-ignore: decorator
     @external("lunatic::message", "send_receive_skip_search")
-    export declare function send_receive_skip_search(process_id: u64, timeout: u32): u32;
+    export declare function send_receive_skip_search(process_id: u64, timeout: u32): TimeoutErrCode;
 
     /**
      * Receive a message with a set of tags if given and a timeout.
@@ -377,7 +377,7 @@ export namespace net {
      */
     // @ts-ignore: external is valid here
     @external("lunatic::networking", "tcp_read")
-    export declare function tcp_read(stream_id: u64, buffer_ptr: usize, buffer_len: usize, timeout: u32, opaque_ptr: usize): NetworkErrCode;
+    export declare function tcp_read(stream_id: u64, buffer_ptr: usize, buffer_len: usize, timeout: u32, opaque_ptr: usize): TimeoutErrCode;
 
     /**
      * Write bytes to a stream.
@@ -390,7 +390,7 @@ export namespace net {
      */
     // @ts-ignore: external is valid here
     @external("lunatic::networking", "tcp_write_vectored")
-    export declare function tcp_write_vectored(stream_id: u64, ciovec_array_ptr: iovec, ciovec_array_len: u32, timeout: u32, opaque_ptr: usize): NetworkErrCode;
+    export declare function tcp_write_vectored(stream_id: u64, ciovec_array_ptr: iovec, ciovec_array_len: u32, timeout: u32, opaque_ptr: usize): TimeoutErrCode;
 
     /**
      * Create a new tcp connection to a TCP Server.
@@ -480,7 +480,7 @@ export namespace net {
     buffer_len: u32,
     timeout: u32,
     opaque_ptr: usize,
-  ): NetworkErrCode;
+  ): TimeoutErrCode;
 
   /**
    * Read data from a socket.
@@ -501,7 +501,7 @@ export namespace net {
     timeout: u32,
     opaque_ptr: usize,
     dns_iter_ptr: usize,
-  ): NetworkErrCode;
+  ): TimeoutErrCode;
 
   /**
    * Send data from a socket to an Address.
@@ -530,7 +530,7 @@ export namespace net {
     scope_id: u32,
     timeout: u32,
     opaque_ptr: usize,
-  ): NetworkErrCode;
+  ): TimeoutErrCode;
 
   /**
    * Send data from a socket to the socket's connected address.
@@ -549,7 +549,7 @@ export namespace net {
     buffer_len: usize,
     timeout: u32,
     opaque_ptr: usize,
-  ): NetworkErrCode;
+  ): TimeoutErrCode;
 
   /**
    * Drop a udp socket.

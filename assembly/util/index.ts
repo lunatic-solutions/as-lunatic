@@ -78,7 +78,7 @@ export const enum MessageType {
 }
 
 /** TCP Reads can result in Timeouts, so we use a slightly different enum. */
-export const enum NetworkErrCode {
+export const enum TimeoutErrCode {
   /** The TCP Read was successful. */
   Success,
   /** The TCP Read resulted in some kind of an error or a disconnect and the socket is now closed. */
