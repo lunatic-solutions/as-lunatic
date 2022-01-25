@@ -133,24 +133,51 @@ export namespace process {
   // @ts-ignore
   @external("lunatic::process", "spawn")
   export declare function spawn(link: u64, module_id: u64, func_str_ptr: usize, func_str_len: usize, params_ptr: usize, params_len: u32, id_ptr: usize): ErrCode;
-    // @ts-ignore
-    @external("lunatic::process", "inherit_spawn")
-    export declare function inherit_spawn(link: u64, func_str_ptr: usize, func_str_len: usize, params_ptr: usize, params_len: u32, id_ptr: usize): ErrCode;
-    // @ts-ignore
-    @external("lunatic::process", "drop_process")
-    export declare function drop_process(process_id: u64): void;
-    // @ts-ignore
-    @external("lunatic::process", "clone_process")
-    export declare function clone_process(process_id: u64): u64;
-    // @ts-ignore
-    @external("lunatic::process", "sleep_ms")
-    export declare function sleep_ms(ms: u64): void;
-    // @ts-ignore
-    @external("lunatic::process", "die_when_link_dies")
-    export declare function die_when_link_dies(trap: bool): void
-    // @ts-ignore
-    @external("lunatic::process", "this")
-    export declare function this_handle(): u64;
+  /**
+   * Spawn a new Process from this module in this current environment.
+   *
+   * @param {u64} link - A tag to link this process to, if provided.
+   * @param {usize} func_str_ptr - The name of the function to run.
+   * @param {usize} func_str_len - The function name length.
+   * @param {usize} params_ptr - The parameters struct.
+   * @param {usize} params_len - The bytelength of the parameters.
+   * @param {usize} id_ptr - A pointer to write the process id to, or the error if there is an error.
+   * @returns {ErrCode} Success if the process was created.
+   */
+  // @ts-ignore
+  @external("lunatic::process", "inherit_spawn")
+  export declare function inherit_spawn(link: u64, func_str_ptr: usize, func_str_len: usize, params_ptr: usize, params_len: u32, id_ptr: usize): ErrCode;
+  /** Drop a process by it's id. */
+  // @ts-ignore
+  @external("lunatic::process", "drop_process")
+  export declare function drop_process(process_id: u64): void;
+  /** Clone a process by it's id. */
+  // @ts-ignore
+  @external("lunatic::process", "clone_process")
+  export declare function clone_process(process_id: u64): u64;
+  /** Cause the current process to sleep for a given number of milliseconds. */
+  // @ts-ignore
+  @external("lunatic::process", "sleep_ms")
+  export declare function sleep_ms(ms: u64): void;
+
+  /**
+   * Defines what happens to this process if one of the linked processes notifies us that it died.
+   *
+   * There are 2 options:
+   * 1. `trap == false` the received signal will be turned into a signal message and put into the mailbox.
+   * 2. `trap == true` the process will die and notify all linked processes of its death.
+   *
+   * Default option is `false`.
+   *
+   * @param {bool} trap - Defines how this current process should behave when a child process fails.
+   */
+  // @ts-ignore
+  @external("lunatic::process", "die_when_link_dies")
+  export declare function die_when_link_dies(trap: bool): void;
+  /** Get this current process id. */
+  // @ts-ignore
+  @external("lunatic::process", "this")
+  export declare function this_handle(): u64;
     // @ts-ignore
     @external("lunatic::process", "id")
     export declare function id(pid: u64, ptr: usize): usize;

@@ -1,5 +1,5 @@
 import { Result, idPtr } from "../error";
-import { Parameters, ErrCode, NetworkErrCode, MessageType } from "../util";
+import { Parameters, ErrCode, TimeoutErrCode, MessageType } from "../util";
 import { Mailbox } from "../messaging";
 import { ASON } from "@ason/assembly";
 import { message, process } from "../bindings";
@@ -237,7 +237,7 @@ export class Process<TMessage> extends ASManaged {
    * @param {TMessage} message - The message being sent.
    * @param {u32} timeout - The timeout in milliseconds.
    */
-  sendReceiveSkipSearch<UMessage extends TMessage>(msg: UMessage, timeout: u32 = 0): NetworkErrCode {
+  sendReceiveSkipSearch<UMessage extends TMessage>(msg: UMessage, timeout: u32 = 0): TimeoutErrCode {
     message.create_data(0, MESSAGE_BUFFER_PREALLOC_SIZE);
     let buffer = ASON.serialize(msg);
     let bufferLength = <usize>buffer.length;
