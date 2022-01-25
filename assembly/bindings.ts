@@ -42,7 +42,7 @@ export namespace process {
    * @param {usize} dir_str_ptr - The directory to be preopened. (utf8)
    * @param {usize} dir_str_len - The length of `dir_str_ptr`.
    * @param {usuze} id_ptr - A pointer to a u64 to write an error if the directory cannot be preopened.
-   * @returns If the directory was preopened.
+   * @returns Success if the directory was preopened.
    */
   // @ts-ignore
   @external("lunatic::process", "preopen_dir")
@@ -53,7 +53,7 @@ export namespace process {
    * @param {u64} config_id - The configuration id.
    * @param {usize} id_ptr - A pointer to a u64 that will either contain the error id,
    *                         or the environment id.
-   * @returns If the environment was created.
+   * @returns Success if the environment was created.
    */
   // @ts-ignore
   @external("lunatic::process", "create_environment")
@@ -71,24 +71,68 @@ export namespace process {
   // @ts-ignore
   @external("lunatic::process", "create_remote_environment")
   export declare function create_remote_environment(config_id: u64, name_ptr: usize, name_len: usize, id_ptr: usize): ErrCode;
-    // @ts-ignore
-    @external("lunatic::process", "drop_environment")
-    export declare function drop_environment(env_id: u64): void;
-    // @ts-ignore
-    @external("lunatic::process", "add_plugin")
-    export declare function add_plugin(config_id: u64, plugin_data_ptr: usize, plugin_data_len: u32, id_ptr: usize): ErrCode;
-    // @ts-ignore
-    @external("lunatic::process", "add_module")
-    export declare function add_module(env_id: u64, module_data_ptr: usize, module_data_len: u32, id_ptr: usize): ErrCode;
-    // @ts-ignore
-    @external("lunatic::process", "add_this_module")
-    export declare function add_this_module(env_id: u64, id_ptr: usize): ErrCode;
-    // @ts-ignore
-    @external("lunatic::process", "drop_module")
-    export declare function drop_module(mod_id: u64): void;
-    // @ts-ignore
-    @external("lunatic::process", "spawn")
-    export declare function spawn(link: u64, module_id: u64, func_str_ptr: usize, func_str_len: usize, params_ptr: usize, params_len: u32, id_ptr: usize): ErrCode;
+  /**
+   * Drop an environment.
+   *
+   * @param {u64} env_id - The environment id.
+   */
+  // @ts-ignore
+  @external("lunatic::process", "drop_environment")
+  export declare function drop_environment(env_id: u64): void;
+  /**
+   * Add a plugin to a given configuration.
+   *
+   * @param {u64} config_id - The configuration id.
+   * @param {usize} plugin_data_ptr - The wasm data pointer.
+   * @param {usize} plugin_data_len - The size of the wasm buffer.
+   * @param {usize} id_ptr - A pointer to write the plugin id, or an error.
+   * @returns {ErrCode} Success if the plugin was added.
+   */
+  // @ts-ignore
+  @external("lunatic::process", "add_plugin")
+  export declare function add_plugin(config_id: u64, plugin_data_ptr: usize, plugin_data_len: u32, id_ptr: usize): ErrCode;
+  /**
+   * Create a module that will always be instantiated in the given environment.
+   *
+   * @param {usize} env_id - The environment the module runs in.
+   * @param {usize} module_data_ptr - The module buffer.
+   * @param {usize} module_data_len - The length of the module buffer.
+   * @param {usize} id_ptr - A pointer to a u64 that will contain the id of the module, or an error id.
+   * @returns {ErrCode} Success if the module was created.
+   */
+  // @ts-ignore
+  @external("lunatic::process", "add_module")
+  export declare function add_module(env_id: u64, module_data_ptr: usize, module_data_len: u32, id_ptr: usize): ErrCode;
+  /**
+   * Create a module that is the current module for the given environment.
+   *
+   * @param {u64} env_id - The environment to add this module to.
+   * @param {usize} id_ptr - A pointer to a u64 that will contain either the module id, or the error id.
+   * @returns {ErrCodee} - Success if the module was addedd successfully.
+   */
+  // @ts-ignore
+  @external("lunatic::process", "add_this_module")
+  export declare function add_this_module(env_id: u64, id_ptr: usize): ErrCode;
+  /** Drop a module */
+  // @ts-ignore
+  @external("lunatic::process", "drop_module")
+  export declare function drop_module(mod_id: u64): void;
+  /**
+   * Spawn a process, with a given link tag (if applicable,) a module, the name of the
+   * function to run, and the given parameters in rust enum format.
+   *
+   * @param {u64} link - A tag for the process if applicable, if provided will automatically link the process.
+   * @param {u64} module_id - The module id.
+   * @param {usize} func_str_ptr - The name of the function.
+   * @param {usize} func_str_len - The length of the name of the function.
+   * @param {usize} params_ptr - A pointer to the parameters for this function written in memory.
+   * @param {usize} params_len - The byteLength of the parameters.
+   * @param {usize} id_ptr - A pointer to a u64 that will contain the process id, or the error it caused.
+   * @returns {ErrCode} Success if the Process was created.
+   */
+  // @ts-ignore
+  @external("lunatic::process", "spawn")
+  export declare function spawn(link: u64, module_id: u64, func_str_ptr: usize, func_str_len: usize, params_ptr: usize, params_len: u32, id_ptr: usize): ErrCode;
     // @ts-ignore
     @external("lunatic::process", "inherit_spawn")
     export declare function inherit_spawn(link: u64, func_str_ptr: usize, func_str_len: usize, params_ptr: usize, params_len: u32, id_ptr: usize): ErrCode;
@@ -176,9 +220,19 @@ export namespace message {
     // @ts-ignore: decorator
     @external("lunatic::message", "send_receive_skip_search")
     export declare function send_receive_skip_search(process_id: u64, timeout: u32): u32;
+
+    /**
+     * Receive a message with a tag if given, a preallocated buffer capacity
+     * (which grows based on need,) and a timeout.
+     *
+     * @param tag - A message tag to look for.
+     * @param buffer_capacity - A preallocated buffer capacity hint.
+     * @param timeout - A timespan for how long it takes for receiving a message to timeout.
+     * @returns {MessageType} The type of lunatic message being received.
+     */
     // @ts-ignore: decorator
     @external("lunatic::message", "receive")
-    export declare function receive(tag: usize /* *const i64 */, tag_len: usize, timeout: u32): MessageType;
+    export declare function receive(tag: usize /* *const i64 */, buffer_capacity: usize, timeout: u32): MessageType;
 }
 
 export namespace error {
