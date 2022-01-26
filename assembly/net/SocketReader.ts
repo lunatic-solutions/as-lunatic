@@ -52,7 +52,7 @@ export class SocketReader {
             },
         );
 
-        if (result.isOk()) return new UnmanagedResult<SocketReader | null>(new SocketReader(result.expect()!));
+        if (result.isOk()) return new UnmanagedResult<SocketReader | null>(new SocketReader(result.expect()));
         return new UnmanagedResult<SocketReader | null>(null, result.errorString);
     }
 
