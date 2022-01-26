@@ -1,6 +1,6 @@
 import { Result, idPtr } from "../error";
 import { net, message } from "../bindings";
-import { ErrCode, IPType, TimeoutErrCode as TimeoutErrCode } from "../util";
+import { ErrCode, IPType, TimeoutErrCode, NetworkResultType } from "../util";
 import { iovec } from "bindings/wasi";
 import { ASManaged } from "as-disposable";
 import { error } from "..";
@@ -39,15 +39,6 @@ export class IPAddress {
     memory.copy(changetype<usize>(result), changetype<usize>(this), select<usize>(i32(type == IPType.IPV4), 16, 4));
     return result;
   }
-}
-
-/** The different tcp read results. */
-
-export const enum NetworkResultType {
-  Success,
-  Timeout,
-  Closed,
-  Error,
 }
 
 /**

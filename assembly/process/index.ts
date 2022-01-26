@@ -1,5 +1,5 @@
-import { Result, idPtr } from "../error";
-import { Parameters, ErrCode, TimeoutErrCode, MessageType } from "../util";
+import { Result, idPtr, UnmanagedResult, getError } from "../error";
+import { Parameters, ErrCode, TimeoutErrCode, MessageType, LookupErrCode } from "../util";
 import { Mailbox } from "../messaging";
 import { ASON } from "@ason/assembly";
 import { message, process } from "../bindings";
@@ -33,6 +33,35 @@ let tagid: u64 = 0;
 
 /** This class represents a lunatic process, and is managed by the lunatic runtime. */
 export class Process<TMessage> extends ASManaged {
+
+  /**
+   * Lookup a process by it's name and a semver query in the current environment.
+   *
+   * @param {string} name - The name of the process.
+   * @param {string} query - The semver query.
+   * @returns {UnmanagedResult<Process<T> | null>} The result of the query.
+   */
+  static lookup<T>(name: string, query: string): UnmanagedResult<Process<T> | null> {
+    let nameBuffer = String.UTF8.encode(name);
+    let queryBuffer = String.UTF8.encode(query);
+
+    let result = process.lookup(
+      changetype<usize>(nameBuffer),
+      <usize>nameBuffer.byteLength,
+      changetype<usize>(queryBuffer),
+      <usize>queryBuffer.byteLength,
+      idPtr,
+    );
+
+    let id = load<u64>(idPtr);
+    if (result == LookupErrCode.Fail) {
+      return new UnmanagedResult<Process<T> | null>(null, getError(id));
+    } else if (result == LookupErrCode.NoProcessFound) {
+      return new UnmanagedResult<Process<T> | null>(null, "No process found.");
+    } else {
+      return new UnmanagedResult<Process<T> | null>(new Process(id));
+    }
+  }
 
   /**
    * Sleep the current process for ms number of milliseconds.

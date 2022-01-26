@@ -158,3 +158,18 @@ export const enum ErrCode {
     this.index = 0;
   }
 }
+
+export const enum LookupErrCode {
+  Success,
+  Fail,
+  NoProcessFound,
+}
+
+/** The different tcp read results. */
+
+export const enum NetworkResultType {
+  Success,
+  Timeout,
+  Closed,
+  Error,
+}

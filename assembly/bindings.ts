@@ -1,6 +1,5 @@
 import { iovec } from "bindings/wasi";
-import { NetworkResultType } from ".";
-import { IPType, MessageType, ErrCode, TimeoutErrCode } from "./util";
+import { IPType, MessageType, ErrCode, TimeoutErrCode, LookupErrCode, NetworkResultType } from "./util";
 
 export namespace process {
   /**
@@ -178,30 +177,62 @@ export namespace process {
   // @ts-ignore
   @external("lunatic::process", "this")
   export declare function this_handle(): u64;
-    // @ts-ignore
-    @external("lunatic::process", "id")
-    export declare function id(pid: u64, ptr: usize): usize;
-    // @ts-ignore
-    @external("lunatic::process", "this_env")
-    export declare function this_env(): u64;
+  /** Get this process's guid. */
+  // @ts-ignore
+  @external("lunatic::process", "id")
+  export declare function id(pid: u64, ptr: usize): usize;
+  /** Get this current process's environment. */
+  // @ts-ignore
+  @external("lunatic::process", "this_env")
+  export declare function this_env(): u64;
 
-    // @ts-ignore
-    @external("lunatic::process", "link")
-    export declare function link(tag: i64, process_id: u64): void;
-    // @ts-ignore
-    @external("lunatic::process", "unlink")
-    export declare function unlink(process_id: u64): void;
+  /** Link the given process to the current one with a given tag. */
+  // @ts-ignore
+  @external("lunatic::process", "link")
+  export declare function link(tag: i64, process_id: u64): void;
+  /** Unlink the given process. */
+  // @ts-ignore
+  @external("lunatic::process", "unlink")
+  export declare function unlink(process_id: u64): void;
+  /**
+   * Register the given process with a name and version, for the given environment.
+   *
+   * @param {usize} name_ptr - The name to register the process.
+   * @param {usize} name_len - The length of the name string in utf8.
+   * @param {usize} version_ptr - The version string.
+   * @param {usize} version_len - The length of the version string in utf8.
+   * @param {u64} env_id - The environment to register the given process in.
+   * @param {u64} process_id - The process to register.
+   * @returns {ErrCode} Success if the process registration was successful.
+   */
+  // @ts-ignore
+  @external("lunatic::process", "register")
+  export declare function register(name_ptr: usize, name_len: usize, version_ptr: usize, version_len: usize, env_id: u64, process_id: u64): ErrCode;
+  /**
+   * Unregister a process in the given environment.
+   *
+   * @param {usize} name_ptr - The registration name.
+   * @param {usize} name_len - The length of the registration name.
+   * @param {usize} version_ptr - The process version.
+   * @param {usize} version_len - The length of the process version.
+   * @param {u64} env_id - The environment the registration currently exists in.
+   */
+  // @ts-ignore
+  @external("lunatic::process", "unregister")
+  export declare function unregister(name_ptr: usize, name_len: usize, version_ptr: usize, version_len: usize, env_id: u64): ErrCode;
 
-    // @ts-ignore
-    @external("lunatic::process", "register")
-    export declare function register(name_ptr: usize, name_len: usize, version_ptr: usize, version_len: usize, env_id: u64, process_id: u64): ErrCode;
-    // @ts-ignore
-    @external("lunatic::process", "unregister")
-    export declare function unregister(name_ptr: usize, name_len: usize, version_ptr: usize, version_len: usize, env_id: u64): ErrCode;
-
-    // @ts-ignore
-    @external("lunatic::process", "lookup")
-    export declare function lookup(name_ptr: usize, name_len: u32, query_ptr: usize, query_len: u32, id_u64_ptr: usize): usize
+  /**
+   * Lookup a process id by name and by version.
+   *
+   * @param name_ptr - The name of the process.
+   * @param name_len - The length of the name of the process.
+   * @param query_ptr - The process version query using semver.
+   * @param query_len - The length of the process version query.
+   * @param id_u64_ptr - A pointer to write the process id to, or an error id.
+   */
+  // @ts-ignore
+  @external("lunatic::process", "lookup")
+  export declare function lookup(name_ptr: usize, name_len: u32, query_ptr: usize, query_len: u32, id_u64_ptr: usize): LookupErrCode;
 }
 
 export namespace message {
