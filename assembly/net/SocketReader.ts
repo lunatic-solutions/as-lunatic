@@ -1,8 +1,9 @@
-import { TCPSocket } from "./index";
+import { NetworkResultType } from "../util";
+import { TCPSocket } from "../net";
 import { Process } from "../process";
 import { UnmanagedResult } from "../Error";
 import { Mailbox } from "../messaging";
-import { NetworkResultType } from "./index";
+
 export abstract class SocketListener {
     public timeout: u32 = 0;
     public abstract onInitialize(): void;
