@@ -1,5 +1,5 @@
 import { ASON } from "@ason/assembly";
-import { message } from "../bindings";
+import { message } from "../bindings/message";
 import { MessageType } from "../util";
 
 let emptyTagset = [] as StaticArray<i64>;

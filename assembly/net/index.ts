@@ -1,9 +1,10 @@
 import { Result, idPtr } from "../error";
-import { net, message } from "../bindings";
+import { net, error } from "../bindings";
+import { message } from "../bindings/message";
 import { ErrCode, IPType, TimeoutErrCode, NetworkResultType } from "../util";
 import { iovec } from "bindings/wasi";
 import { ASManaged } from "as-disposable";
-import { error } from "..";
+
 
 
 // @ts-ignore: @lazy!
