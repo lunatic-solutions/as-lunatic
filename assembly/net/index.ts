@@ -5,8 +5,6 @@ import { ErrCode, IPType, TimeoutErrCode, NetworkResultType } from "../util";
 import { iovec } from "bindings/wasi";
 import { ASManaged } from "as-disposable";
 
-
-
 // @ts-ignore: @lazy!
 @lazy const opaquePtr = memory.data(sizeof<u64>());
 
@@ -707,3 +705,5 @@ export class UDPSocket extends ASManaged {
     return new UDPSocket(net.clone_udp_socket(this.id));
   }
 }
+
+export * from "./SocketReader";
