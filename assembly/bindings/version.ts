@@ -1,4 +1,7 @@
 
+/**
+ * Version bindings functions.
+ */
 export namespace version {
     // @ts-ignore: external is valid here
     @external("lunatic::version", "major")
