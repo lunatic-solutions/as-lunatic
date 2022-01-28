@@ -28,8 +28,8 @@ export abstract class SocketReader<TParentEventBase> {
 
     /** Start reading from the socket on another child process. */
     start(): Result<Process<i32> | null> {
-        let result = Process.inheritSpawnWith<SocketReader<SocketReader<TParentEventBase>>, i32>(this,
-            (start: SocketReader<SocketReader<TParentEventBase>>, mb: Mailbox<i32>) => {
+        let result = Process.inheritSpawnWith<SocketReader<TParentEventBase>, i32>(this,
+            (start: SocketReader<TParentEventBase>, mb: Mailbox<i32>) => {
                 let socket = start.socket;
                 start.onInitialize();
                 while(true) {
