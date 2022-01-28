@@ -1,7 +1,7 @@
 import { NetworkResultType } from "../util";
 import { TCPSocket } from "../net";
 import { Process } from "../process";
-import { Result } from "../Error";
+import { Result } from "../error";
 import { Mailbox } from "../messaging";
 
 /** Represents the base class for a SocketReader, which should have a generic type the same as the mailbox type of the parent process attempting to read from it. */
