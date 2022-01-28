@@ -169,7 +169,7 @@ export namespace net {
      * @param {usize} id_u64_ptr - The u64 pointer to write the dns iterator to.
      */
     // @ts-ignore: external is valid here
-    @external("lunatic:net", "udp_local_addr")
+    @external("lunatic::net", "udp_local_addr")
     export declare function udp_local_addr(
         socket_id: u64,
         id_u64_ptr: usize,
