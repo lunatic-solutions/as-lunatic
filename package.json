@@ -25,7 +25,7 @@
   },
   "homepage": "https://github.com/lunatic-solutions/as-lunatic#readme",
   "dependencies": {
-    "@ason/assembly": "0.3.0",
+    "@ason/assembly": "0.3.1",
     "as-disposable": "^0.0.1"
   },
   "devDependencies": {
