@@ -1,573 +1,709 @@
+import { Result, idPtr } from "../error";
+import { net, error } from "../bindings";
+import { message } from "../bindings/message";
+import { ErrCode, IPType, TimeoutErrCode, NetworkResultType } from "../util";
 import { iovec } from "bindings/wasi";
+import { ASManaged } from "as-disposable";
 
-/**
- * Resolve a hostname to an array of ip addresses.
- *
- * @param {usize} name_ptr - A pointer to the hostname to be resolved.
- * @param {usize} name_len - The length of the hostname string.
- * @param {usize} resolver_id - A pointer to a u32 that will contain the result id
- * that represents an iterator.
- * @returns {ResolveResult} The Resolution result.
- */
-// @ts-ignore: valid decorator
-@external("lunatic", "resolve")
-declare function lunatic_resolve(
-  name_ptr: usize /* *const u8 */,
-  name_len: usize,
-  resolver_id: usize /* *mut u32 */
-): TCPErrorCode;
+// @ts-ignore: @lazy!
+@lazy const opaquePtr = memory.data(sizeof<u64>());
 
-/**
- * The iterator result.
- */
-const enum ResolveNextResult {
-  /** This value indicates there are more IP addresses to be iterated over. */
-  Success = 0,
-  /** The IP addresses are exhausted, and iteration is complete. */
-  Done = 1,
+// @ts-ignore: @lazy!
+@lazy const ipAddressPointer = memory.data(offsetof<IPAddress>());
+
+/** Represents an IP Address, v6 or v4. */
+export class IPAddress {
+  // allocate 16 bytes for the address
+  private _address_1: u64 = 0;
+  private _address_2: u64 = 0;
+  public type: IPType = IPType.None;
+  public port: u16 = 0;
+  public flowInfo: u32 = 0;
+  public scopeId: u32 = 0;
+
+  constructor() {}
+
+  /** Load an IPAddress object from the DNS Iterator pointer. */
+  static load(): IPAddress {
+    let ip = new IPAddress();
+    memory.copy(changetype<usize>(ip), ipAddressPointer, offsetof<IPAddress>());
+    return ip;
+  }
+
+  /** Perform a memcopy of the IP address and return a new buffer. */
+  public get ip(): StaticArray<u8> {
+    let type = this.type;
+    if (type == IPType.None) assert(false);
+    let result = new StaticArray<u8>(4);
+    memory.copy(changetype<usize>(result), changetype<usize>(this), select<usize>(i32(type == IPType.IPV4), 16, 4));
+    return result;
+  }
 }
 
 /**
- * The result of a TCP request of some kind.
+ * Resolve the contents of a DNS Iterator.
+ * @param {u64} id - The dns iterator id.
+ * @returns {IPAddress[]} The IPResolution array.
  */
-export const enum TCPErrorCode {
-  /** A succesful result. */
-  Success = 0,
-  /** An entity was not found, often a file. */
-  NotFound = 1,
-  /** The operation lacked the necessary privileges to complete. */
-  PermissionDenied = 2,
-  /** The connection was refused by the remote server. */
-  ConnectionRefused = 3,
-  /** The connection was reset by the remote server. */
-  ConnectionReset = 4,
-  /** The connection was aborted (terminated) by the remote server. */
-  ConnectionAborted = 5,
-  /** The network operation failed because it was not connected yet. */
-  NotConnected = 6,
-  /** A socket address could not be bound because the address is already in use elsewhere. */
-  AddrInUse = 7,
-  /** A nonexistent interface was requested or the requested address was not local. */
-  AddrNotAvailable = 8,
-  /** The connection pipe is broken. */
-  BrokenPipe = 9,
-  /** An entity already exists, often a file. */
-  AlreadyExists = 10,
-  /** The operation needs to block to complete, but the blocking operation was requested to not occur. */
-  WouldBlock = 11,
-  /** A parameter was incorrect. */
-  InvalidInput = 12,
-  /**
-   * Data not valid for the operation were encountered.
-   *
-   * Unlike InvalidInput, this typically means that the operation parameters were valid, however the error was caused by malformed input data.
-   *
-   * For example, a function that reads a file into a string will error with InvalidData if the file’s contents are not valid UTF-8.
-   */
-  InvalidData = 13,
-  /** The I/O operation’s timeout expired, causing it to be canceled. */
-  TimedOut = 14,
-  /**
-   * An error returned when an operation could not be completed because a call to write returned Ok(0).
-   *
-   * This typically means that an operation could only succeed if it wrote a particular number of bytes but only a smaller number of bytes could be written.
-   */
-  WriteZero = 15,
-  /**
-   * This operation was interrupted.
-   *
-   * Interrupted operations can typically be retried.
-   */
-  Interrupted = 16,
-  /**
-   * An error returned when an operation could not be completed because an “end of file” was reached prematurely.
-   *
-   * This typically means that an operation could only succeed if it read a particular number of bytes but only a smaller number of bytes could be read.
-   */
-  UnexpectedEof = 17,
-  /**
-   * This operation is unsupported on this platform.
-   *
-   * This means that the operation can never succeed.
-   */
-  Unsupported = 18,
-  /** The system is out of memory. */
-  OutOfMemory = 19,
-  /** Some other kind of error has occurred. */
-  Other = 20,
+export function resolveDNSIterator(id: u64): IPAddress[] {
+  let value: IPAddress[] = [];
+
+  // obtain the ip resolutions
+  while (net.resolve_next(id,
+    ipAddressPointer + offsetof<IPAddress>("type"),
+    ipAddressPointer,
+    ipAddressPointer + offsetof<IPAddress>("port"),
+    ipAddressPointer + offsetof<IPAddress>("flowInfo"),
+    ipAddressPointer + offsetof<IPAddress>("scopeId")) == ErrCode.Success) {
+    // IPResolution will automatically load from the pointers
+    value.push(IPAddress.load());
+  }
+
+  // always drop if successful
+  net.drop_dns_iterator(id);
+  return value;
 }
 
 /**
- * Write the next IP address into memory if it exists.
+ * Resolve a hostname it it's given IPResolutions.
  *
- * @param {u32} resolver_id - The iterator id.
- * @param {usize} addr - A pointer to 16 allocated bytes to write the resolved IP address.
- * @param {usize} addr_len - A pointer to a usize to write the length of the resolved IP address.
- * @param {usize} port - A pointer to a u16 to write the port number of the resolved IP address.
- * @param {usize} flowinfo - A pointer to a u32 to write the flowinfo of the resolved IP address.
- * @param {usize} scope_id - A pointer to a u32 to write the scope_id of the resolved IP address.
- * @returns {ResolveNextResult} The result of iterating over the next IP address. If it returns
- * Success, there is another IP address to retrieve.
+ * @param {string} host - The host to be resolved.
+ * @param {u32} timeout - The timeout.
+ * @returns {Result<IPAddress[] | null>} The resulting IPResolution set.
  */
-// @ts-ignore: valid decorator
-@external("lunatic", "resolve_next")
-declare function resolve_next(
-  resolver_id: u32,
-  addr: usize /* *mut u8 */,
-  addr_len: usize /* *mut usize */,
-  port: usize /* *mut u16 */,
-  flowinfo: usize /* *mut u32 */,
-  scope_id: usize /* *mut u32 */,
-): ResolveNextResult;
+export function resolve(host: string, timeout: u32 = 0): Result<IPAddress[] | null> {
+  // encode the string to utf8
+  let namePtr = String.UTF8.encode(host);
 
-/** Represents the result of an operation. */
-export class TCPResult<T> {
-  constructor(
-    public code: TCPErrorCode,
-    public value: T,
-  ) {}
+  // resolve the host
+  let result = net.resolve(changetype<usize>(namePtr), <usize>namePtr.byteLength, timeout, idPtr);
+
+  // process the result
+  let id = load<u64>(idPtr);
+  if (result == ErrCode.Success) {
+    let value: IPAddress[] = resolveDNSIterator(id);
+    return new Result<IPAddress[] | null>(value);
+  }
+  return new Result<IPAddress[] | null>(null, id);
 }
 
 /**
- * A resulting IPResolution.
+ * A TCP Socket that can be written to or read from.
  */
-export class IPResolution {
-  /** An array of bytes representing the IP address. */
-  address: StaticArray<u8> | null = null;
-  /** The length of the IP address. 4 or 16. */
-  addr_len: usize;
-  /** The port. */
-  port: u16;
-  /** The flow info. */
-  flowinfo: u32;
-  /** The scope_id. */
-  scope_id: u32;
-}
-
-/**
- * Initiate a TCP connection.
- *
- * @param {usize} addr_ptr - A pointer to an array of bytes.
- * @param {usize} addr_len - A pointer to a usize that describes the length of the IP address.
- * @param {u16} port - The port.
- * @param {usize} listener_id - A pointer to a u32 where the listener_id will be written if
- * the connection was successful.
- * @returns {TCPErrorCode} The result of initiating a TCP connection.
- */
-// @ts-ignore: valid decorator
-@external("lunatic", "tcp_connect")
-declare function tcp_connect(
-  addr_ptr: usize, // *const u8,
-  addr_len: usize,
-  port: u16,
-  listener_id: usize, // *mut u32,
-): TCPErrorCode;
-
-/**
- * Dereference a given TCP stream. Once a stream has been dererferenced
- * on every Process, the socket becomes closed.
- *
- * @param {u32} listener - The stream to be dereferenced.
- */
-// @ts-ignore: valid decorator
-@external("lunatic", "close_tcp_stream")
-declare function close_tcp_stream(listener: u32): void;
-
-/**
- * Write bytes to a TCP stream.
- *
- * @param {u32} tcp_stream - The stream to write the bytes to.
- * @param {usize} data - A pointer to the data.
- * @param {usize} data_len - How many bytes to write.
- * @param {usize} nwritten - A pointer to a usize that will contain how many bytes were written.
- * @returns The error code if there was a problem.
- */
-// @ts-ignore: valid decorator
-@external("lunatic", "tcp_write_vectored")
-declare function tcp_write_vectored(
-  tcp_stream: u32,
-  data: usize, // *const c_void,
-  data_len: usize,
-  nwritten: usize // *mut usize,
-): TCPErrorCode;
-
-/** Flush a tcp stream. */
-// @ts-ignore: valid decorator
-@external("lunatic", "tcp_flush")
-declare function tcp_flush(tcp_stream: u32): TCPErrorCode;
-
-/**
- * Block the current process and wait for bytes to come in on the stream.
- *
- * @param {u32} tcp_stream - The TCP stream.
- * @param {usize} data - A pointer to write the bytes to.
- * @param {usize} data_len - How many bytes should be read.
- * @param {usize} nread - A pointer to a usize that is the of bytes read from the stream.
- * @returns An error code if there was a problem.
- */
-// @ts-ignore: valid decorator
-@external("lunatic", "tcp_read_vectored")
-declare function tcp_read_vectored(
-  tcp_stream: u32,
-  data: usize, // *mut c_void,
-  data_len: usize,
-  nread: usize, // *mut usize,
-): TCPErrorCode;
-
-/** Serialize a tcp stream. */
-// @ts-ignore: valid decorator
-@external("lunatic", "tcp_stream_serialize")
-declare function tcp_stream_serialize(tcp_stream: u32): u32;
-/** Deserialize a tcp stream. */
-// @ts-ignore: valid decorator
-@external("lunatic", "tcp_stream_deserialize")
-declare function tcp_stream_deserialize(tcp_stream: u32): u32;
-
-
-/**
- * Bind a TCPServer to an IP Address and port.
- *
- * @param {usize} addr_ptr - A pointer to the address bytes.
- * @param {usize} addr_len - The length of the IP address, 4 or 16.
- * @param {u16} port - The port.
- * @param {usize} listener_id - A pointer to a u32 that will be the TCPServer
- * listener ID.
- * @returns {TCPErrorCode} The result of binding to an IP address.
- */
-// @ts-ignore: valid decorator
-@external("lunatic", "tcp_bind")
-declare function tcp_bind(
-  addr_ptr: usize,// *const u8,
-  addr_len: usize,
-  port: u16,
-  listener_id: usize, //*mut u32,
-): TCPErrorCode;
-
-/**
- * Close a tcp server.
- *
- * @param {u32} listener - The TCPServer id that should be closed.
- */
-// @ts-ignore: valid decorator
-@external("lunatic", "close_tcp_listener")
-declare function close_tcp_listener(listener: u32): void;
-
-/**
- * Block the current thread to accept a socket from the TCPServer.
- *
- * @param {u32} listener - The listener.
- * @param {usize} tcp_socket - A pointer to a u32 that will contain the socket id.
- * @returns {TCPAcceptResult} The result of accepting a tcp socket.
- */
-// @ts-ignore: valid decorator
-@external("lunatic", "tcp_accept")
-declare function tcp_accept(
-  listener: u32,
-  tcp_socket: usize, //*mut u32
-): TCPErrorCode;
-
-/**
- * Serialize a TCPServer.
- *
- * @param {u32} tcp_listener - The listener to serialize
- * @returns {u32} The serialized TCPServer handle.
- */
-// @ts-ignore: valid decorator
-@external("lunatic", "tcp_listener_serialize")
-declare function tcp_listener_serialize(tcp_listener: u32): u32;
-
-/**
- * Deserialize a TCPServer.
- *
- * @param {u32} tcp_listener - The serialized TCPServer.
- * @returns {u32} The deserialized TCPServer handle.
- */
-// @ts-ignore: valid decorator
-@external("lunatic", "tcp_listener_deserialize")
-declare function tcp_listener_deserialize(tcp_listener: u32): u32;
-
-/** This pointer is for standard reads, configured by the compile time read and count tcp read buffer constants. */
-const tcpReadDataPointer = memory.data(TCP_READ_BUFFER_SIZE * TCP_READ_BUFFER_COUNT);
-/** The c-array of iovecs that will contain the data returned by a TCPSocket read. */
-const tcpReadVecs = memory.data(TCP_READ_BUFFER_COUNT * sizeof<usize>() * 2);
-/** A pointer to a static location where the readCount will be set by the host. */
-const readCountPtr = memory.data(sizeof<u32>());
-/** A pointer to a static location where the writeCount will be read by the host. */
-const writeCountPtr = memory.data(sizeof<usize>());
-
-// this is setup that configures the tcpReadVecs segment
-let tcpReadVecsTemp = tcpReadVecs;
-for (let i = <usize>0; i < <usize>TCP_READ_BUFFER_COUNT; i++) {
-  // compile time free cast to iovec (will be optimized away)
-  let vec = changetype<iovec>(tcpReadVecsTemp);
-
-  // set the properties
-  vec.buf = tcpReadDataPointer + <usize>TCP_READ_BUFFER_SIZE * <usize>i;
-  vec.buf_len = <usize>TCP_READ_BUFFER_SIZE;
-
-  // advance to the next vec
-  tcpReadVecsTemp += offsetof<iovec>();
-}
-
+export class TCPSocket extends ASManaged {
+  /** The resulting read buffer. */
+  public buffer: StaticArray<u8> | null = null;
+  /** Written byte count after calling write. */
+  public byteCount: usize = 0;
 
   /**
-   * A TCP Socket that allows for reading and writing data from and to the TCP connection
-   * associated. This object is constructed by an associated `TCPServer` or the
-   * `TCPSocket.connect()` method. Typically, lunatic end users should not construct
-   * TCPSocket references directly using the  `new` keyword.
+   * Create a TCP connection using the given IPAddress object as the connection server.
    *
-   * @param {u32} socket_id - The host's socket_id.
+   * @param {IPAddress} ip - The given IP Address.
+   * @param {u32} timeout - A timeout.
+   * @returns {Result<TCPSocket | null>} The socket if the connection was successful.
    */
-export class TCPStream {
-
-  constructor(private socket_id: u32) {}
-
-  /** Connect to a given IP address and port. Returns `null` if the connection wasn't successful. */
-  public static connect(ip: StaticArray<u8>, port: u16): TCPResult<TCPStream | null> {
-    let length = ip.length;
-    assert(length == 4 || length == 16);
-    let stream = new TCPStream(0);
-    let code = tcp_connect(
+  static connectIP(ip: IPAddress, timeout: u32 = 0): Result<TCPSocket | null> {
+    return TCPSocket.connectUnsafe(
+      ip.type,
       changetype<usize>(ip),
-      ip.length,
+      ip.port,
+      ip.flowInfo,
+      ip.scopeId,
+      timeout,
+    );
+  }
+
+  /**
+   * Connect to the given IPV4 address with the given bytes and port.
+   *
+   * @param {StaticArray<u8>} ip - The IP address in bytes.
+   * @param {u32} port - The port of the connection.
+   * @param {u32} timeout - How long until a timeout will occur.
+   * @returns {Result<TCPSocket | null>} The socket if the connection was successful.
+   */
+  static connectIPV4(ip: StaticArray<u8>, port: u16, timeout: u32 = 0): Result<TCPSocket | null> {
+    assert(ip.length >= 4);
+    return TCPSocket.connectUnsafe(
+      IPType.IPV4,
+      changetype<usize>(ip),
       port,
-      changetype<usize>(stream),
+      0,
+      0,
+      timeout,
     );
-    if (code == TCPErrorCode.Success) return new TCPResult<TCPStream | null>(code, stream);
-    return new TCPResult<TCPStream | null>(code, null)
-  }
-
-  /** Public ason serialization method for transfering a TCPSocket through a channel. */
-  public __asonSerialize(): StaticArray<u8> {
-    let buffer = new StaticArray<u8>(sizeof<u32>());
-    store<u32>(changetype<usize>(buffer), tcp_stream_serialize(this.socket_id));
-    return buffer;
-  }
-
-  /** Public ason deserialization method for obtaining a TCPSocket from a channel. */
-  public __asonDeserialize(buffer: StaticArray<u8>): void {
-    this.socket_id = tcp_stream_deserialize(load<u32>(changetype<usize>(buffer)))
   }
 
   /**
-   * Block the current process to read the data from the TCPSocket using the default
-   * static memory locations provided by the as-lunatic asconfig properties.
+   * Connect to the given IPV6 address with the given bytes and port.
    *
-   * @returns {TCPResult<StaticArray<u8> | null>} The error code if the read was unsuccesful,
-   * and also the data if the read was successful.
+   * @param {StaticArray<u8>} ip - The IP address in bytes.
+   * @param {u32} port - The port of the connection.
+   * @param {u32} flow_info - The flow info of the ip address for the connection.
+   * @param {u32} scope_id - The scope id of the ip address for the connection.
+   * @param {u32} timeout - How long until a timeout will occur.
+   * @returns {Result<TCPSocket | null>} The socket if the connection was successful.
    */
-  public read(): TCPResult<StaticArray<u8> | null> {
-    // default read uses TCP_READ_BUFFER_COUNT vectors all in the same segment
-    let code = tcp_read_vectored(
-      this.socket_id,
-      changetype<usize>(tcpReadVecs),
-      <usize>TCP_READ_BUFFER_COUNT,
-      readCountPtr,
+  static connectIPV6(ip: StaticArray<u8>, port: u16, flow_info: u32, scope_id: u32, timeout: u32 = 0): Result<TCPSocket | null> {
+    assert(ip.length >= 16);
+    return TCPSocket.connectUnsafe(
+      IPType.IPV6,
+      changetype<usize>(ip),
+      port,
+      flow_info,
+      scope_id,
+      timeout,
     );
+  }
 
-    if (code == TCPErrorCode.Success) {
-      let readCount = load<u32>(readCountPtr);
-      let array = new StaticArray<u8>(readCount);
-      memory.copy(changetype<usize>(array), tcpReadDataPointer, readCount);
-      return new TCPResult<StaticArray<u8> | null>(code, array);
+  /**
+   * Connect to an IP Address. Considdered unsafe because of pointer usage.
+   *
+   * @param {IPType} addr_type - The IP Address type.
+   * @param {usize} addr_ptr - A pointer to the IP Address.
+   * @param {u16} port - The port.
+   * @param {u32} flow_info - The flow info of a given ipv6 address.
+   * @param {u32} scope_id - The scope id of a given ipv6 address.
+   * @param {u32} timeout - How long to wait before the operation times out in milliseconds.
+   * @returns {Result<TCPSocket | null>} The resulting TCPSocket if the connection was successful.
+   */
+  @unsafe static connectUnsafe(addr_type: IPType, addr_ptr: usize, port: u16, flow_info: u32, scope_id: u32, timeout: u32): Result<TCPSocket | null> {
+    assert(addr_type == 4 || addr_type == 6);
+    let result = net.tcp_connect(
+      addr_type,
+      addr_ptr,
+      port,
+      flow_info,
+      scope_id,
+      timeout,
+      idPtr,
+    );
+    let id = load<u64>(idPtr);
+    if (result == ErrCode.Success) {
+      let ip = new IPAddress();
+
+      // copy the address
+      memory.copy(changetype<usize>(ip), addr_ptr, select<usize>(4, 16, addr_type == IPType.IPV4));
+
+      ip.type = addr_type;
+      ip.port = port;
+      ip.flowInfo = flow_info;
+      ip.scopeId = scope_id;
+
+      return new Result<TCPSocket | null>(new TCPSocket(id, ip), 0);
     }
-    return new TCPResult<StaticArray<u8> | null>(code, null);
+    return new Result<TCPSocket | null>(null, id);
+  }
+
+  constructor(
+    /** The tcp socket id on the host. */
+    public id: u64,
+    /** The IP Address of this socket. */
+    public ip: IPAddress
+  ) {
+    super(id, net.drop_tcp_stream);
   }
 
   /**
-   * Block the current process, and read data from a socket into the provided
-   * buffers.
+   * Read a buffer from the TCP Stream with a timeout.
    *
-   * @param {Array<StaticArray<u8>>} buffers - The buffers to be read into.
-   * @returns {usize} - The number of bytes written into the buffers.
+   * @param {u32} timeout - How long a read should wait until the request times out.
+   * @returns {StaticArray<u8>} The resulting buffer.
    */
-  public readVectored(buffers: Array<StaticArray<u8>>): TCPResult<usize> {
-    let buffersLength = <usize>buffers.length;
-    let vecs = heap.alloc(
-      // adding 1 to align of usize effectively doubles the heap allocation size
-      buffersLength << (usize(alignof<usize>()) + 1)
-    );
-    for (let i = <usize>0; i < buffersLength; i++) {
-      let ptr = vecs + (i << (usize(alignof<usize>()) + 1));
-      let buffer = unchecked(buffers[i]);
-      store<usize>(ptr, changetype<usize>(buffer));
-      store<usize>(ptr, <usize>buffer.length, sizeof<usize>());
+  read(timeout: u32 = 0): Result<NetworkResultType> {
+
+    // Static data memory pointer
+    let ptr = memory.data(TCP_READ_VECTOR_SIZE);
+    let id = this.id;
+
+    // call tcp read
+    let readResult = net.tcp_read(id, ptr, TCP_READ_VECTOR_SIZE, timeout, idPtr);
+    let bytesRead = load<u64>(idPtr);
+
+    if (readResult == TimeoutErrCode.Success) {
+
+      // if no bytes were read, the socket is closed
+      if (bytesRead == 0) return new Result<NetworkResultType>(NetworkResultType.Closed);
+
+      // copy the bytes to a new static array
+      let buffer = new StaticArray<u8>(<i32>bytesRead);
+      memory.copy(changetype<usize>(buffer), ptr, <usize>bytesRead);
+
+      // store the result
+      this.buffer = buffer;
+      this.byteCount = <usize>bytesRead;
+
+      // return success
+      return new Result<NetworkResultType>(NetworkResultType.Success);
+    } else if (readResult == TimeoutErrCode.Fail) {
+      // failure means that bytesRead has an error id
+      return new Result<NetworkResultType>(NetworkResultType.Error, bytesRead);
+    } else {
+      error.drop_error(bytesRead);
+      // this must be a timeout
+      assert(readResult == TimeoutErrCode.Timeout);
+      return new Result<NetworkResultType>(NetworkResultType.Timeout);
     }
-
-    let readResult = tcp_read_vectored(this.socket_id, vecs, buffersLength, readCountPtr);
-    heap.free(vecs);
-    let count = readResult == TCPErrorCode.Success
-      ? <usize>load<u32>(readCountPtr)
-      : <usize>0;
-    return new TCPResult<usize>(readResult, count);
-  }
-
-  /** Write a buffer to the TCPSocket stream. */
-  public writeBuffer(buffer: StaticArray<u8>): TCPResult<usize> {
-    return this.writeUnsafe(changetype<usize>(buffer), buffer.length);
   }
 
   /**
-   * An explicitly unsafe method for writing data to a socket.
+   * Write a typedarray's data to a TCPStream.
    *
-   * @param {usize} ptr - A pointer `void*` which points to the data being written.
-   * @param {usize} length - The number of bytes to be written to the socket.
-   * @returns {TCPResult<usize>} The number of bytes written and the error code if any.
+   * @param {T extends ArrayBufferView} array - A static array to write the TCPStream
+   * @param {u32} timeout - The amount of time to wait and timeout in milliseconds.
    */
-  @unsafe public writeUnsafe(ptr: usize, length: usize): TCPResult<usize> {
+  writeTypedArray<T extends ArrayBufferView>(array: T, timeout: u32 = 0): Result<NetworkResultType> {
+    return this.writeUnsafe(array.dataStart, <usize>array.byteLength, timeout);
+  }
+
+  /**
+   * Write a Array to the TCPStream.
+   *
+   * @param {T extends Array<U>} array - A static array to write the TCPStream
+   * @param {u32} timeout - The amount of time to wait and timeout in milliseconds.
+   * @returns {Result<NetworkResultType>} A wrapper to a TCPResultType. If an error occured, the
+   * errorString property will return a string describing the error.
+   */
+  writeArray<T extends Array<U>, U>(array: T, timeout: u32 = 0): Result<NetworkResultType> {
+    if (isReference<U>()) ERROR("Cannot call writeArray if type of U is a reference.");
+    let byteLength = (<usize>array.length) << alignof<U>();
+    return this.writeUnsafe(array.dataStart, byteLength, timeout);
+  }
+
+  /**
+   * Write a StaticArray to the TCPStream.
+   *
+   * @param {T extends StaticArray<U>} array - A static array to write the TCPStream
+   * @param {u32} timeout - The amount of time to wait and timeout in milliseconds.
+   * @returns {Result<NetworkResultType>} A wrapper to a TCPResultType. If an error occured, the
+   * errorString property will return a string describing the error.
+   */
+  writeStaticArray<T extends StaticArray<U>, U>(array: T, timeout: u32 = 0): Result<NetworkResultType> {
+    if (isReference<U>()) ERROR("Cannot call writeStaticArray if type of U is a reference.");
+    let byteLength = (<usize>array.length) << alignof<U>();
+    return this.writeUnsafe(changetype<usize>(array), byteLength, timeout);
+  }
+
+  /**
+   * Write the bytes of an ArrayBuffer to the TCPStream.
+   *
+   * @param {ArrayBuffer} buffer - The buffer to be written.
+   * @param {u32} timeout - The amount of time to wait and timeout in milliseconds.
+   * @returns {Result<NetworkResultType>} A wrapper to a TCPResultType. If an error occured, the
+   * errorString property will return a string describing the error.
+   */
+  writeBuffer(buffer: ArrayBuffer, timeout: u32 = 0): Result<NetworkResultType> {
+    return this.writeUnsafe(changetype<usize>(buffer), <usize>buffer.byteLength, timeout);
+  }
+
+  /**
+   * Write data to the socket using a raw pointer. Considdered unsafe.
+   *
+   * @param {usize} ptr - The pointer to the data being written.
+   * @param {usize} len - The length of the data being written.
+   * @param {u32} timeout - The amount of time to wait and timeout in milliseconds.
+   * @returns {Result<NetworkResultType>} A wrapper to a TCPResultType. If an error occured, the
+   * errorString property will return a string describing the error.
+   */
+  @unsafe writeUnsafe(ptr: usize, len: usize, timeout: u32 = 0): Result<NetworkResultType> {
+    // Statically allocate an iovec for writing data
     let vec = changetype<iovec>(memory.data(offsetof<iovec>()));
     vec.buf = ptr;
-    vec.buf_len = length;
+    vec.buf_len = len;
 
-    let code = tcp_write_vectored(
-      this.socket_id,
-      changetype<usize>(vec),
-      1,
-      writeCountPtr,
-    );
-    let count = code == TCPErrorCode.Success
-      ? <usize>load<u32>(writeCountPtr)
-      : <usize>0;
-    return new TCPResult<usize>(code, count);
-  }
+    // call tcp_write_vectored
+    let result = net.tcp_write_vectored(this.id, vec, 1, timeout, idPtr);
+    let count = load<u64>(idPtr);
 
-  /** Flush the socket. Returns true if the operation was successful. */
-  public flush(): TCPResult<bool> {
-    let code = tcp_flush(this.socket_id);
-    return new TCPResult<bool>(
-      code,
-      code == TCPErrorCode.Success,
-    );
-  }
-
-  /**
-   * TCP streams are reference counted. Every time a TCP stream is sent through a
-   * channel to another process it's duplicated and the reference count incremented.
-   * Every time drop() is called, lunatic will decrement the the reference count. Once
-   * this reference count reaches 0, the stream is closed.
-   */
-  public drop(): void {
-    close_tcp_stream(this.socket_id);
-  }
-}
-
-/**
- * This class represents a TCPServer. In order to obtain a reference to a TCPServer,
- * lunatic must provide a `listener_id` by calling the lunatic.tcp_bind method. Typical
- * end users will call the `TCPServer.bind(ip, port)` method to obtain a reference.
- */
-export class TCPServer {
-  constructor(private listener: u32) {}
-
-  /** Public ason deserialize method. */
-  public __asonDeserialize(buffer: StaticArray<u8>): void {
-    this.listener = tcp_listener_deserialize(load<u32>(changetype<usize>(buffer)));
-  }
-
-  /** Public ason serialize method. */
-  public __asonSerialize(): StaticArray<u8> {
-    let buffer = new StaticArray<u8>(sizeof<u32>());
-    store<u32>(changetype<usize>(buffer), tcp_listener_serialize(this.listener));
-    return buffer;
-  }
-
-  /**
-   * Bind a TCPServer to an address and a port.
-   *
-   * @param {StaticArray<u8>} address - The address in an array of bytes.
-   * @param {u16} port - The port.
-   * @returns {TCPResult<TCPServer | null>} The error code and TCPServer if the error code was 0
-   */
-  public static bind(address: StaticArray<u8>, port: u16): TCPResult<TCPServer | null> {
-    let server = new TCPServer(0);
-    assert(address.length == 4 || address.length == 16);
-    // tcp_bind writes the listener id here
-    let code = tcp_bind(changetype<usize>(address), <usize>address.length, port, changetype<usize>(server));
-    return new TCPResult<TCPServer | null>(
-      code,
-      code == TCPErrorCode.Success
-        ? server
-        : null,
-    );
-  }
-
-  /**
-   * Block the current process and accept a TCPSocket if it was succesfully obtained.
-   * @returns {TCPStream | null} null if the tcp server errored.
-   */
-  public accept(): TCPResult<TCPStream | null> {
-    let stream = new TCPStream(0);
-    let code = tcp_accept(this.listener, changetype<usize>(stream));
-    return new TCPResult<TCPStream | null>(
-      code,
-      code == TCPErrorCode.Success
-        ? stream
-        : null,
-    );
-  }
-
-  /**
-   * TCP servers are reference counted. Every time a TCP server is sent through a
-   * channel to another process it's duplicated and the reference count incremented.
-   * Every time drop() is called, lunatic will decrement the the reference count. Once
-   * this reference count reaches 0, the server is closed.
-   */
-  public drop(): void {
-    close_tcp_listener(this.listener);
-  }
-}
-
-/** A pointer to an ip resolution iterator. */
-const resolverIdPtr = memory.data(sizeof<u32>());
-
-/**
- * Resolve an ip address from a host name.
- *
- * @param {string} host - The host or ip address name that should be resolved.
- * @returns {IPResolution[] | null} null if the IP could not be resolved.
- */
-export function resolve(host: string): TCPResult<IPResolution[] | null> {
-  // encode the ip address to utf8
-  let ipBuffer = String.UTF8.encode(host);
-  // call the host to resolve the IP address
-  let resolveResult = lunatic_resolve(
-    changetype<usize>(ipBuffer),
-    ipBuffer.byteLength,
-    // write the resolver to memory
-    resolverIdPtr
-  );
-
-  let result = new TCPResult<IPResolution[] | null>(
-    resolveResult,
-    null,
-  );
-  if (resolveResult == TCPErrorCode.Success) {
-    // read the resolver id
-    let resolverId = load<u32>(resolverIdPtr);
-
-    // loop over each IPResolution and add it to the list
-    let ipArray = new Array<IPResolution>(0);
-    while (true) {
-      // must always allocate 16 bytes
-      let buffer = new StaticArray<u8>(16);
-      let resolution = new IPResolution();
-      resolution.address = buffer;
-
-      // the host iterates over each result until it returns Done
-      let resolutionResult = resolve_next(
-        resolverId,
-        changetype<usize>(buffer),
-        changetype<usize>(resolution) + offsetof<IPResolution>("addr_len"),
-        changetype<usize>(resolution) + offsetof<IPResolution>("port"),
-        changetype<usize>(resolution) + offsetof<IPResolution>("flowinfo"),
-        changetype<usize>(resolution) + offsetof<IPResolution>("scope_id"),
-      );
-      if (resolutionResult == ResolveNextResult.Done) break;
-      ipArray.push(resolution);
+    if (result == TimeoutErrCode.Success) {
+      if (count == 0) {
+        return new Result<NetworkResultType>(NetworkResultType.Closed);
+      }
+      this.byteCount = <u32>count;
+      return new Result<NetworkResultType>(NetworkResultType.Success);
+    } else if (result == TimeoutErrCode.Fail) {
+      // count is actually an index to an error
+      return new Result<NetworkResultType>(NetworkResultType.Error, count);
+    } else {
+      error.drop_error(count);
+      assert(result == TimeoutErrCode.Timeout);
+      return new Result<NetworkResultType>(NetworkResultType.Timeout);
     }
-
-    result.value = ipArray;
   }
 
-  return result;
+  clone(): TCPSocket {
+    return new TCPSocket(net.clone_tcp_stream(this.id), this.ip);
+  }
+
+  /** Utilized by ason to serialize a socket. */
+  __asonSerialize(): StaticArray<u8> {
+    let id = net.clone_tcp_stream(this.id);
+    let messageId = message.push_tcp_stream(id);
+    let buff = new StaticArray<u8>(sizeof<u64>() + offsetof<IPAddress>());
+    let ptr = changetype<usize>(buff);
+    store<u64>(ptr, messageId);
+    memory.copy(ptr + sizeof<u64>(), changetype<usize>(this.ip), offsetof<IPAddress>());
+    return buff;
+  }
+
+  /** Utilized by ason to deserialize a socket. */
+  __asonDeserialize(buff: StaticArray<u8>): void {
+    let ptr = changetype<usize>(buff);
+    let messageId = load<u64>(ptr);
+    let id = message.take_tcp_stream(messageId);
+    let ip = __new(offsetof<IPAddress>(), idof<IPAddress>());
+    memory.copy(ip, ptr + sizeof<u64>(), offsetof<IPAddress>());
+    this.id = id;
+    this.ip = changetype<IPAddress>(ip);
+  }
 }
+
+/**
+ * Represents a TCPListener, waiting for incoming TCP connections at the bound
+ * address.
+ *
+ * Construct one with the `TCPServer.bind()` method.
+ */
+export class TCPServer extends ASManaged {
+  constructor(
+    /** The id of this TCPServer. */
+    public id: u64,
+    public ip: IPAddress,
+  ) {
+    super(id, net.drop_tcp_listener);
+  }
+
+  /**
+   * Bind a TCPServer to an IPV4 address.
+   *
+   * @param {StaticArray<u8>} ip - Must be at least 4 bytes long, the first four bytes will be used.
+   * @param {u16} port - The port to bind to.
+   * @returns {Result<TCPServer | null>} The resulting TCPServer or an error.
+   */
+  static bindIPv4(ip: StaticArray<u8>, port: u16): Result<TCPServer | null> {
+    assert(ip.length >= 4);
+    return TCPServer.bindUnsafe(changetype<usize>(ip), IPType.IPV4, port, 0, 0);
+  }
+
+  /**
+   * Bind a TCPServer to an IPV6 address.
+   *
+   * @param {StaticArray<u8>} ip - Must be at least 16 bytes long, the first 16 bytes will be used.
+   * @param {u16} port - The port to bind to.
+   * @param {u32} flowInfo - The flow info of the IP address.
+   * @param {u32} scopeId - The scope id of the IP address.
+   * @returns {Result<TCPServer | null>} The resulting TCPServer or an error.
+   */
+  static bindIPv6(ip: StaticArray<u8>, port: u16, flowInfo: u32, scopeId: u32): Result<TCPServer | null> {
+    assert(ip.length >= 4);
+    return TCPServer.bindUnsafe(changetype<usize>(ip), IPType.IPV6, port, flowInfo, scopeId);
+  }
+
+  /**
+   * Bind a TCPServer unsafely to a local address.
+   *
+   * @param {usize} addressPtr - A pointer to the address.
+   * @param {IPType} addressType - The IP Address type.
+   * @param {u16} port - The port to listen on.
+   * @param {u32} flowInfo - The IP Address flow info.
+   * @param {u32} scopeId - The IP Address scope id.
+   * @returns {Result<TCPServer | null>} The resulting TCPServer or an error.
+   */
+  @unsafe static bindUnsafe(
+    addressPtr: usize,
+    addressType: IPType,
+    port: u16,
+    flowInfo: u32,
+    scopeId: u32,
+  ): Result<TCPServer | null> {
+    let result = net.tcp_bind(addressType, addressPtr, port, flowInfo, scopeId, idPtr);
+    let id = load<u64>(idPtr);
+    if (result == ErrCode.Success) {
+      let ipResult = net.tcp_local_addr(id, idPtr);
+      let iteratorId = load<u64>(idPtr);
+      if (ipResult == ErrCode.Success) {
+        let ipAddress = resolveDNSIterator(iteratorId);
+        assert(ipAddress.length == 1);
+        let server = new TCPServer(id, ipAddress[0]);
+        return new Result<TCPServer | null>(server);
+      }
+      net.drop_tcp_listener(id);
+      return new Result<TCPServer | null>(null, iteratorId);
+    }
+    return new Result<TCPServer | null>(null, id);
+  }
+
+  /** Utilized by ason to serialize a process. */
+  __asonSerialize(): StaticArray<u8> {
+    ERROR("TCPServer cannot be serialized.");
+  }
+
+  /** Utilized by ason to deserialize a process. */
+  __asonDeserialize(_buffer: StaticArray<u8>): void {
+    ERROR("TCPServer cannot be deserialized.");
+  }
+
+  /**
+   * Accept a TCP connection. This method blocks the current thread indefinitely, waiting for an
+   * incoming TCP connection.
+   */
+  accept(): Result<TCPSocket | null> {
+    let result = net.tcp_accept(this.id, idPtr, opaquePtr);
+    let id = load<u64>(idPtr);
+    if (result == ErrCode.Success) {
+      let dns_iterator = load<u64>(opaquePtr);
+      let ipResolutions = resolveDNSIterator(dns_iterator);
+      assert(ipResolutions.length == 1);
+      return new Result<TCPSocket | null>(new TCPSocket(id, unchecked(ipResolutions[0])))
+    }
+    return new Result<TCPSocket | null>(null, id);
+  }
+}
+
+export class UDPSocket extends ASManaged {
+  static bindAddress(addr: IPAddress): Result<UDPSocket | null> {
+    return UDPSocket.bindUnsafe(
+      addr.type,
+      changetype<usize>(addr),
+      addr.port,
+      addr.flowInfo,
+      addr.scopeId,
+    );
+  }
+
+  static bindIPV4(ip: StaticArray<u8>, port: u16 = 0): Result<UDPSocket | null> {
+    assert(ip.length >= 4);
+    return UDPSocket.bindUnsafe(
+      IPType.IPV4,
+      changetype<usize>(ip),
+      port,
+      0,
+      0,
+    );
+  }
+  static bindIPV6(ip: StaticArray<u8>, port: u16 = 0, flowInfo: u32 = 0, scopeId: u32 = 0): Result<UDPSocket | null> {
+    assert(ip.length >= 16);
+    return UDPSocket.bindUnsafe(
+      IPType.IPV6,
+      changetype<usize>(ip),
+      port,
+      flowInfo,
+      scopeId,
+    );
+  }
+
+  @unsafe static bindUnsafe(
+    addressType: IPType,
+    addressPtr: usize,
+    port: u16,
+    flowInfo: u32,
+    scopeId: u32,
+
+  ): Result<UDPSocket | null> {
+    let result = net.udp_bind(
+      addressType,
+      addressPtr,
+      port,
+      flowInfo,
+      scopeId,
+      idPtr,
+    );
+    let socketId = load<u64>(idPtr);
+    if (result == ErrCode.Success) {
+      return new Result<UDPSocket | null>(new UDPSocket(socketId));
+    }
+    return new Result<UDPSocket | null>(null, socketId);
+  }
+
+  constructor(
+    public id: u64,
+  ) {
+    super(id, net.drop_udp_socket);
+  }
+
+  public byteCount: usize = 0;
+
+  public buffer: StaticArray<u8> | null = null;
+  public ip: IPAddress | null = null;
+
+  /** Utilized by ason to serialize a socket. */
+  __asonSerialize(): StaticArray<u8> {
+    let id = net.clone_udp_socket(this.id);
+    let messageId = message.push_udp_socket(id);
+    let buff = new StaticArray<u8>(sizeof<u64>());
+    let ptr = changetype<usize>(buff);
+    store<u64>(ptr, messageId);
+    // memory.copy(ptr + sizeof<u64>(), changetype<usize>(this.ip), offsetof<IPAddress>());
+    return buff;
+  }
+
+  /** Utilized by ason to deserialize a socket. */
+  __asonDeserialize(buffer: StaticArray<u8>): void {
+    assert(buffer.length == sizeof<u64>());
+    let id = load<u64>(changetype<usize>(buffer));
+    this.id = message.take_udp_socket(id);
+  }
+
+  /**
+   * Send a buffer to the given address using udp.
+   *
+   * @param {StaticArray<u8>} buffer - The buffer to send.
+   * @param {IPAddress} addr - The IPAddress to send to.
+   * @param {u32} timeout - How long to wait until the operation times out.
+   * @returns {Result<NetworkResultType>} The result of sending a message to the given IPAddress using the socket.
+   */
+  sendTo(buffer: StaticArray<u8>, addr: IPAddress, timeout: u32 = 0): Result<NetworkResultType> {
+    let result = net.udp_send_to(
+      this.id,
+      changetype<usize>(buffer),
+      <usize>buffer.length,
+      addr.type,
+      changetype<usize>(addr),
+      addr.port,
+      addr.flowInfo,
+      addr.scopeId,
+      timeout,
+      idPtr,
+    );
+    let bytesWritten = load<u64>(idPtr);
+    if (result == TimeoutErrCode.Success) {
+      if (bytesWritten == 0) return new Result<NetworkResultType>(NetworkResultType.Closed);
+      this.byteCount = <usize>bytesWritten;
+      return new Result<NetworkResultType>(NetworkResultType.Success);
+    } else if (result == TimeoutErrCode.Fail) {
+      return new Result<NetworkResultType>(NetworkResultType.Error, bytesWritten);
+    } else {
+      error.drop_error(bytesWritten);
+      assert(result == TimeoutErrCode.Timeout);
+      return new Result<NetworkResultType>(NetworkResultType.Timeout);
+    }
+  }
+
+  /**
+   * Send a buffer to the connected address using udp.
+   *
+   * @param {StaticArray<u8>} buffer - The buffer to send.
+   * @param {IPAddress} addr - The IPAddress to send to.
+   * @param {u32} timeout - How long to wait until the operation times out.
+   * @returns {Result<NetworkResultType>} The result of sending a message to the given IPAddress using the socket.
+   */
+  send(buffer: StaticArray<u8>, timeout: u32 = 0): Result<NetworkResultType> {
+    let result = net.udp_send (
+      this.id,
+      changetype<usize>(buffer),
+      <usize>buffer.length,
+      timeout,
+      idPtr,
+    );
+    let bytesWritten = load<u64>(idPtr);
+    if (result == TimeoutErrCode.Success) {
+      if (bytesWritten == 0) return new Result<NetworkResultType>(NetworkResultType.Closed);
+      this.byteCount = <usize>bytesWritten;
+      return new Result<NetworkResultType>(NetworkResultType.Success);
+    } else if (result == TimeoutErrCode.Fail) {
+      return new Result<NetworkResultType>(NetworkResultType.Error, bytesWritten);
+    } else {
+      error.drop_error(bytesWritten);
+      assert(result == TimeoutErrCode.Timeout);
+      return new Result<NetworkResultType>(NetworkResultType.Timeout);
+    }
+  }
+
+  /**
+   * Receive a buffer from a given address.
+   *
+   * @param timeout - How long it should take until timeout
+   * @returns {Result<NetworkResultType>} The result of attempting to receive a message.
+   */
+  receiveFrom(timeout: u32 = 0): Result<NetworkResultType> {
+    let udpBuffer = memory.data(UDP_READ_BUFFER_SIZE);
+    let result = net.udp_receive_from(
+      this.id,
+      udpBuffer,
+      UDP_READ_BUFFER_SIZE,
+      timeout,
+      opaquePtr,
+      idPtr,
+    );
+    let bytesWritten = load<u64>(opaquePtr);
+    if (result == TimeoutErrCode.Success) {
+      // create a managed copy of the buffer
+      let buffer = new StaticArray<u8>(<i32>bytesWritten);
+      memory.copy(changetype<usize>(buffer), udpBuffer, <usize>bytesWritten);
+
+      // get the ip address
+      let dnsId = load<u64>(idPtr);
+      let ips = resolveDNSIterator(dnsId);
+      assert(ips.length == 1);
+
+      // set the buffer, bytecount and ip
+      this.buffer = buffer;
+      this.byteCount = <usize>bytesWritten;
+      this.ip = unchecked(ips[0]);
+      return new Result<NetworkResultType>(NetworkResultType.Success);
+    } else if (result == TimeoutErrCode.Fail) {
+      return new Result<NetworkResultType>(NetworkResultType.Error, bytesWritten);
+    } else {
+      assert(result == TimeoutErrCode.Timeout);
+      return new Result<NetworkResultType>(NetworkResultType.Timeout);
+    }
+  }
+
+  /**
+   * Receive a buffer from the connected address.
+   *
+   * @param timeout - How long it should take until timeout
+   * @returns {Result<NetworkResultType>} The result of attempting to receive a message.
+   */
+  receive(timeout: u32 = 0): Result<NetworkResultType> {
+    let udpBuffer = memory.data(UDP_READ_BUFFER_SIZE);
+    let result = net.udp_receive(
+      this.id,
+      udpBuffer,
+      UDP_READ_BUFFER_SIZE,
+      timeout,
+      opaquePtr,
+    );
+    let bytesWritten = load<u64>(opaquePtr);
+    if (result == TimeoutErrCode.Success) {
+      // create a managed copy of the buffer
+      let buffer = new StaticArray<u8>(<i32>bytesWritten);
+      memory.copy(changetype<usize>(buffer), udpBuffer, <usize>bytesWritten);
+
+      // set the buffer, bytecount and ip
+      this.buffer = buffer;
+      this.byteCount = <usize>bytesWritten;
+      return new Result<NetworkResultType>(NetworkResultType.Success);
+    } else if (result == TimeoutErrCode.Fail) {
+      return new Result<NetworkResultType>(NetworkResultType.Error, bytesWritten);
+    } else {
+      assert(result == TimeoutErrCode.Timeout);
+      return new Result<NetworkResultType>(NetworkResultType.Timeout);
+    }
+  }
+
+  /** Set or get if this socket should broadcast. */
+  get broadcast(): bool {
+    return net.get_udp_socket_broadcast(this.id);
+  }
+
+  set broadcast(value: bool) {
+    net.set_udp_socket_broadcast(this.id, value);
+  }
+
+  /** Set or get the time to live for this socket. */
+  get ttl(): u32 {
+    return net.get_udp_socket_ttl(this.id);
+  }
+
+  set ttl(value: u32) {
+    net.set_udp_socket_ttl(this.id, value);
+  }
+
+  /** Clone the current socket. */
+  clone(): UDPSocket {
+    return new UDPSocket(net.clone_udp_socket(this.id));
+  }
+}
+
+export * from "./SocketReader";
