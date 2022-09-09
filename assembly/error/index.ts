@@ -1,4 +1,4 @@
-import { error } from "../bindings";
+import { error } from "./bindings";
 import { htSet } from "as-disposable";
 
 
@@ -36,7 +36,14 @@ export class Result<T> {
     /** Used by the underlying lunatic call to identify an error if it exists. */
     private errId: u64 = u64.MAX_VALUE,
   ) {
-    if (errId != u64.MAX_VALUE) htSet(changetype<usize>(this), errId, error.drop_error.index);
+    if (errId != u64.MAX_VALUE) {
+      htSet(
+        changetype<usize>(this),
+        errId,
+        // @ts-ignore: index is defined
+        error.drop_error.index
+      );
+    }
   }
 
   /**

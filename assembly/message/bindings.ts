@@ -1,16 +1,18 @@
-import { MessageType, TimeoutErrCode } from "../util";
+import { TimeoutErrCode } from "../util";
+import { MessageType } from "./util";
 
 /** The message namespace containing all functions that reside in the "lunatic::message" namespace. */
 export namespace message {
   /**
    * Create a message with a tag, and an initial capacity.
    *
-   * @param {i64} tag - The tag for the data message.
+   * @param {u64} tag - The tag for the data message.
    * @param {u64} capacity - The initial size of the data.
    */
   // @ts-ignore: decorator
   @external("lunatic::message", "create_data")
-  export declare function create_data(tag: i64, capacity: u64): void;
+  export declare function create_data(tag: u64, capacity: u64): void;
+
   /**
    * Write data to the message.
    *
@@ -30,6 +32,7 @@ export namespace message {
   // @ts-ignore: decorator
   @external("lunatic::message", "read_data")
   export declare function read_data(data: usize /* *mut u8 */, data_len: usize): usize;
+
   /**
    * Move the data buffer index.
    *
@@ -50,24 +53,7 @@ export namespace message {
   // @ts-ignore: decorator
   @external("lunatic::message", "data_size")
   export declare function data_size(): u64;
-  /**
-   * Push a process to the resource list, and return it's resource id.
-   *
-   * @param {u64} process_id - The process to be transferred.
-   * @returns The resource id.
-   */
-  // @ts-ignore: decorator
-  @external("lunatic::message", "push_process")
-  export declare function push_process(process_id: u64): u64;
-  /**
-   * Take a process handle from the resource list by it's id.
-   *
-   * @param {u64} index - The resource id.
-   * @returns The process id.
-   */
-  // @ts-ignore: decorator
-  @external("lunatic::message", "take_process")
-  export declare function take_process(index: u64): u64;
+
   /**
    * Push a tcp stream to the resource list.
    *
@@ -86,6 +72,7 @@ export namespace message {
   // @ts-ignore: decorator
   @external("lunatic::message", "take_tcp_stream")
   export declare function take_tcp_stream(index: u64): u64;
+
   /**
    * Send the current message to a process.
    *
@@ -94,6 +81,7 @@ export namespace message {
   // @ts-ignore: decorator
   @external("lunatic::message", "send")
   export declare function send(process_id: u64): void;
+
   /**
    * Push a socket to the resource list.
    * @param socket_id - The socket id.
@@ -134,3 +122,4 @@ export namespace message {
   @external("lunatic::message", "receive")
   export declare function receive(tag: usize /* *const i64 */, tag_length: usize, timeout: u32): MessageType;
 }
+
