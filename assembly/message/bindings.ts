@@ -120,6 +120,6 @@ export namespace message {
    */
   // @ts-ignore: decorator
   @external("lunatic::message", "receive")
-  export declare function receive(tag: usize /* *const i64 */, tag_length: usize, timeout: u32): MessageType;
+  export declare function receive(tag: usize /* *const i64 */, tag_length: usize, timeout: u64): MessageType;
 }
 

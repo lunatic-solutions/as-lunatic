@@ -2,7 +2,7 @@
   "name": "as-lunatic",
   "version": "0.3.0",
   "types": "assembly/index.ts",
-  "asMain": "assembly/index.ts",
+  "main": "assembly/index.ts",
   "description": "Bindings for lunatic imports",
   "scripts": {
     "asbuild": "asc --debug assembly/tests.ts --outFile build/test.wasm --config asconfig.json",

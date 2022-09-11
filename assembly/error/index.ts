@@ -1,5 +1,5 @@
 import { error } from "./bindings";
-import { htSet } from "as-disposable";
+import { htSet } from "as-disposable/assembly";
 
 
 /** A predefined location to store id and error output. */

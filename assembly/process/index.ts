@@ -1,5 +1,5 @@
 import { ASON } from "@ason/assembly";
-import { ASManaged } from "as-disposable";
+import { ASManaged } from "as-disposable/assembly";
 import { distributed } from "../distributed/bindings";
 import { Result } from "../error";
 import { Mailbox } from "../message";
@@ -318,7 +318,7 @@ export class Process<TMessage> {
       assert(unpacked);
 
       // call the start message callback with the start value
-      call_indirect(unpacked!.value.index, unpacked!.value.start, mb);
+      call_indirect(<u32>unpacked!.value.index, unpacked!.value.start, mb);
     });
 
     // if process creation was successful, send the first message which should be a TStart wrapper

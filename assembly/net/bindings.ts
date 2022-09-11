@@ -14,7 +14,7 @@ export namespace dns {
      */
     // @ts-ignore: external is valid here
     @external("lunatic::networking", "resolve")
-    export declare function resolve(name_str_ptr: usize, name_str_len: usize, timeout: u32, id_ptr: usize): ErrCode;
+    export declare function resolve(name_str_ptr: usize, name_str_len: usize, timeout: u64, id_ptr: usize): ErrCode;
 
     /**
      * Drop a dns iterator.
@@ -138,7 +138,7 @@ export namespace tcp {
    */
   // @ts-ignore: external is valid here
   @external("lunatic::networking", "tcp_write_vectored")
-  export declare function tcp_write_vectored(stream_id: u64, ciovec_array_ptr: iovec, ciovec_array_len: u32, timeout: u32, opaque_ptr: usize): TimeoutErrCode;
+  export declare function tcp_write_vectored(stream_id: u64, ciovec_array_ptr: iovec, ciovec_array_len: u32, opaque_ptr: usize): TimeoutErrCode;
 
   /**
    * Create a new tcp connection to a TCP Server.
@@ -155,11 +155,11 @@ export namespace tcp {
   @external("lunatic::networking", "tcp_connect")
   export declare function tcp_connect(
       addr_type: u32,
-      addr_u8_ptr: u32,
+      addr_u8_ptr: usize,
       port: u32,
       flow_info: u32,
       scope_id: u32,
-      timeout: u32,
+      timeout: u64,
       id_u64_ptr: usize,
   ): ErrCode;
 

@@ -28,7 +28,7 @@ export namespace distributed {
    * Send the current message to a process with the given node and process id.
    */
   // @ts-ignore: decorator
-  @external("lunatic::message", "send")
+  @external("lunatic::distributed", "send")
   export declare function send(node_id: u64, process_id: u64): void;
 
 
@@ -36,7 +36,7 @@ export namespace distributed {
    * Send a message, skipping search, with a timeout.
    */
   // @ts-ignore: decorator
-  @external("lunatic::message", "send_receive_skip_search")
+  @external("lunatic::distributed", "send_receive_skip_search")
   export declare function send_receive_skip_search(node_id: u64, process_id: u64, timeout: u32): TimeoutErrCode;
  /**
   * Similar to a local spawn, it spawns a new process using the passed in function inside a module
@@ -63,7 +63,7 @@ export namespace distributed {
   * * If any memory outside the guest heap space is referenced.
   */
  // @ts-ignore: external is valid here
-  @external("lunatic::process", "spawn")
+  @external("lunatic::distributed", "spawn")
   export declare function spawn(
     link: i64,
     node_id: u64,
