@@ -10,6 +10,26 @@ export const enum IPType {
 
 /** Represents an IP Address, v6 or v4. */
 export class IPAddress {
+  static v4(ip: StaticArray<u8>, port: u16): IPAddress {
+    let result = new IPAddress();
+    assert(ip.length == 4);
+    memory.copy(changetype<usize>(result), changetype<usize>(ip), 4);
+    result.port = port;
+    result.type = IPType.IPV4;
+    return result;
+  }
+
+  static v6(ip: StaticArray<u8>, port: u16, flowInfo: u32, scopeId: u32): IPAddress {
+    let result = new IPAddress();
+    assert(ip.length == 16);
+    memory.copy(changetype<usize>(result), changetype<usize>(ip), 16);
+    result.port = port;
+    result.type = IPType.IPV6;
+    result.flowInfo = flowInfo;
+    result.scopeId = scopeId;
+    return result;
+  }
+
   // allocate 16 bytes for the address
   private _address_1: u64 = 0;
   private _address_2: u64 = 0;

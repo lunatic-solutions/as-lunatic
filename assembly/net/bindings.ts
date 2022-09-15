@@ -224,3 +224,149 @@ export namespace tcp {
     tcp_listener_id: u64,
   ): ErrCode;
 }
+
+
+export namespace udp {
+  /**
+   * Creates a new UDP socket, which will be bound to the specified address. The returned socket
+   * is ready for receiving messages.
+   *
+   * Binding with a port number of 0 will request that the OS assigns a port to this socket. The
+   * port allocated can be queried via the `udp_local_addr` method.
+   *
+   * Returns:
+   * * 0 on success - The ID of the newly created UDP socket is written to **id_u64_ptr**
+   * * 1 on error   - The error ID is written to **id_u64_ptr**
+   *
+   * Traps:
+   * * If **addr_type** is neither 4 or 6.
+   * * If any memory outside the guest heap space is referenced.
+   */
+  // @ts-ignore: external
+  @external("lunatic::networking", "udp_bind")
+  export declare function udp_bind(addr_type: IPType, addr_u8_ptr: usize, port: u32, flow_info: u32, scope_id: u32, id_u64_ptr: usize): ErrCode;
+
+  // @ts-ignore: external
+  @external("lunatic::networking", "drop_udp_socket")
+  export declare function drop_udp_socket(udp_socket_id: u64): void;
+  
+  /**
+   * Reads data from the connected udp socket and writes it to the given buffer. This method will
+   * fail if the socket is not connected.
+   *
+   * Returns:
+   * * 0 on success    - The number of bytes read is written to **opaque_ptr**
+   * * 1 on error      - The error ID is written to **opaque_ptr**
+   *
+   * Traps:
+   * * If the socket ID doesn't exist.
+   * * If any memory outside the guest heap space is referenced.
+   */
+  // @ts-ignore: external
+  @external("lunatic::networking", "udp_receive")
+  export declare function udp_receive(socket_id: u64, buffer_ptr: usize, buffer_len: usize, opaque_ptr: usize): ErrCode;
+  /**
+   * Receives data from the socket.
+   *
+   * Returns:
+   * * 0 on success    - The number of bytes read is written to **opaque_ptr** and the sender's
+   *                     address is returned as a DNS iterator through i64_dns_iter_ptr.
+   * * 1 on error      - The error ID is written to **opaque_ptr**
+   *
+   * Traps:
+   * * If the stream ID doesn't exist.
+   * * If any memory outside the guest heap space is referenced.
+   */
+  // @ts-ignore: external
+  @external("lunatic::networking", "udp_receive_from")
+  export declare function udp_receive_from(socket_id: u64, buffer_ptr: usize, buffer_len: usize, opaque_ptr: usize, dns_iter_ptr: usize): ErrCode;
+  
+  /**
+   * Connects the UDP socket to a remote address.
+   *
+   * When connected, methods `networking::send` and `networking::receive` will use the specified
+   * address for sending and receiving messages. Additionally, a filter will be applied to
+   * `networking::receive_from` so that it only receives messages from that same address.
+   *
+   * Returns:
+   * * 0 on success
+   * * 1 on error      - The error ID is written to **id_ptr**.
+   * * 9027 on timeout - The socket connect operation timed out.
+   *
+   * Traps:
+   * * If any memory outside the guest heap space is referenced.
+   */
+  // @ts-ignore: external
+  @external("lunatic::networking", "udp_connect")
+  export declare function udp_connect(udp_socket_id: u64, addr_type: IPType, addr_u8_ptr: usize, port: u32, flow_info: u32, scope_id: u32, timeout_duration: u64, id_u64_ptr: usize): ErrCode;
+  
+  // @ts-ignore: external
+  @external("lunatic::networking", "clone_udp_socket")
+  export declare function clone_udp_socket(udp_socket_id: u64): u64;
+  
+  // @ts-ignore: external
+  @external("lunatic::networking", "set_udp_socket_broadcast")
+  export declare function set_udp_socket_broadcast(udp_socket_id: u64, broadcast: bool): void;
+  
+  // @ts-ignore: external
+  @external("lunatic::networking", "get_udp_socket_broadcast")
+  export declare function get_udp_socket_broadcast(udp_socket_id: u64): bool;
+  
+  // @ts-ignore: external
+  @external("lunatic::networking", "set_udp_socket_ttl")
+  export declare function set_udp_socket_ttl(udp_socket_id: u64, ttl: u32): void;
+  
+  // @ts-ignore: external
+  @external("lunatic::networking", "get_udp_socket_ttl")
+  export declare function get_udp_socket_ttl(udp_socket_id: u64): u32;
+  
+  
+  /**
+   * Sends data on the socket to the given address.
+   *
+   * Returns:
+   * * 0 on success    - The number of bytes written is written to **opaque_ptr**
+   * * 1 on error      - The error ID is written to **opaque_ptr**
+   *
+   * Traps:
+   * * If the stream ID doesn't exist.
+   * * If any memory outside the guest heap space is referenced.
+   */
+  // @ts-ignore: external
+  @external("lunatic::networking", "udp_send_to")
+  export declare function udp_send_to(socket_id: u64, buffer_ptr: usize, buffer_len: usize, addr_type: u32, addr_u8_ptr: usize, port: u32, flow_info: u32, scope_id: u32, opaque_ptr: usize): ErrCode;
+  
+  /**
+   * Sends data on the socket to the remote address to which it is connected.
+   *
+   * The `networking::udp_connect` method will connect this socket to a remote address. This method
+   * will fail if the socket is not connected.
+   *
+   * Returns:
+   * * 0 on success    - The number of bytes written is written to **opaque_ptr**
+   * * 1 on error      - The error ID is written to **opaque_ptr**
+   *
+   * Traps:
+   * * If the stream ID doesn't exist.
+   * * If any memory outside the guest heap space is referenced.
+   */
+  // @ts-ignore: external
+  @external("lunatic::networking", "udp_send")
+  export declare function udp_send(socket_id: u64, buffer_ptr: usize, buffer_len: usize, opaque_ptr: usize): ErrCode;
+
+  /**
+   * Returns the local address of this socket, bound to a DNS iterator with just one
+   * element.
+   *
+   * * 0 on success - The local address that this socket is bound to, returned as a DNS
+   *                  iterator with just one element and written to **id_ptr**.
+   * * 1 on error   - The error ID is written to **id_u64_ptr**.
+   *
+   * Traps:
+   * * If the udp socket ID doesn't exist.
+   * * If any memory outside the guest heap space is referenced.
+   */
+  // @ts-ignore: external
+  @external("lunatic::networking", "udp_local_addr")
+  export declare function udp_local_addr(udp_socket_id: u64, id_u64_ptr: u32): ErrCode;
+}

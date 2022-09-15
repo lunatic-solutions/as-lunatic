@@ -88,6 +88,7 @@ export class Config extends ASManaged {
  * Represents a web assembly module to instantiate lunatic processes in.
  */
 export class Module extends ASManaged {
+  // @ts-ignore: unsafe valid here
   @unsafe constructor(public id: u64) {
     super(id, process.drop_module);
   }
@@ -129,8 +130,14 @@ export class Module extends ASManaged {
 
 /** Represents a lunatic process. */
 export class Process<TMessage> {
+
+  /** Return a reference to the current process. */
+  static self<T>(): Process<T> {
+    return new Process<T>(Process.processID, Process.tag++, Process.node);
+  }
+
   /** Get the current node id for this running process. */
-  static node(): u64 {
+  static get node(): u64 {
     return distributed.node_id();
   }
 
@@ -166,7 +173,7 @@ export class Process<TMessage> {
    * Private tag reference, used to generate unique tag identifiers for
    * process linking and request sending.
    */
-  private static tag: u64 = 0;
+  static tag: u64 = 0;
 
   /**
    * Link a process and tag it with a unique identifier. When the process dies, it
@@ -310,7 +317,7 @@ export class Process<TMessage> {
 
       // create a fake mailbox that receives the first message of the process
       let startMb = changetype<Mailbox<StartWrapper<TStart>>>(0);
-      let startMessage = startMb.receive();
+      let startMessage = startMb.receive([], u64.MAX_VALUE);
 
       // we know it must be a Data message
       assert(startMessage.type == MessageType.Data);
