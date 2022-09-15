@@ -65,10 +65,19 @@ export const enum NetworkResultType {
   Error,
 }
 
-export class TCPResult<TData> {
+export class TCPResult {
   constructor(
     public type: NetworkResultType = NetworkResultType.Success,
     public error: string | null = null,
-    public data: TData | null = null,
-  ) {}
+    public byteLength: usize = 0,
+    ) {}
+}
+
+export class UDPResult {
+  constructor(
+    public type: NetworkResultType = NetworkResultType.Success,
+    public error: string | null = null,
+    public byteLength: usize = 0,
+    public ip: IPAddress | null = null,
+    ) {}
 }

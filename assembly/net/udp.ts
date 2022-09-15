@@ -1,10 +1,12 @@
 import { ASManaged } from "as-disposable/assembly/index";
-import { idPtr, Result } from "../error";
+import { OBJECT, TOTAL_OVERHEAD } from "assemblyscript/std/assembly/rt/common";
+import { getError, idPtr, Result } from "../error";
+import { error } from "../error/bindings";
 import { message } from "../message/bindings";
 import { ErrCode, opaquePtr } from "../util";
 import { udp } from "./bindings";
 import { resolveDNSIterator } from "./dns";
-import { IPAddress, IPType, NetworkResultType } from "./util";
+import { IPAddress, IPType, NetworkResultType, UDPResult } from "./util";
 
 export class UDPSocket extends ASManaged {
   static bindIP(addr: IPAddress): Result<UDPSocket | null> {
@@ -48,7 +50,6 @@ export class UDPSocket extends ASManaged {
 
   public byteCount: usize = 0;
 
-  public buffer: StaticArray<u8> | null = null;
   public ip: IPAddress | null = null;
 
   /** Utilized by ason to serialize a socket. */
@@ -124,68 +125,125 @@ export class UDPSocket extends ASManaged {
       }
     }
 
-  /**
-   * Receive a buffer from a given address.
-   *
-   * @param timeout - How long it should take until timeout
-   * @returns {Result<NetworkResultType>} The result of attempting to receive a message.
-   */
-  receiveFrom(timeout: u32 = 0): Result<NetworkResultType> {
-    let udpBuffer = memory.data(UDP_READ_BUFFER_SIZE);
+  @unsafe private unsafeReceiveFromImpl(udpBuffer: usize, length: usize): UDPResult {
     let result = udp.udp_receive_from(
       this.id,
       udpBuffer,
-      UDP_READ_BUFFER_SIZE,
+      length,
       opaquePtr,
       idPtr,
     );
-    let bytesWritten = load<u64>(opaquePtr);
+    let opaqueValue = load<u64>(opaquePtr);
     if (result == ErrCode.Success) {
-      // create a managed copy of the buffer
-      let buffer = new StaticArray<u8>(<i32>bytesWritten);
-      memory.copy(changetype<usize>(buffer), udpBuffer, <usize>bytesWritten);
-
       // get the ip address
       let dnsId = load<u64>(idPtr);
       let ips = resolveDNSIterator(dnsId);
       assert(ips.length == 1);
-
-      // set the buffer, bytecount and ip
-      this.buffer = buffer;
-      this.byteCount = <usize>bytesWritten;
-      this.ip = unchecked(ips[0]);
-      return new Result<NetworkResultType>(NetworkResultType.Success);
+      return new UDPResult(NetworkResultType.Success, null, 0, unchecked(ips[0]));
     } else {
-      return new Result<NetworkResultType>(NetworkResultType.Error, bytesWritten);
+      let errorDesc = getError(opaqueValue);
+      error.drop_error(opaqueValue);
+      return new UDPResult(NetworkResultType.Error, errorDesc, opaqueValue);
     }
+  }
+
+  @unsafe private unsafeReceiveImpl(udpBuffer: usize, length: usize): UDPResult {
+    let result = udp.udp_receive(
+      this.id,
+      udpBuffer,
+      length,
+      opaquePtr,
+    );
+    let opaqueValue = load<u64>(opaquePtr);
+    if (result == ErrCode.Success) {
+      return new UDPResult(NetworkResultType.Success, null, 0, null);
+    } else {
+      let errorDesc = getError(opaqueValue);
+      error.drop_error(opaqueValue);
+      return new UDPResult(NetworkResultType.Error, errorDesc, opaqueValue);
+    }
+  }
+
+  /**
+   * Receive a buffer from a given address.
+   *
+   * @returns {Result<NetworkResultType>} The result of attempting to receive a message.
+   */
+  receiveFrom<T>(buffer: T): UDPResult {
+    if (buffer instanceof StaticArray) {
+      let header = changetype<OBJECT>(changetype<usize>(buffer) - TOTAL_OVERHEAD);
+      return this.unsafeReceiveFromImpl(
+        changetype<usize>(buffer),
+        <usize>header.rtSize,
+      );
+    } else if (buffer instanceof ArrayBuffer) {
+      let header = changetype<OBJECT>(changetype<usize>(buffer) - TOTAL_OVERHEAD);
+      return this.unsafeReceiveFromImpl(
+        changetype<usize>(buffer),
+        <usize>header.rtSize,
+      );
+      // @ts-ignore
+    } else if (buffer instanceof ArrayBufferView) {
+      // This branch doesn't account for the global ArrayBufferView class, this is safe
+      return this.unsafeReceiveFromImpl(
+        // @ts-ignore
+        buffer.dataStart,
+        // @ts-ignore
+        <usize>buffer.byteLength,
+      );
+    } else if (buffer instanceof Array) {
+      assert(buffer.length > 0);
+      let item0 = unchecked(buffer[0]);
+      if (isReference(item0)) ERROR("Cannot use array of references for UDPSocket#receiveFrom()");
+
+      return this.unsafeReceiveFromImpl(
+        buffer.dataStart,
+        // @ts-ignore: This is safe
+        <usize>buffer.length << (alignof<valueof<TData>>()),
+      )
+    }
+    ERROR("Invalid type for UDPSocket#receiveFrom()");
   }
 
   /**
    * Receive a buffer from the connected address.
    *
-   * @returns {Result<NetworkResultType>} The result of attempting to receive a message.
+   * @returns {UDPResult} The result of attempting to receive a message.
    */
-  receive(): Result<NetworkResultType> {
-    let udpBuffer = memory.data(UDP_READ_BUFFER_SIZE);
-    let result = udp.udp_receive(
-      this.id,
-      udpBuffer,
-      UDP_READ_BUFFER_SIZE,
-      opaquePtr,
-    );
-    let bytesWritten = load<u64>(opaquePtr);
-    if (result == ErrCode.Success) {
-      // create a managed copy of the buffer
-      let buffer = new StaticArray<u8>(<i32>bytesWritten);
-      memory.copy(changetype<usize>(buffer), udpBuffer, <usize>bytesWritten);
+  receive<T>(buffer: T): UDPResult {
+    if (buffer instanceof StaticArray) {
+      let header = changetype<OBJECT>(changetype<usize>(buffer) - TOTAL_OVERHEAD);
+      return this.unsafeReceiveImpl(
+        changetype<usize>(buffer),
+        <usize>header.rtSize,
+      );
+    } else if (buffer instanceof ArrayBuffer) {
+      let header = changetype<OBJECT>(changetype<usize>(buffer) - TOTAL_OVERHEAD);
+      return this.unsafeReceiveImpl(
+        changetype<usize>(buffer),
+        <usize>header.rtSize,
+      );
+      // @ts-ignore
+    } else if (buffer instanceof ArrayBufferView) {
+      // This branch doesn't account for the global ArrayBufferView class, this is safe
+      return this.unsafeReceiveImpl(
+        // @ts-ignore
+        buffer.dataStart,
+        // @ts-ignore
+        <usize>buffer.byteLength,
+      );
+    } else if (buffer instanceof Array) {
+      assert(buffer.length > 0);
+      let item0 = unchecked(buffer[0]);
+      if (isReference(item0)) ERROR("Cannot use array of references for UDPSocket#receive()");
 
-      // set the buffer, bytecount and ip
-      this.buffer = buffer;
-      this.byteCount = <usize>bytesWritten;
-      return new Result<NetworkResultType>(NetworkResultType.Success);
-    } else {
-      return new Result<NetworkResultType>(NetworkResultType.Error, bytesWritten);
+      return this.unsafeReceiveImpl(
+        buffer.dataStart,
+        // @ts-ignore: This is safe
+        <usize>buffer.length << (alignof<valueof<TData>>()),
+      )
     }
+    ERROR("Invalid type for UDPSocket#receive()");
   }
 
   /** Set or get if this socket should broadcast. */

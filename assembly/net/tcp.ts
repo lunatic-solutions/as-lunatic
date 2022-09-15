@@ -1,5 +1,6 @@
 import { iovec } from "@assemblyscript/wasi-shim/assembly/bindings/wasi_snapshot_preview1";
 import { ASManaged } from "as-disposable/assembly";
+import { OBJECT, TOTAL_OVERHEAD } from "assemblyscript/std/assembly/rt/common";
 import { getError, Result } from "../error";
 import { error } from "../error/bindings";
 import { message } from "../message/bindings";
@@ -7,13 +8,6 @@ import { ErrCode, TimeoutErrCode, opaquePtr } from "../util";
 import { tcp } from "./bindings";
 import { resolveDNSIterator } from "./dns";
 import { IPAddress, IPType, NetworkResultType, TCPResult } from "./util";
-
-// @ts-ignore: @lazy is valid here
-@lazy const tcpReadPointer = memory.data(TCP_READ_VECTOR_SIZE);
-// @ts-ignore: @lazy is valid here
-@lazy let opaqueValue: u64 = 0;
-// @ts-ignore: @lazy is valid here
-@lazy let readResult: TimeoutErrCode = TimeoutErrCode.Success;
 
 const idPtr = memory.data(sizeof<u64>());
 
@@ -134,201 +128,143 @@ export class TCPSocket extends ASManaged {
     super(id, tcp.drop_tcp_stream);
   }
 
-  /**
-   * Perform the syscall to make a tcp read. The readResult global will be populated
-   * with the result of the syscall, while the opaqueValue will be populated with 64 bytes
-   * representing the error id, or the number of bytes read from the stream.
-   */
-  private readImpl(): void {
-    readResult = tcp.tcp_read(this.id, tcpReadPointer, TCP_READ_VECTOR_SIZE, opaquePtr);
-    opaqueValue = load<u64>(opaquePtr);
+  /** Unsafe read implementation that uses a raw pointer, and returns the number of bytes read. */
+  @unsafe private unsafePeekImpl(ptr: usize, size: usize): TCPResult {
+    let peekResult = tcp.tcp_peek(this.id, ptr, size, opaquePtr);
+    let opaqueValue = load<u64>(opaquePtr);
+    if (peekResult == TimeoutErrCode.Success) {
+      if (opaqueValue == 0) return this.readClosed();
+      return this.readSuccess(opaqueValue);
+    }
+    // timeouts are easy
+    if (peekResult == TimeoutErrCode.Timeout) return this.readTimeoutResult();
+    // must be an error
+    return this.readError(opaqueValue);
   }
 
-  /**
-   * Perform the syscall to make a tcp peek. The readResult global will be populated
-   * with the result of the syscall, while the opaqueValue will be populated with 64 bytes
-   * representing the error id, or the number of bytes read from the stream.
-   */
-  private peekImpl(): void {
-    readResult = tcp.tcp_peek(this.id, tcpReadPointer, TCP_READ_VECTOR_SIZE, opaquePtr);
-    opaqueValue = load<u64>(opaquePtr);
+  /** Unsafe read implementation that uses a raw pointer, and returns the number of bytes read. */
+  @unsafe private unsafeReadImpl(ptr: usize, size: usize): TCPResult {
+    let readResult = tcp.tcp_read(this.id, ptr, size, opaquePtr);
+    let opaqueValue = load<u64>(opaquePtr);
+    if (readResult == TimeoutErrCode.Success) {
+      if (opaqueValue == 0) return this.readClosed();
+      return this.readSuccess(opaqueValue);
+    }
+    // timeouts are easy
+    if (readResult == TimeoutErrCode.Timeout) return this.readTimeoutResult();
+    // must be an error
+    return this.readError(opaqueValue);
   }
 
-  private readClosed<TData>(): TCPResult<TData> {
-    return new TCPResult<TData>(
+  private readClosed(): TCPResult {
+    return new TCPResult(
       NetworkResultType.Closed,
       null,
-      null,
+      0,
     );
   }
 
-  private readSuccess<TData>(data: TData, writePtr: usize): TCPResult<TData> {
-    memory.copy(
-      writePtr,
-      tcpReadPointer,
-      <usize>opaqueValue,
-    );
-    return new TCPResult<TData>(
-      NetworkResultType.Success,
-      null,
-      data,
-    );
+  private readSuccess(bytesRead: u64): TCPResult {
+      return new TCPResult(
+        NetworkResultType.Success,
+        null,
+        <usize>bytesRead,
+      );
   }
 
-  private readTimeoutResult<TData>(): TCPResult<TData> {
-    return new TCPResult<TData>(
+  private readTimeoutResult(): TCPResult {
+    return new TCPResult(
       NetworkResultType.Timeout,
       null,
-      null,
+      0,
     );
   }
 
-  private readError<TData>(): TCPResult<TData> {
+  private readError(opaqueValue: u64): TCPResult {
     let errorString = getError(opaqueValue);
     error.drop_error(opaqueValue);
-    return new TCPResult<TData>(
+    return new TCPResult(
       NetworkResultType.Error,
       errorString,
-      null,
+      0,
     );
   }
 
-  readStaticArray<UData extends number>(): TCPResult<StaticArray<UData>> {
-    this.readImpl();
-    if (readResult == TimeoutErrCode.Success) {
-      if (opaqueValue == 0) return this.readClosed<StaticArray<UData>>();
-      let result = new StaticArray<UData>(<i32>opaqueValue);
-      return this.readSuccess<StaticArray<UData>>(
-        result,
-        changetype<usize>(result),
-      );
-    }
-    // timeouts are easy
-    if (readResult == TimeoutErrCode.Timeout) return this.readTimeoutResult<StaticArray<UData>>();
-    // must be an error
-    return this.readError<StaticArray<UData>>();
-  }
-
   /**
-   * Read a buffer from the TCP Stream with a timeout.
-   *
-   * @returns {ArrayBuffer} The resulting buffer.
+   * Read data from the TCP stream into a buffer, or an array.
    */
-  readBuffer(): TCPResult<ArrayBuffer> {
-    this.readImpl();
-    if (readResult == TimeoutErrCode.Success) {
-      if (opaqueValue == 0) return this.readClosed<ArrayBuffer>();
-      let result = new ArrayBuffer(<i32>opaqueValue);
-      return this.readSuccess<ArrayBuffer>(
-        result,
-        changetype<usize>(result),
+  read<TData>(buffer: TData): TCPResult {
+    if (buffer instanceof StaticArray) {
+      let header = changetype<OBJECT>(changetype<usize>(buffer) - TOTAL_OVERHEAD);
+      return this.unsafeReadImpl(
+        changetype<usize>(buffer),
+        <usize>header.rtSize,
       );
-    }
-    // timeouts are easy
-    if (readResult == TimeoutErrCode.Timeout) return this.readTimeoutResult<ArrayBuffer>();
-    // must be an error
-    return this.readError<ArrayBuffer>();
-  }
-
-  readTypedArray<TData extends ArrayBufferView>(): TCPResult<TData> {
-    this.readImpl();
-    if (readResult == TimeoutErrCode.Success) {
-      if (opaqueValue == 0) return this.readClosed<TData>();
-      let result = instantiate<TData>(<i32>opaqueValue);
-      return this.readSuccess<TData>(
-        result,
-        result.dataStart,
+    } else if (buffer instanceof ArrayBuffer) {
+      let header = changetype<OBJECT>(changetype<usize>(buffer) - TOTAL_OVERHEAD);
+      return this.unsafeReadImpl(
+        changetype<usize>(buffer),
+        <usize>header.rtSize,
       );
-    }
-    // timeouts are easy
-    if (readResult == TimeoutErrCode.Timeout) return this.readTimeoutResult<TData>();
-    // must be an error
-    return this.readError<TData>();
-  }
-
-  readArray<TData extends number>(): TCPResult<Array<TData>> {
-    this.readImpl();
-    if (readResult == TimeoutErrCode.Success) {
-      if (opaqueValue == 0) return this.readClosed<Array<TData>>();
-      let result = instantiate<Array<TData>>(<i32>opaqueValue);
-      return this.readSuccess<Array<TData>>(
-        result,
-        result.dataStart,
+      // @ts-ignore
+    } else if (buffer instanceof ArrayBufferView) {
+      // This branch doesn't account for the global ArrayBufferView class, this is safe
+      return this.unsafeReadImpl(
+        // @ts-ignore
+        buffer.dataStart,
+        // @ts-ignore
+        <usize>buffer.byteLength,
       );
-    }
-    // timeouts are easy
-    if (readResult == TimeoutErrCode.Timeout) return this.readTimeoutResult<Array<TData>>();
-    // must be an error
-    return this.readError<Array<TData>>();
-  }
+    } else if (buffer instanceof Array) {
+      assert(buffer.length > 0);
+      let item0 = unchecked(buffer[0]);
+      if (isReference(item0)) ERROR("Cannot use array of references for TCPSocket#read()");
 
-  peekStaticArray<UData extends number>(): TCPResult<StaticArray<UData>> {
-    this.peekImpl();
-    if (readResult == TimeoutErrCode.Success) {
-      if (opaqueValue == 0) return this.readClosed<StaticArray<UData>>();
-      let result = new StaticArray<UData>(<i32>opaqueValue);
-      return this.readSuccess<StaticArray<UData>>(
-        result,
-        changetype<usize>(result),
-      );
+      return this.unsafeReadImpl(
+        buffer.dataStart,
+        // @ts-ignore: This is safe
+        <usize>buffer.length << (alignof<valueof<TData>>()),
+      )
     }
-    // timeouts are easy
-    if (readResult == TimeoutErrCode.Timeout) return this.readTimeoutResult<StaticArray<UData>>();
-    // must be an error
-    return this.readError<StaticArray<UData>>();
+    ERROR("Invalid type for TCPSocket#read()");
   }
-
   /**
-   * Read a buffer from the TCP Stream with a timeout.
-   *
-   * @returns {ArrayBuffer} The resulting buffer.
+   * Read data from the TCP stream into a buffer, or an array.
    */
-  peekBuffer(): TCPResult<ArrayBuffer> {
-    this.peekImpl();
-    if (readResult == TimeoutErrCode.Success) {
-      if (opaqueValue == 0) return this.readClosed<ArrayBuffer>();
-      let result = new ArrayBuffer(<i32>opaqueValue);
-      return this.readSuccess<ArrayBuffer>(
-        result,
-        changetype<usize>(result),
+  peek<TData>(buffer: TData): TCPResult {
+    if (buffer instanceof StaticArray) {
+      let header = changetype<OBJECT>(changetype<usize>(buffer) - TOTAL_OVERHEAD);
+      return this.unsafePeekImpl(
+        changetype<usize>(buffer),
+        <usize>header.rtSize,
       );
-    }
-    // timeouts are easy
-    if (readResult == TimeoutErrCode.Timeout) return this.readTimeoutResult<ArrayBuffer>();
-    // must be an error
-    return this.readError<ArrayBuffer>();
-  }
+    } else if (buffer instanceof ArrayBuffer) {
+      let header = changetype<OBJECT>(changetype<usize>(buffer) - TOTAL_OVERHEAD);
+      return this.unsafePeekImpl(
+        changetype<usize>(buffer),
+        <usize>header.rtSize,
+      );
+      // @ts-ignore
+    } else if (buffer instanceof ArrayBufferView) {
+      // This branch doesn't account for the global ArrayBufferView class, this is safe
+      return this.unsafePeekImpl(
+        // @ts-ignore
+        buffer.dataStart,
+        // @ts-ignore
+        <usize>buffer.byteLength,
+      );
+    } else if (buffer instanceof Array) {
+      assert(buffer.length > 0);
+      let item0 = unchecked(buffer[0]);
+      if (isReference(item0)) ERROR("Cannot use array of references for TCPSocket#read()");
 
-  peekTypedArray<TData extends ArrayBufferView>(): TCPResult<TData> {
-    this.peekImpl();
-    if (readResult == TimeoutErrCode.Success) {
-      if (opaqueValue == 0) return this.readClosed<TData>();
-      let result = instantiate<TData>(<i32>opaqueValue);
-      return this.readSuccess<TData>(
-        result,
-        result.dataStart,
-      );
+      return this.unsafePeekImpl(
+        buffer.dataStart,
+        // @ts-ignore: This is safe
+        <usize>buffer.length << (alignof<valueof<TData>>()),
+      )
     }
-    // timeouts are easy
-    if (readResult == TimeoutErrCode.Timeout) return this.readTimeoutResult<TData>();
-    // must be an error
-    return this.readError<TData>();
-  }
-
-  peekArray<TData extends number>(): TCPResult<Array<TData>> {
-    this.peekImpl();
-    if (readResult == TimeoutErrCode.Success) {
-      if (opaqueValue == 0) return this.readClosed<Array<TData>>();
-      let result = instantiate<Array<TData>>(<i32>opaqueValue);
-      return this.readSuccess<Array<TData>>(
-        result,
-        result.dataStart,
-      );
-    }
-    // timeouts are easy
-    if (readResult == TimeoutErrCode.Timeout) return this.readTimeoutResult<Array<TData>>();
-    // must be an error
-    return this.readError<Array<TData>>();
+    ERROR("Invalid type for TCPSocket#peek()");
   }
 
 
