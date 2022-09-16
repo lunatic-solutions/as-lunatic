@@ -133,7 +133,7 @@ export class Process<TMessage> {
 
   /** Return a reference to the current process. */
   static self<T>(): Process<T> {
-    return new Process<T>(Process.processID, Process.tag++, Process.node);
+    return new Process<T>(Process.processID, Process.tag++);
   }
 
   /** Get the current node id for this running process. */
@@ -378,11 +378,11 @@ export class Process<TMessage> {
    */
   send<UMessage extends TMessage>(msg: UMessage, tag: i64 = 0): void {
     message.create_data(tag, MESSAGE_BUFFER_PREALLOC_SIZE);
-    let buffer = ASON.serialize(msg);
+    let buffer = ASON.serialize<UMessage>(msg);
     let bufferLength = <usize>buffer.length;
     message.write_data(changetype<usize>(buffer), bufferLength);
-    if (this.nodeID != u64.MAX_VALUE)  distributed.send(this.nodeID, this.id);
-    else message.send(this.id);
+    if (this.nodeID == u64.MAX_VALUE) message.send(this.id);
+    else distributed.send(this.nodeID, this.id);
   }
 
   /**

@@ -1,3 +1,4 @@
+export * from "./distributed";
 export * from "./distributed/bindings";
 export * from "./error";
 export * from "./error/bindings";

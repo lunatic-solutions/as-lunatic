@@ -57,7 +57,7 @@ export class Message<TMessage> {
    * @param {u32} timeout - A timeout for receiving messages in milliseconds.
    * @returns {Message<TMessage>} A message to this process.
    */
-  receive(tags: StaticArray<i64> | null = null, timeout: u64 = 0): Message<TMessage> {
+  receive(tags: StaticArray<i64> | null = null, timeout: u64 = u64.MAX_VALUE): Message<TMessage> {
     tags = tags || emptyTagset;
     let tagsLength = tags!.length;
 

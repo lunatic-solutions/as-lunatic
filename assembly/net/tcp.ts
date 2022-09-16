@@ -411,7 +411,7 @@ export class TCPSocket extends ASManaged {
  *
  * Construct one with the `TCPServer.bind()` method.
  */
- export class TCPServer extends ASManaged {
+export class TCPServer extends ASManaged {
   constructor(
     /** The id of this TCPServer. */
     public id: u64,
@@ -421,29 +421,12 @@ export class TCPSocket extends ASManaged {
   }
 
   /**
-   * Bind a TCPServer to an IPV4 address.
+   * Bind a TCPServer to an IP address.
    *
-   * @param {StaticArray<u8>} ip - Must be at least 4 bytes long, the first four bytes will be used.
-   * @param {u16} port - The port to bind to.
    * @returns {Result<TCPServer | null>} The resulting TCPServer or an error.
    */
-  static bindIPv4(ip: StaticArray<u8>, port: u16): Result<TCPServer | null> {
-    assert(ip.length >= 4);
-    return TCPServer.bindUnsafe(changetype<usize>(ip), IPType.IPV4, port, 0, 0);
-  }
-
-  /**
-   * Bind a TCPServer to an IPV6 address.
-   *
-   * @param {StaticArray<u8>} ip - Must be at least 16 bytes long, the first 16 bytes will be used.
-   * @param {u16} port - The port to bind to.
-   * @param {u32} flowInfo - The flow info of the IP address.
-   * @param {u32} scopeId - The scope id of the IP address.
-   * @returns {Result<TCPServer | null>} The resulting TCPServer or an error.
-   */
-  static bindIPv6(ip: StaticArray<u8>, port: u16, flowInfo: u32, scopeId: u32): Result<TCPServer | null> {
-    assert(ip.length >= 4);
-    return TCPServer.bindUnsafe(changetype<usize>(ip), IPType.IPV6, port, flowInfo, scopeId);
+  static bind(ip: IPAddress): Result<TCPServer | null> {
+    return TCPServer.bindUnsafe(changetype<usize>(ip), ip.type, ip.port, ip.flowInfo, ip.scopeId);
   }
 
   /**
