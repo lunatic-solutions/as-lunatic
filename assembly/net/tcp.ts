@@ -268,54 +268,25 @@ export class TCPSocket extends ASManaged {
   }
 
 
-  /**
-   * Write a typedarray's data to a TCPStream.
-   *
-   * @param {T extends ArrayBufferView} array - A static array to write the TCPStream
-   * @param {u32} timeout - The amount of time to wait and timeout in milliseconds.
-   */
-  writeTypedArray<T extends ArrayBufferView>(array: T): Result<NetworkResultType> {
-    return this.writeUnsafe(array.dataStart, <usize>array.byteLength);
-  }
-
-  /**
-   * Write a Array to the TCPStream.
-   *
-   * @param {T extends Array<U>} array - A static array to write the TCPStream
-   * @param {u32} timeout - The amount of time to wait and timeout in milliseconds.
-   * @returns {Result<NetworkResultType>} A wrapper to a TCPResultType. If an error occured, the
-   * errorString property will return a string describing the error.
-   */
-  writeArray<T extends Array<U>, U>(array: T): Result<NetworkResultType> {
-    if (isReference<U>()) ERROR("Cannot call writeArray if type of U is a reference.");
-    let byteLength = (<usize>array.length) << alignof<U>();
-    return this.writeUnsafe(array.dataStart, byteLength);
-  }
-
-  /**
-   * Write a StaticArray to the TCPStream.
-   *
-   * @param {T extends StaticArray<U>} array - A static array to write the TCPStream
-   * @param {u32} timeout - The amount of time to wait and timeout in milliseconds.
-   * @returns {Result<NetworkResultType>} A wrapper to a TCPResultType. If an error occured, the
-   * errorString property will return a string describing the error.
-   */
-  writeStaticArray<T extends StaticArray<U>, U>(array: T): Result<NetworkResultType> {
-    if (isReference<U>()) ERROR("Cannot call writeStaticArray if type of U is a reference.");
-    let byteLength = (<usize>array.length) << alignof<U>();
-    return this.writeUnsafe(changetype<usize>(array), byteLength);
-  }
-
-  /**
-   * Write the bytes of an ArrayBuffer to the TCPStream.
-   *
-   * @param {ArrayBuffer} buffer - The buffer to be written.
-   * @param {u32} timeout - The amount of time to wait and timeout in milliseconds.
-   * @returns {Result<NetworkResultType>} A wrapper to a TCPResultType. If an error occured, the
-   * errorString property will return a string describing the error.
-   */
-  writeBuffer(buffer: ArrayBuffer): Result<NetworkResultType> {
-    return this.writeUnsafe(changetype<usize>(buffer), <usize>buffer.byteLength);
+  write<T>(buffer: T): Result<NetworkResultType> {
+    if (buffer instanceof ArrayBuffer) {
+      return this.writeUnsafe(changetype<usize>(buffer), <usize>buffer.byteLength);
+      // @ts-ignore: Arraybufferview exists globally
+    } else if (buffer instanceof ArrayBufferView) {
+      // @ts-ignore: Arraybufferview exists globally
+      return this.writeUnsafe(buffer.dataStart, <usize>buffer.byteLength);
+    } else if (buffer instanceof Array) {
+      if (isReference<valueof<T>>()) ERROR("Cannot call write if type of valueof<T> is a reference.");
+      // @ts-ignore: T is a StaticArray<U> and valueof<T> returns U
+      let byteLength = (<usize>buffer.length) << (alignof<valueof<T>>());
+      return this.writeUnsafe(buffer.dataStart, byteLength);
+    } else if (buffer instanceof StaticArray) {
+      if (isReference<valueof<T>>()) ERROR("Cannot call write if type of valueof<T> is a reference.");
+      // @ts-ignore: T is a StaticArray<U> and valueof<T> returns U
+      let byteLength = (<usize>buffer.length) << (alignof<valueof<T>>());
+      return this.writeUnsafe(changetype<usize>(buffer), byteLength);
+    }
+    ERROR("Invalid generic type to write data to the TCPStream.")
   }
 
   /**
