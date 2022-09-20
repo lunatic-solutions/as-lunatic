@@ -417,4 +417,12 @@ export class TCPServer extends ASManaged {
     }
     return new Result<TCPSocket | null>(null, id);
   }
+
+  /** Flush the bytes that are written, ensuring they are sent. */
+  flush(): Result<i32> {
+    let result = tcp.tcp_flush(this.id, idPtr);
+    let id = load<u64>(idPtr);
+    if (result == ErrCode.Fail) return new Result<i32>(0, id);
+    return new Result<i32>(0);
+  }
 }

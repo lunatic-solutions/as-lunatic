@@ -223,6 +223,12 @@ export namespace tcp {
   export declare function get_peek_timeout(
     tcp_listener_id: u64,
   ): ErrCode;
+
+  @external("lunatic::networking", "tcp_flush")
+  export declare function tcp_flush(
+    tcp_listener_id: u64,
+    error_id_ptr: usize,
+  ): ErrCode;
 }
 
 
@@ -249,7 +255,7 @@ export namespace udp {
   // @ts-ignore: external
   @external("lunatic::networking", "drop_udp_socket")
   export declare function drop_udp_socket(udp_socket_id: u64): void;
-  
+
   /**
    * Reads data from the connected udp socket and writes it to the given buffer. This method will
    * fail if the socket is not connected.
@@ -280,7 +286,7 @@ export namespace udp {
   // @ts-ignore: external
   @external("lunatic::networking", "udp_receive_from")
   export declare function udp_receive_from(socket_id: u64, buffer_ptr: usize, buffer_len: usize, opaque_ptr: usize, dns_iter_ptr: usize): ErrCode;
-  
+
   /**
    * Connects the UDP socket to a remote address.
    *
@@ -299,28 +305,27 @@ export namespace udp {
   // @ts-ignore: external
   @external("lunatic::networking", "udp_connect")
   export declare function udp_connect(udp_socket_id: u64, addr_type: IPType, addr_u8_ptr: usize, port: u32, flow_info: u32, scope_id: u32, timeout_duration: u64, id_u64_ptr: usize): ErrCode;
-  
+
   // @ts-ignore: external
   @external("lunatic::networking", "clone_udp_socket")
   export declare function clone_udp_socket(udp_socket_id: u64): u64;
-  
+
   // @ts-ignore: external
   @external("lunatic::networking", "set_udp_socket_broadcast")
   export declare function set_udp_socket_broadcast(udp_socket_id: u64, broadcast: bool): void;
-  
+
   // @ts-ignore: external
   @external("lunatic::networking", "get_udp_socket_broadcast")
   export declare function get_udp_socket_broadcast(udp_socket_id: u64): bool;
-  
+
   // @ts-ignore: external
   @external("lunatic::networking", "set_udp_socket_ttl")
   export declare function set_udp_socket_ttl(udp_socket_id: u64, ttl: u32): void;
-  
+
   // @ts-ignore: external
   @external("lunatic::networking", "get_udp_socket_ttl")
   export declare function get_udp_socket_ttl(udp_socket_id: u64): u32;
-  
-  
+
   /**
    * Sends data on the socket to the given address.
    *
@@ -335,7 +340,7 @@ export namespace udp {
   // @ts-ignore: external
   @external("lunatic::networking", "udp_send_to")
   export declare function udp_send_to(socket_id: u64, buffer_ptr: usize, buffer_len: usize, addr_type: u32, addr_u8_ptr: usize, port: u32, flow_info: u32, scope_id: u32, opaque_ptr: usize): ErrCode;
-  
+
   /**
    * Sends data on the socket to the remote address to which it is connected.
    *
