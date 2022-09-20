@@ -27,55 +27,13 @@ export class TCPSocket extends ASManaged {
    * @param {u32} timeout - A timeout.
    * @returns {Result<TCPSocket | null>} The socket if the connection was successful.
    */
-  static connectIP(ip: IPAddress, timeout: u64 = u64.MAX_VALUE): Result<TCPSocket | null> {
+  static connect(ip: IPAddress, timeout: u64 = u64.MAX_VALUE): Result<TCPSocket | null> {
     return TCPSocket.connectUnsafe(
       ip.type,
       changetype<usize>(ip),
       ip.port,
       ip.flowInfo,
       ip.scopeId,
-      timeout,
-    );
-  }
-
-  /**
-   * Connect to the given IPV4 address with the given bytes and port.
-   *
-   * @param {StaticArray<u8>} ip - The IP address in bytes.
-   * @param {u32} port - The port of the connection.
-   * @param {u32} timeout - How long until a timeout will occur.
-   * @returns {Result<TCPSocket | null>} The socket if the connection was successful.
-   */
-  static connectIPV4(ip: StaticArray<u8>, port: u16, timeout: u64 = u64.MAX_VALUE): Result<TCPSocket | null> {
-    assert(ip.length >= 4);
-    return TCPSocket.connectUnsafe(
-      IPType.IPV4,
-      changetype<usize>(ip),
-      port,
-      0,
-      0,
-      timeout,
-    );
-  }
-
-  /**
-   * Connect to the given IPV6 address with the given bytes and port.
-   *
-   * @param {StaticArray<u8>} ip - The IP address in bytes.
-   * @param {u32} port - The port of the connection.
-   * @param {u32} flow_info - The flow info of the ip address for the connection.
-   * @param {u32} scope_id - The scope id of the ip address for the connection.
-   * @param {u32} timeout - How long until a timeout will occur.
-   * @returns {Result<TCPSocket | null>} The socket if the connection was successful.
-   */
-  static connectIPV6(ip: StaticArray<u8>, port: u16, flow_info: u32, scope_id: u32, timeout: u64 = u64.MAX_VALUE): Result<TCPSocket | null> {
-    assert(ip.length >= 16);
-    return TCPSocket.connectUnsafe(
-      IPType.IPV6,
-      changetype<usize>(ip),
-      port,
-      flow_info,
-      scope_id,
       timeout,
     );
   }

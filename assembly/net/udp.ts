@@ -9,7 +9,7 @@ import { resolveDNSIterator } from "./dns";
 import { IPAddress, IPType, NetworkResultType, UDPResult } from "./util";
 
 export class UDPSocket extends ASManaged {
-  static bindIP(addr: IPAddress): Result<UDPSocket | null> {
+  static bind(addr: IPAddress): Result<UDPSocket | null> {
     return UDPSocket.bindUnsafe(
       addr.type,
       changetype<usize>(addr),
