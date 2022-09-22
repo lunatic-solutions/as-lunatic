@@ -108,7 +108,6 @@ export namespace tcp {
    * @param stream_id - The TCP Stream to be read from.
    * @param buffer_ptr - The pointer to the buffer.
    * @param buffer_len - The length of the buffer.
-   * @param timeout - A timeout.
    * @param opaque_ptr - A pointer to the error id.
    */
   // @ts-ignore: external is valid here
@@ -187,7 +186,7 @@ export namespace tcp {
   export declare function set_read_timeout(
     tcp_listener_id: u64,
     duration: u64,
-  ): ErrCode;
+  ): void;
 
   /**
    * Get the current read timeout duration for a given tcp stream.

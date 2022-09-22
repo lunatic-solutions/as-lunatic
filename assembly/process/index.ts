@@ -9,6 +9,11 @@ import { CompileModuleErrCode, ErrCode, opaquePtr, TimeoutErrCode } from "../uti
 import { process } from "./bindings";
 import { Parameters, StartWrapper } from "./util";
 
+const MESSAGE_BUFFER_SIZE =
+  isDefined(MESSAGE_BUFFER_PREALLOC_SIZE)
+    ? MESSAGE_BUFFER_PREALLOC_SIZE
+    : 0;
+
 /** This utf-8 string is the name of the export that gets called when a process bootstraps. */
 const bootstrapUTF8 = [0x5f, 0x5f, // "__"
   0x6c, 0x75, 0x6e, 0x61, 0x74, 0x69, 0x63, // "lunatic"
@@ -184,7 +189,7 @@ export class Process<TMessage> {
    */
   static link<T>(proc: Process<T>): u64 {
     let tag = Process.tag++;
-    process.link(proc.id, tag)
+    process.link(proc.id, tag);
     return tag;
   }
 
@@ -377,7 +382,7 @@ export class Process<TMessage> {
    * @param {i64} tag - The message tag.
    */
   send<UMessage extends TMessage>(msg: UMessage, tag: i64 = 0): void {
-    message.create_data(tag, MESSAGE_BUFFER_PREALLOC_SIZE);
+    message.create_data(tag, MESSAGE_BUFFER_SIZE);
     let buffer = ASON.serialize<UMessage>(msg);
     let bufferLength = <usize>buffer.length;
     message.write_data(changetype<usize>(buffer), bufferLength);
@@ -392,7 +397,7 @@ export class Process<TMessage> {
    * @param {i64} tag - The message tag.
    */
   @unsafe sendUnsafe<UMessage>(msg: UMessage, tag: i64 = 0): void {
-    message.create_data(tag, MESSAGE_BUFFER_PREALLOC_SIZE);
+    message.create_data(tag, MESSAGE_BUFFER_SIZE);
     let buffer = ASON.serialize<UMessage>(msg);
     let bufferLength = <usize>buffer.length;
     message.write_data(changetype<usize>(buffer), bufferLength);

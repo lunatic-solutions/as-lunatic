@@ -60,7 +60,7 @@ export class Result<T> {
       return (this.errStr = getError(errId))!;
     }
 
-    return errStr!;
+    return errStr;
   }
 
   /** Panic if the value isn't truthy, using the message as the runtime error message. */

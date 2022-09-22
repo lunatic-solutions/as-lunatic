@@ -102,6 +102,7 @@ export class TCPSocket extends ASManaged {
 
   /** Unsafe read implementation that uses a raw pointer, and returns the number of bytes read. */
   @unsafe private unsafeReadImpl(ptr: usize, size: usize): TCPResult {
+
     let readResult = tcp.tcp_read(this.id, ptr, size, opaquePtr);
     let opaqueValue = load<u64>(opaquePtr);
     if (readResult == TimeoutErrCode.Success) {
@@ -109,7 +110,7 @@ export class TCPSocket extends ASManaged {
       return this.readSuccess(opaqueValue);
     }
     // timeouts are easy
-    if (readResult == TimeoutErrCode.Timeout) return this.readTimeoutResult();
+    if (readResult == TimeoutErrCode.Timeout) return this.readTimeoutResult()
     // must be an error
     return this.readError(opaqueValue);
   }
@@ -227,7 +228,10 @@ export class TCPSocket extends ASManaged {
 
 
   write<T>(buffer: T): Result<NetworkResultType> {
-    if (buffer instanceof ArrayBuffer) {
+    if (buffer instanceof String) {
+      let encoded = String.UTF8.encode(<string>buffer);
+      return this.writeUnsafe(changetype<usize>(encoded), <usize>encoded.byteLength);
+    } else if (buffer instanceof ArrayBuffer) {
       return this.writeUnsafe(changetype<usize>(buffer), <usize>buffer.byteLength);
       // @ts-ignore: Arraybufferview exists globally
     } else if (buffer instanceof ArrayBufferView) {
