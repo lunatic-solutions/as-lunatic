@@ -33,11 +33,12 @@ export namespace distributed {
 
 
   /**
-   * Send a message, skipping search, with a timeout.
+   * Send a request with a timeout.
    */
   // @ts-ignore: decorator
   @external("lunatic::distributed", "send_receive_skip_search")
-  export declare function send_receive_skip_search(node_id: u64, process_id: u64, timeout: u32): TimeoutErrCode;
+  export declare function send_receive_skip_search(node_id: u64, process_id: u64, timeout: u64): TimeoutErrCode;
+
  /**
   * Similar to a local spawn, it spawns a new process using the passed in function inside a module
   * as the entry point. The process is spawned on a node with id `node_id`.

@@ -1,4 +1,5 @@
 import { ASON } from "@ason/assembly";
+import { Process } from "../process";
 import { message } from "./bindings";
 import { MessageType } from "./util";
 
@@ -14,19 +15,45 @@ export class Message<TMessage> {
   private buffer: StaticArray<u8> | null = null;
   /** The received value. */
   public value: Box<TMessage> | null = null;
+  /** The sender process. */
+  public sender: u64 = 0;
+  public replyTag: u64 = 0;
 
   constructor(
     public type: MessageType,
   ) {
     // if the message is a data message, read it
     if (type == MessageType.Data) {
+      // read the message data
       let size = message.data_size();
-      let data = new StaticArray<u8>(<i32>size);
-      let count = message.read_data(changetype<usize>(data), <usize>data.length);
+      let tempPtr = heap.alloc(<usize>size);
+      let count = message.read_data(tempPtr, <usize>size);
+      trace("count", 2, <f64>count, <f64>size);
       assert(count == size);
+
+      // set the raw buffer
+      let dataLength = size - sizeof<u64>() * 2;
+      let data = new StaticArray<u8>(<i32>dataLength);
+      memory.copy(
+        changetype<usize>(data),
+        tempPtr + sizeof<u64>() * 2,
+        <usize>dataLength,
+      );
       this.buffer = data;
+
+      // serialize
+      let value = ASON.deserialize<TMessage>(data)
       this.tag = message.get_tag();
-      this.value = new Box<TMessage>(ASON.deserialize<TMessage>(data));
+      this.value = new Box<TMessage>(value);
+
+      // set the sender
+      this.sender =  load<u64>(tempPtr);
+
+      // set the reply tag
+      this.replyTag = load<u64>(tempPtr, sizeof<u64>());
+
+      // free heap allocation
+      heap.free(tempPtr);
 
       // signals have tags too, usually representing the resource id that is signalling a parent
     } else if (type == MessageType.Signal) {
@@ -41,6 +68,18 @@ export class Message<TMessage> {
     assert(this.type == MessageType.Data);
     return this.buffer!;
   }
+
+  reply<UMessage>(message: UMessage): void {
+    let p = new Process<UMessage>(this.sender, Process.tag++);
+    p.send(message);
+  }
+}
+
+export class MessageWrapper<T> {
+  constructor(
+    public value: T,
+    public sender: u64,
+  ) {}
 }
 
 /**
@@ -49,6 +88,10 @@ export class Message<TMessage> {
  */
 @unmanaged export class Mailbox<TMessage> {
   constructor() { ERROR("Cannot construct a mailbox."); }
+
+  static create<TMessage>(): Mailbox<TMessage> {
+    return changetype<Mailbox<TMessage>>(0);
+  }
 
   /**
    * Receive a message sent to this process.

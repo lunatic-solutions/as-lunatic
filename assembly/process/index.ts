@@ -2,7 +2,7 @@ import { ASON } from "@ason/assembly";
 import { ASManaged } from "as-disposable/assembly";
 import { distributed } from "../distributed/bindings";
 import { Result } from "../error";
-import { Mailbox } from "../message";
+import { Mailbox, Message, MessageWrapper } from "../message";
 import { message } from "../message/bindings";
 import { MessageType } from "../message/util";
 import { CompileModuleErrCode, ErrCode, opaquePtr, TimeoutErrCode } from "../util";
@@ -181,6 +181,11 @@ export class Process<TMessage> {
   static tag: u64 = 0;
 
   /**
+   * Private tag value for request messages, automatically unique per request.
+   */
+  static replyTag: u64 = 0;
+
+  /**
    * Link a process and tag it with a unique identifier. When the process dies, it
    * notifies this process in the Mailbox with the tag.
    *
@@ -321,8 +326,8 @@ export class Process<TMessage> {
     let p = Process.inheritSpawn((mb: Mailbox<TMessage>): void => {
 
       // create a fake mailbox that receives the first message of the process
-      let startMb = changetype<Mailbox<StartWrapper<TStart>>>(0);
-      let startMessage = startMb.receive([], u64.MAX_VALUE);
+      let startMb = Mailbox.create<StartWrapper<TStart>>();
+      let startMessage = startMb.receive();
 
       // we know it must be a Data message
       assert(startMessage.type == MessageType.Data);
@@ -385,9 +390,53 @@ export class Process<TMessage> {
     message.create_data(tag, MESSAGE_BUFFER_SIZE);
     let buffer = ASON.serialize<UMessage>(msg);
     let bufferLength = <usize>buffer.length;
+    let temp = heap.alloc(sizeof<u64>());
+
+    // need to write the sending process id
+    store<u64>(temp, Process.processID);
+    message.write_data(temp, sizeof<u64>());
+
+    // need to write the sending process reply tag
+    let replyTag = Process.replyTag++;
+    store<u64>(temp, replyTag);
+    message.write_data(temp, sizeof<u64>());
+
+    // write the buffer
     message.write_data(changetype<usize>(buffer), bufferLength);
+    heap.free(temp);
     if (this.nodeID == u64.MAX_VALUE) message.send(this.id);
     else distributed.send(this.nodeID, this.id);
+  }
+
+  /**
+   * Send a message with an optional tag, that results in a reply of type TRet.
+   *
+   * @param {TMessage} msg - The message being sent.
+   * @param {i64} tag - The message tag.
+   */
+  request<UMessage extends TMessage, TRet>(msg: UMessage, tag: i64 = 0, timeout: u64 = u64.MAX_VALUE): Message<TRet> {
+    message.create_data(tag, MESSAGE_BUFFER_SIZE);
+    let buffer = ASON.serialize<UMessage>(msg);
+    let bufferLength = <usize>buffer.length;
+    let temp = heap.alloc(sizeof<u64>());
+
+    // need to write the sending process id
+    store<u64>(temp, Process.processID);
+    message.write_data(temp, sizeof<u64>());
+
+    // need to write the sending process reply tag
+    let replyTag = Process.replyTag++;
+    store<u64>(temp, replyTag);
+    message.write_data(temp, sizeof<u64>());
+
+    // write the buffer
+    message.write_data(changetype<usize>(buffer), bufferLength);
+    heap.free(temp);
+    if (this.nodeID == u64.MAX_VALUE) message.send_receive_skip_search(this.id, timeout);
+    else distributed.send_receive_skip_search(this.nodeID, this.id, timeout);
+
+    // A message now sits in the scratch area
+    return new Message<TRet>(MessageType.Data);
   }
 
   /**
@@ -400,9 +449,19 @@ export class Process<TMessage> {
     message.create_data(tag, MESSAGE_BUFFER_SIZE);
     let buffer = ASON.serialize<UMessage>(msg);
     let bufferLength = <usize>buffer.length;
+    let temp = heap.alloc(sizeof<u64>());
+
+    // need to write the sending process id
+    store<u64>(temp, Process.processID);
+    message.write_data(temp, sizeof<u64>());
+    // need to write the sending process reply tag
+    store<u64>(temp, 0);
+    message.write_data(temp, sizeof<u64>());
+
     message.write_data(changetype<usize>(buffer), bufferLength);
-    if (this.nodeID != u64.MAX_VALUE) distributed.send(this.nodeID, this.id);
-    else message.send(this.id);
+    heap.free(temp);
+    if (this.nodeID == u64.MAX_VALUE) message.send(this.id);
+    else distributed.send(this.nodeID, this.id);
   }
 
   /**
@@ -412,25 +471,10 @@ export class Process<TMessage> {
    * @param {StaticArray<u8>} msg - The buffer to be sent.
    * @param {i64} tag - The tag of the message.
    */
-  @unsafe sendBufferUnsafe(msg: StaticArray<u8>, tag: i64 = 0): void {
+  @unsafe sendDataUnsafe(msg: StaticArray<u8>, tag: i64 = 0): void {
     message.create_data(tag, <usize>msg.length);
     message.write_data(changetype<usize>(msg), <usize>msg.length);
     if (this.nodeID != u64.MAX_VALUE) distributed.send(this.nodeID, this.id);
     else message.send(this.id);
-  }
-
-  /**
-   * Send a message and skip search.
-   *
-   * @param {TMessage} message - The message being sent.
-   * @param {u32} timeout - The timeout in milliseconds.
-   */
-  sendReceiveSkipSearch<UMessage extends TMessage>(msg: UMessage, timeout: u32 = 0): TimeoutErrCode {
-    message.create_data(0, MESSAGE_BUFFER_PREALLOC_SIZE);
-    let buffer = ASON.serialize(msg);
-    let bufferLength = <usize>buffer.length;
-    message.write_data(changetype<usize>(buffer), bufferLength);
-    if (this.nodeID != u64.MAX_VALUE) return distributed.send_receive_skip_search(this.nodeID, this.id, timeout);
-    else return message.send_receive_skip_search(this.id, timeout);
   }
 }

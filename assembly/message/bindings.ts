@@ -104,11 +104,11 @@ export namespace message {
    * Send a message, skipping search, with a timeout.
    *
    * @param {u64} process_id - The process id to send the message.
-   * @param {u32} timeout - A timeout message.
+   * @param {u64} timeout - A timeout message.
    */
   // @ts-ignore: decorator
   @external("lunatic::message", "send_receive_skip_search")
-  export declare function send_receive_skip_search(process_id: u64, timeout: u32): TimeoutErrCode;
+  export declare function send_receive_skip_search(process_id: u64, timeout: u64): TimeoutErrCode;
 
   /**
    * Receive a message with a set of tags if given and a timeout.
