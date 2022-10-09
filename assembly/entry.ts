@@ -43,9 +43,8 @@ export function __lunatic_abort(
 
   if (message) {
     ptr += String.UTF8.encodeUnsafe(changetype<usize>(message), message.length, ptr);
+    store<u32>(ptr, 0x206E6920); ptr += 4; // ' in '
   }
-
-  store<u32>(ptr, 0x206E6920); ptr += 4; // ' in '
 
   if (fileName) {
     ptr += String.UTF8.encodeUnsafe(changetype<usize>(fileName), fileName.length, ptr);
