@@ -36,34 +36,47 @@ export function __lunatic_abort(
   const iovPtr: usize = 0;
   const lenPtr: usize = iovPtr + offsetof<iovec>();
   const bufPtr: usize = lenPtr + sizeof<usize>();
-  changetype<iovec>(iovPtr).buf = bufPtr;
-  var ptr = bufPtr;
+  const iovec = changetype<iovec>(iovPtr);
+
+  var ptr = iovec.buf = bufPtr;
   store<u64>(ptr, 0x203A74726F6261); ptr += 7; // 'abort: '
-  if (message !== null) {
+
+  if (message) {
     ptr += String.UTF8.encodeUnsafe(changetype<usize>(message), message.length, ptr);
   }
+
   store<u32>(ptr, 0x206E6920); ptr += 4; // ' in '
-  if (fileName !== null) {
+
+  if (fileName) {
     ptr += String.UTF8.encodeUnsafe(changetype<usize>(fileName), fileName.length, ptr);
   }
+
   store<u8>(ptr++, 0x28); // (
+
   var len = decimalCount32(lineNumber); ptr += len;
   do {
-    let t = lineNumber / 10;
     store<u8>(--ptr, 0x30 + lineNumber % 10);
-    lineNumber = t;
+    lineNumber /= 10;
   } while (lineNumber); ptr += len;
+
   store<u8>(ptr++, 0x3A); // :
+
   len = decimalCount32(columnNumber); ptr += len;
   do {
-    let t = columnNumber / 10;
     store<u8>(--ptr, 0x30 + columnNumber % 10);
-    columnNumber = t;
+    columnNumber /= 10;
   } while (columnNumber); ptr += len;
+
   store<u16>(ptr, 0x0A29); ptr += 2; // )\n
-  changetype<iovec>(iovPtr).buf_len = ptr - bufPtr;
+
+  iovec.buf_len = ptr - bufPtr;
   fd_write(2, iovPtr, 1, lenPtr);
   proc_exit(1);
+}
+
+function traceAppendNum(bufPtr: usize, a: f64): usize {
+  store<u8>(bufPtr++, 0x20); // space
+  return 1 + String.UTF8.encodeUnsafe(bufPtr, dtoa_buffered(bufPtr, a), bufPtr);
 }
 
 // @ts-ignore: decorator
@@ -81,39 +94,38 @@ export function __lunatic_trace( // eslint-disable-line @typescript-eslint/no-un
   // 4: iov.buf_len
   // 8: len
   // 12: buf...
-  var iovPtr = __alloc(offsetof<iovec>() + sizeof<usize>() + 1 + <usize>(max(String.UTF8.byteLength(message), MAX_DOUBLE_LENGTH << 1)));
-  var lenPtr = iovPtr + offsetof<iovec>();
-  var bufPtr = lenPtr + sizeof<usize>();
-  changetype<iovec>(iovPtr).buf = bufPtr;
+
+  const iovPtr = __alloc(offsetof<iovec>() + sizeof<usize>() + 1 + <usize>(max(String.UTF8.byteLength(message), MAX_DOUBLE_LENGTH << 1)));
+  const lenPtr = iovPtr + offsetof<iovec>();
+  const bufPtrBase = lenPtr + sizeof<usize>();
+  let bufPtr = bufPtrBase;
+
   store<u64>(bufPtr, 0x203A6563617274); // 'trace: '
-  changetype<iovec>(iovPtr).buf_len = 7;
-  fd_write(2, iovPtr, 1, lenPtr);
-  changetype<iovec>(iovPtr).buf_len = String.UTF8.encodeUnsafe(changetype<usize>(message), message.length, bufPtr);
-  fd_write(2, iovPtr, 1, lenPtr);
+  bufPtr += 7;
+  bufPtr += String.UTF8.encodeUnsafe(changetype<usize>(message), message.length, bufPtr);
+
   if (n) {
-    store<u8>(bufPtr++, 0x20); // space
-    changetype<iovec>(iovPtr).buf_len = 1 + String.UTF8.encodeUnsafe(bufPtr, dtoa_buffered(bufPtr, a0), bufPtr);
-    fd_write(2, iovPtr, 1, lenPtr);
+    bufPtr += traceAppendNum(bufPtr, a0);
     if (n > 1) {
-      changetype<iovec>(iovPtr).buf_len = 1 + String.UTF8.encodeUnsafe(bufPtr, dtoa_buffered(bufPtr, a1), bufPtr);
-      fd_write(2, iovPtr, 1, lenPtr);
+      bufPtr += traceAppendNum(bufPtr, a1);
       if (n > 2) {
-        changetype<iovec>(iovPtr).buf_len = 1 + String.UTF8.encodeUnsafe(bufPtr, dtoa_buffered(bufPtr, a2), bufPtr);
-        fd_write(2, iovPtr, 1, lenPtr);
+        bufPtr += traceAppendNum(bufPtr, a2);
         if (n > 3) {
-          changetype<iovec>(iovPtr).buf_len = 1 + String.UTF8.encodeUnsafe(bufPtr, dtoa_buffered(bufPtr, a3), bufPtr);
-          fd_write(2, iovPtr, 1, lenPtr);
+          bufPtr += traceAppendNum(bufPtr, a3);
           if (n > 4) {
-            changetype<iovec>(iovPtr).buf_len = 1 + String.UTF8.encodeUnsafe(bufPtr, dtoa_buffered(bufPtr, a4), bufPtr);
-            fd_write(2, iovPtr, 1, lenPtr);
+            bufPtr += traceAppendNum(bufPtr, a4);
           }
         }
       }
     }
-    --bufPtr;
   }
-  store<u8>(bufPtr, 0x0A); // \n
-  changetype<iovec>(iovPtr).buf_len = 1;
+
+  store<u8>(bufPtr++, 0x0A); // \n
+
+  const iovec = changetype<iovec>(iovPtr);
+  iovec.buf = bufPtrBase;
+  iovec.buf_len = bufPtr - bufPtrBase;
+
   fd_write(2, iovPtr, 1, lenPtr);
   __free(iovPtr);
 }
