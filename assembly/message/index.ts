@@ -14,7 +14,7 @@ export class Message<TMessage> {
   /** The internal buffer of this message. */
   private buffer: StaticArray<u8> | null = null;
   /** The received value. */
-  public value: Box<TMessage> | null = null;
+  public box: Box<TMessage> | null = null;
   /** The sender process. */
   public sender: u64 = 0;
   public replyTag: u64 = 0;
@@ -43,7 +43,7 @@ export class Message<TMessage> {
       // serialize
       let value = ASON.deserialize<TMessage>(data)
       this.tag = message.get_tag();
-      this.value = new Box<TMessage>(value);
+      this.box = new Box<TMessage>(value);
 
       // set the sender
       this.sender =  load<u64>(tempPtr);
@@ -71,6 +71,11 @@ export class Message<TMessage> {
   reply<UMessage>(message: UMessage): void {
     let p = new Process<UMessage>(this.sender, Process.tag++);
     p.send(message);
+  }
+
+  unbox(): TMessage {
+    assert(this.type == MessageType.Data);
+    return this.box!.value;
   }
 }
 

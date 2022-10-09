@@ -331,7 +331,7 @@ export class Process<TMessage> {
 
       // we know it must be a Data message
       assert(startMessage.type == MessageType.Data);
-      let unpacked = startMessage.value;
+      let unpacked = startMessage.box;
       assert(unpacked);
 
       // call the start message callback with the start value
