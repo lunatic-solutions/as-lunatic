@@ -28,7 +28,6 @@ export class Message<TMessage> {
       let size = message.data_size();
       let tempPtr = heap.alloc(<usize>size);
       let count = message.read_data(tempPtr, <usize>size);
-      trace("count", 2, <f64>count, <f64>size);
       assert(count == size);
 
       // set the raw buffer

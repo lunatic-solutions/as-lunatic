@@ -342,6 +342,12 @@ export class TCPSocket extends ASManaged {
     this.id = id;
     this.ip = changetype<IPAddress>(ip);
   }
+
+  /** Drop the tcp stream. */
+  drop(): void {
+    tcp.drop_tcp_stream(this.id);
+    this.preventFinalize();
+  }
 }
 
 /**
@@ -426,5 +432,11 @@ export class TCPServer extends ASManaged {
       return new Result<TCPSocket | null>(new TCPSocket(id, unchecked(ipResolutions[0])))
     }
     return new Result<TCPSocket | null>(null, id);
+  }
+
+  /** Drop the tcp listener resource. */
+  drop(): void {
+    tcp.drop_tcp_listener(this.id);
+    this.preventFinalize();
   }
 }
