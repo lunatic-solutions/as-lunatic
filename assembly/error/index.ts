@@ -1,5 +1,5 @@
-import { error } from "../bindings";
-import { htSet } from "as-disposable";
+import { error } from "./bindings";
+import { htSet } from "as-disposable/assembly";
 
 
 /** A predefined location to store id and error output. */
@@ -36,7 +36,14 @@ export class Result<T> {
     /** Used by the underlying lunatic call to identify an error if it exists. */
     private errId: u64 = u64.MAX_VALUE,
   ) {
-    if (errId != u64.MAX_VALUE) htSet(changetype<usize>(this), errId, error.drop_error.index);
+    if (errId != u64.MAX_VALUE) {
+      htSet(
+        changetype<usize>(this),
+        errId,
+        // @ts-ignore: index is defined
+        error.drop_error.index
+      );
+    }
   }
 
   /**
@@ -53,7 +60,7 @@ export class Result<T> {
       return (this.errStr = getError(errId))!;
     }
 
-    return errStr!;
+    return errStr;
   }
 
   /** Panic if the value isn't truthy, using the message as the runtime error message. */

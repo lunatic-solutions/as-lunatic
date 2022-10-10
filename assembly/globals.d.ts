@@ -1,0 +1,1 @@
+declare const MESSAGE_BUFFER_PREALLOC_SIZE: i32;
