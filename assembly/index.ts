@@ -13,6 +13,7 @@ export * from "./net/udp";
 export * from "./net/util";
 export * from "./process";
 export * from "./process/bindings";
+export * from "./process/supervisor";
 export * from "./registry"
 export * from "./registry/bindings";
 export * from "./util";
