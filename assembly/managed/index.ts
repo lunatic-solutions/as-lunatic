@@ -2,94 +2,105 @@ import { Mailbox } from "../message";
 import { MessageType } from "../message/util";
 import { Process } from "../process";
 
+/** Represents a shared map using the std lib hashmap. */
 export class SharedMap<TValue> {
-  private self: Process<SharedMapEvent<TValue>> = Process.inheritSpawn((mb: Mailbox<SharedMapEvent<TValue>>) => {
+
+  /** The process that runs the hashmap. */
+  private self: Process<SharedMapEvent> = Process.inheritSpawn((mb: Mailbox<SharedMapEvent>) => {
     let map = new Map<string, TValue>();
     while (true) {
       let message = mb.receive();
       if (message.type == MessageType.Data) {
         let event = message.box!.value;
-        if (event instanceof GetSharedMapEvent<TValue>) {
-          let key = (<GetSharedMapEvent<TValue>>event).key;
+        if (event instanceof GetSharedMapEvent) {
+          let key = (<GetSharedMapEvent>event).key;
           message.reply<TValue>(map.get(key));
         } else if (event instanceof SetSharedMapEvent<TValue>) {
           let key = (<SetSharedMapEvent<TValue>>event).key;
           let value = (<SetSharedMapEvent<TValue>>event).value;
           map.set(key, value);
-        } else if (event instanceof DeleteSharedMapEvent<TValue>) {
-          let key = (<DeleteSharedMapEvent<TValue>>event).key;
+        } else if (event instanceof DeleteSharedMapEvent) {
+          let key = (<DeleteSharedMapEvent>event).key;
           map.delete(key);
-        } else if (event instanceof ClearSharedMapEvent<TValue>) {
+        } else if (event instanceof ClearSharedMapEvent) {
           map.clear();
-        } else if (event instanceof HasSharedMapEvent<TValue>) {
-          const key = (<HasSharedMapEvent<TValue>>event).key;
+        } else if (event instanceof HasSharedMapEvent) {
+          const key = (<HasSharedMapEvent>event).key;
           message.reply<bool>(map.has(key));
-        } else if (event instanceof SizeSharedMapEvent<TValue>) {
+        } else if (event instanceof SizeSharedMapEvent) {
           message.reply<i32>(map.size);
-        } else if (event instanceof KeysSharedMapEvent<TValue>) {
+        } else if (event instanceof KeysSharedMapEvent) {
           message.reply<string[]>(map.keys());
-        } else if (event instanceof ValuesSharedMapEvent<TValue>) {
+        } else if (event instanceof ValuesSharedMapEvent) {
           message.reply<TValue[]>(map.values());
         }
       }
     }
   }).expect();
 
+  /** Get a value based on the given key. */
   get(key: string): TValue {
-    let event = new GetSharedMapEvent<TValue>(key);
-    let message = this.self.request<GetSharedMapEvent<TValue>, TValue>(event);
+    let event = new GetSharedMapEvent(key);
+    let message = this.self.request<GetSharedMapEvent, TValue>(event);
     assert(message.type == MessageType.Data);
     return message.box!.value;
   }
 
+  /** Set a value with a given key. */
   set(key: string, value: TValue): this {
     let event = new SetSharedMapEvent<TValue>(key, value);
     this.self.send(event);
     return this;
   }
 
+  /** Delete a key. */
   delete(key: string): void {
-    let event = new DeleteSharedMapEvent<TValue>(key);
+    let event = new DeleteSharedMapEvent(key);
     this.self.send(event);
   }
 
+  /** Clear the hashmap. */
   clear(): void {
-    const event = new ClearSharedMapEvent<TValue>();
+    const event = new ClearSharedMapEvent();
     this.self.send(event);
   }
 
+  /** Check to see if it has the key. */
   has(key: string): bool {
-    const event = new HasSharedMapEvent<TValue>(key);
-    const message = this.self.request<HasSharedMapEvent<TValue>, bool>(event);
+    const event = new HasSharedMapEvent(key);
+    const message = this.self.request<HasSharedMapEvent, bool>(event);
     assert(message.type == MessageType.Data);
     return message.box!.value;
   }
 
+  /** Get the size of the hashmap. */
   get size(): i32 {
-    const event = new SizeSharedMapEvent<TValue>();
-    const message = this.self.request<SizeSharedMapEvent<TValue>, i32>(event);
+    const event = new SizeSharedMapEvent();
+    const message = this.self.request<SizeSharedMapEvent, i32>(event);
     assert(message.type == MessageType.Data);
     return message.box!.value;
   }
 
+  /** Get all the keys in the hashmap. */
   keys(): string[] {
-    const event = new KeysSharedMapEvent<TValue>();
-    const message = this.self.request<KeysSharedMapEvent<TValue>, string[]>(event);
+    const event = new KeysSharedMapEvent();
+    const message = this.self.request<KeysSharedMapEvent, string[]>(event);
     assert(message.type == MessageType.Data);
     return message.box!.value;
   }
 
+  /** Get all the values in the hashmap. */
   values(): TValue[] {
-    const event = new ValuesSharedMapEvent<TValue>();
-    const message = this.self.request<ValuesSharedMapEvent<TValue>, TValue[]>(event);
+    const event = new ValuesSharedMapEvent();
+    const message = this.self.request<ValuesSharedMapEvent, TValue[]>(event);
     assert(message.type == MessageType.Data);
     return message.box!.value;
   }
 }
 
-abstract class SharedMapEvent<TValue> {}
+abstract class SharedMapEvent {}
 
-class GetSharedMapEvent<TValue> extends SharedMapEvent<TValue> {
+class GetSharedMapEvent extends SharedMapEvent {
   constructor(
     public key: string
   ) {
@@ -97,7 +108,7 @@ class GetSharedMapEvent<TValue> extends SharedMapEvent<TValue> {
   }
 }
 
-class DeleteSharedMapEvent<TValue> extends SharedMapEvent<TValue> {
+class DeleteSharedMapEvent extends SharedMapEvent {
   constructor(
     public key: string
   ) {
@@ -105,7 +116,7 @@ class DeleteSharedMapEvent<TValue> extends SharedMapEvent<TValue> {
   }
 }
 
-class SetSharedMapEvent<TValue> extends SharedMapEvent<TValue> {
+class SetSharedMapEvent<TValue> extends SharedMapEvent {
   constructor(
     public key: string,
     public value: TValue,
@@ -114,16 +125,16 @@ class SetSharedMapEvent<TValue> extends SharedMapEvent<TValue> {
   }
 }
 
-class ClearSharedMapEvent<TValue> extends SharedMapEvent<TValue> {}
+class ClearSharedMapEvent extends SharedMapEvent {}
 
-class HasSharedMapEvent<TValue> extends SharedMapEvent<TValue> {
+class HasSharedMapEvent extends SharedMapEvent {
   constructor(public key: string) {
     super();
   }
 }
 
-class SizeSharedMapEvent<TValue> extends SharedMapEvent<TValue> {}
+class SizeSharedMapEvent extends SharedMapEvent {}
 
-class KeysSharedMapEvent<TValue> extends SharedMapEvent<TValue> {}
+class KeysSharedMapEvent extends SharedMapEvent {}
 
-class ValuesSharedMapEvent<TValue> extends SharedMapEvent<TValue> {}
+class ValuesSharedMapEvent extends SharedMapEvent {}

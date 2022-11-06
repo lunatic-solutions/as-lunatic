@@ -36,15 +36,18 @@ Finally, export a `_start()` function from the entry file, so that the main thre
 Lunatic errors are represented by an id. They *must* be freed after creation, so `as-lunatic` will bundle it's function return types in a `Result<T>` class. This allows for lunatic errors to be managed by `as-disposable`, and helps prevent memory leaks. For example, when accepting a `TcpStream` from a `TcpListener`, it's possible to check to see if the `TcpListener` is in an errored state.
 
 ```ts
+import { TCPServer } from "./net/tcp";
+import { IPAddress } from "./net/util";
+
 export function _start(): void {
   // bind a tcp server and expect it to open
-  let server = TCPServer.bindIPv4([127, 0, 0, 1], 10000).expect()!;
+  let server = TCPServer.bind(IPAddress.v4([127, 0, 0, 1], 10000)).expect();
   while (true) {
     // accept sockets forever
     let socketResult = server.accept(); // this is a Result<TCPSocket | null>
     if (socketResult.isOk()) {
       // we can now use this socket resource
-      let socket = socketResult.expect()!;
+      let socket = socketResult.expect();
     } else {
       // we can log out the error
       trace(socketResult.errorString);
@@ -99,21 +102,23 @@ Lunatic will create another `Process`, instantiate the current WebAssembly modul
 To open a TCP server, use the static methods on the `TCPServer` class.
 
 ```ts
-import { TCPServer, TCPStream } from "as-lunatic";
+import { TCPServer, TCPSocket } from "as-lunatic/assembly";
 
-function processSocket(socket: TCPStream, mailbox: Mailbox<i32>): void {
+
+function processSocket(socket: TCPSocket, mailbox: Mailbox<i32>): void {
   // do something with the accepted tcp socket here on another thread
 }
 
 export function _start(): void {
   // bind the server to an ip address and a port
-  let server = TCPServer.bindIPv4([127, 0, 0, 1], TCP_PORT);
+  let server = TCPServer.bind(IPAddress.v4([127, 0, 0, 1], 1234))
+    .expect();
 
   // blocks until a socket is accepted
   while (true) {
-    let socket = server.accept().expect()!;W
+    let socket = server.accept().expect();
     // pass the socket off to another process
-    Process.spawnInheritWith<TCPSocket, i32>(stream, processSocket);
+    Process.inheritSpawnWith<TCPSocket, i32>(socket, processSocket);
   }
 }
 ```
@@ -121,26 +126,26 @@ export function _start(): void {
 To open a TCP connection to another server, use a `TCPSocket` connection.
 
 ```ts
-import { TCPSocket, TCPResultType } from "as-lunatic";
+import { TCPSocket, IPAddress, NetworkResultType } from "as-lunatic/assembly";
 
 export function _start(): void {
   // connect to an ip and a port
-  let connection = TCPSocket.connectIPv4(ipAddress, port).expect()!;
+  let connection = TCPSocket.connect(IPAddress.v4(ipAddress, port)).expect();
 
-  // send a message using a write method
-  let result = socket.writeBuffer(String.UTF8.encode("Hello world!"));
+  // send a message using the write method
+  let result = connection.write(String.UTF8.encode("Hello world!"));
 
-  // returns a `Result<TCPResultType>`
+  // returns a `Result<NetworkResultType>`
   switch (result.value) {
-    case TCPResultType.Error: {
+    case NetworkResultType.Error: {
       trace(result.errorString);
       break;
     }
-    case TCPResultType.Closed: {
+    case NetworkResultType.Closed: {
       trace("Socket closed");
       break;
     }
-    case TCPResultType.Success: {
+    case NetworkResultType.Success: {
       // bytes written is stored on byteCount
       trace("Bytes Written", 1, <f64>socket.byteCount);
       break;
