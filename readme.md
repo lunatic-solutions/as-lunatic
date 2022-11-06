@@ -102,7 +102,8 @@ Lunatic will create another `Process`, instantiate the current WebAssembly modul
 To open a TCP server, use the static methods on the `TCPServer` class.
 
 ```ts
-import { TCPServer, TCPStream } from "as-lunatic/assembly";
+import { TCPServer, TCPSocket } from "as-lunatic/assembly";
+
 
 function processSocket(socket: TCPSocket, mailbox: Mailbox<i32>): void {
   // do something with the accepted tcp socket here on another thread
