@@ -102,21 +102,22 @@ Lunatic will create another `Process`, instantiate the current WebAssembly modul
 To open a TCP server, use the static methods on the `TCPServer` class.
 
 ```ts
-import { TCPServer, TCPStream } from "as-lunatic";
+import { TCPServer, TCPStream } from "as-lunatic/assembly";
 
-function processSocket(socket: TCPStream, mailbox: Mailbox<i32>): void {
+function processSocket(socket: TCPSocket, mailbox: Mailbox<i32>): void {
   // do something with the accepted tcp socket here on another thread
 }
 
 export function _start(): void {
   // bind the server to an ip address and a port
-  let server = TCPServer.bindIPv4([127, 0, 0, 1], TCP_PORT);
+  let server = TCPServer.bind(IPAddress.v4([127, 0, 0, 1], 1234))
+    .expect();
 
   // blocks until a socket is accepted
   while (true) {
-    let socket = server.accept().expect()!;W
+    let socket = server.accept().expect();
     // pass the socket off to another process
-    Process.spawnInheritWith<TCPSocket, i32>(stream, processSocket);
+    Process.inheritSpawnWith<TCPSocket, i32>(socket, processSocket);
   }
 }
 ```
@@ -124,26 +125,26 @@ export function _start(): void {
 To open a TCP connection to another server, use a `TCPSocket` connection.
 
 ```ts
-import { TCPSocket, TCPResultType } from "as-lunatic";
+import { TCPSocket, IPAddress, NetworkResultType } from "as-lunatic/assembly";
 
 export function _start(): void {
   // connect to an ip and a port
-  let connection = TCPSocket.connectIPv4(ipAddress, port).expect()!;
+  let connection = TCPSocket.connect(IPAddress.v4(ipAddress, port)).expect();
 
-  // send a message using a write method
-  let result = socket.writeBuffer(String.UTF8.encode("Hello world!"));
+  // send a message using the write method
+  let result = connection.write(String.UTF8.encode("Hello world!"));
 
-  // returns a `Result<TCPResultType>`
+  // returns a `Result<NetworkResultType>`
   switch (result.value) {
-    case TCPResultType.Error: {
+    case NetworkResultType.Error: {
       trace(result.errorString);
       break;
     }
-    case TCPResultType.Closed: {
+    case NetworkResultType.Closed: {
       trace("Socket closed");
       break;
     }
-    case TCPResultType.Success: {
+    case NetworkResultType.Success: {
       // bytes written is stored on byteCount
       trace("Bytes Written", 1, <f64>socket.byteCount);
       break;
