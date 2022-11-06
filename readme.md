@@ -36,15 +36,18 @@ Finally, export a `_start()` function from the entry file, so that the main thre
 Lunatic errors are represented by an id. They *must* be freed after creation, so `as-lunatic` will bundle it's function return types in a `Result<T>` class. This allows for lunatic errors to be managed by `as-disposable`, and helps prevent memory leaks. For example, when accepting a `TcpStream` from a `TcpListener`, it's possible to check to see if the `TcpListener` is in an errored state.
 
 ```ts
+import { TCPServer } from "./net/tcp";
+import { IPAddress } from "./net/util";
+
 export function _start(): void {
   // bind a tcp server and expect it to open
-  let server = TCPServer.bindIPv4([127, 0, 0, 1], 10000).expect()!;
+  let server = TCPServer.bind(IPAddress.v4([127, 0, 0, 1], 10000)).expect();
   while (true) {
     // accept sockets forever
     let socketResult = server.accept(); // this is a Result<TCPSocket | null>
     if (socketResult.isOk()) {
       // we can now use this socket resource
-      let socket = socketResult.expect()!;
+      let socket = socketResult.expect();
     } else {
       // we can log out the error
       trace(socketResult.errorString);
