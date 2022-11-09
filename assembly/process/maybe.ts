@@ -206,11 +206,14 @@ export class Maybe<TResolve, TReject> {
       assert(resolutionMessage.type == MessageType.Data);
       let resolution = resolutionMessage.unbox();
 
+      trace("received parent resolution of type", 1, <f64>resolution.type);
+
       // once we obtain the value, we no longer need to keep the process alive
       thenMaybeCtx.parentProcess.send<MaybeEvent<TResolve, TReject>>(
         new DecrementMaybeRefEvent<TResolve, TReject>(),
       );
 
+      trace("resolving a resolution.")
       // pass the resolution value to the context callbacks
       if (resolution.type == MaybeResolutionType.Resolved) {
         thenMaybeCtx.resolveCallback(resolution.resolve, ctx);
