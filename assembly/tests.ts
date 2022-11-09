@@ -5,13 +5,18 @@ import {
   TCPSocket,
   Process,
   Mailbox,
-  NetworkResultType,
+  maybe,
+  MaybeContext,
   MessageType,
+  NetworkResultType,
 } from "./index";
+import { Box } from "./process/util";
 
 export function _start(): void {
  test_spawn_inherit_with();
  test_tcp();
+ // test_shared_map();
+ test_maybe();
 }
 
 function test_spawn_inherit_with(): void {
@@ -107,4 +112,25 @@ export function test_shared_map(): void {
   })
   assert(!map.has("xyz"))
   assert(!map.size)
+}
+
+export function test_maybe(): void {
+  let myMaybe = maybe<i32, i32>(
+    (ctx: MaybeContext<i32, i32>) => {
+    ctx.resolve(42);
+    }
+  ).then<u64, u64>((box: Box<i32> | null, ctx: MaybeContext<u64, u64>) => {
+    trace("resolved to", 1, <f64>box!.value);
+    ctx.reject(41);
+  })
+  .then<u64, u64>(
+    (box: Box<u64> | null, ctx: MaybeContext<u64, u64>) => {
+      assert(false, "Cannot resolve maybe");
+    },
+    (box: Box<u64> | null, ctx: MaybeContext<u64, u64>) => {
+      trace("rejected to", 1, <f64>box!.value);
+    }
+  );
+
+  while (true) {}
 }

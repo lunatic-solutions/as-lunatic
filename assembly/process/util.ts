@@ -64,3 +64,9 @@ export class StartWrapper<TStart> {
     public index: usize,
   ) {}
 }
+
+export class Box<TValue> {
+  constructor(
+    public value: TValue
+  ) {}
+}
