@@ -6,6 +6,7 @@ export * from "./managed/map";
 export * from "./managed/held";
 export * from "./managed/maybe";
 export * from "./managed/yieldable";
+export * from "./managed/buffer";
 export * from "./message";
 export * from "./message/bindings";
 export * from "./message/util";
