@@ -115,22 +115,25 @@ export function test_shared_map(): void {
 }
 
 export function test_maybe(): void {
-  let myMaybe = maybe<i32, i32>(
-    (ctx: MaybeContext<i32, i32>) => {
-    ctx.resolve(42);
-    }
-  ).then<u64, u64>((box: Box<i32> | null, ctx: MaybeContext<u64, u64>) => {
-    trace("resolved to", 1, <f64>box!.value);
-    ctx.reject(41);
-  })
-  .then<u64, u64>(
-    (box: Box<u64> | null, ctx: MaybeContext<u64, u64>) => {
-      assert(false, "Cannot resolve maybe");
-    },
-    (box: Box<u64> | null, ctx: MaybeContext<u64, u64>) => {
-      trace("rejected to", 1, <f64>box!.value);
-    }
-  );
-
-  while (true) {}
+  for (let i = 0; i < 1000;i++) {
+    maybe<i32, i32>(
+      (ctx: MaybeContext<i32, i32>) => {
+        ctx.resolve(42);
+      }
+    ).then<u64, u64>(
+      (box: Box<i32> | null, ctx: MaybeContext<u64, u64>) => {
+        trace("resolved to", 1, <f64>box!.value);
+        ctx.reject(41);
+      }
+    ).then<u64, u64>(
+      (box: Box<u64> | null, ctx: MaybeContext<u64, u64>) => {
+        assert(false, "Cannot resolve maybe");
+      },
+      (box: Box<u64> | null, ctx: MaybeContext<u64, u64>) => {
+        trace("rejected to", 1, <f64>box!.value);
+      }
+    );
+  }
+  __collect();
+  Process.sleep(10000);
 }

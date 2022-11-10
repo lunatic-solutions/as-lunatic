@@ -182,8 +182,9 @@ export class Process<TMessage> {
 
   /**
    * Private tag value for request messages, automatically unique per request.
+   * Zero value is *no* tag. It must start with 1.
    */
-  static replyTag: u64 = 0;
+  static replyTag: u64 = 1;
 
   /**
    * Link a process and tag it with a unique identifier. When the process dies, it

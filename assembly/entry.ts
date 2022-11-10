@@ -5,12 +5,16 @@ import {
   iovec,
   random_get
 } from "@assemblyscript/wasi-shim/assembly/bindings/wasi_snapshot_preview1";
+import { OBJECT, TOTAL_OVERHEAD } from "assemblyscript/std/assembly/rt/common";
 
 import {
   MAX_DOUBLE_LENGTH,
   decimalCount32,
   dtoa_buffered
 } from "util/number";
+import { message } from "./message/bindings";
+import { Process } from "./process";
+import { DecrementMaybeRefEvent, MaybeEvent } from "./process/maybe";
 
 
 // All of the following wasi implementations for abort, trace and seed are
@@ -145,4 +149,12 @@ export function __lunatic_seed(): f64 { // eslint-disable-line @typescript-eslin
 /** Required lunatic export to make processes start. */
 export function __lunatic_process_bootstrap(index: u32): void {
   call_indirect(<u32>index, 0);
+}
+
+/** Required for lunatic MaybeContext decrementing because messages cannot be created in the same thread that a finalization is occuring. */
+export function __decrement(held: u64, id: u32): void {
+  let process = new Process<MaybeEvent<i32, i32>>(held, 0);
+  let decrement = new DecrementMaybeRefEvent<i32, i32>();
+  store<u32>(changetype<usize>(decrement) - TOTAL_OVERHEAD, id, offsetof<OBJECT>("rtId"));
+  process.send(decrement);
 }

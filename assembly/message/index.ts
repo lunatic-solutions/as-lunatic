@@ -41,7 +41,7 @@ export class Message<TMessage> {
       this.buffer = data;
 
       // serialize
-      let value = ASON.deserialize<TMessage>(data)
+      let value = ASON.deserialize<TMessage>(data);
       this.tag = message.get_tag();
       this.box = new Box<TMessage>(value);
 
