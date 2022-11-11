@@ -1,4 +1,4 @@
-import { TimeoutErrCode } from "../util";
+import { ErrCode, TimeoutErrCode } from "../util";
 import { MessageType } from "./util";
 
 /** The message namespace containing all functions that reside in the "lunatic::message" namespace. */
@@ -80,7 +80,7 @@ export namespace message {
    */
   // @ts-ignore: decorator
   @external("lunatic::message", "send")
-  export declare function send(process_id: u64): void;
+  export declare function send(process_id: u64): ErrCode;
 
   /**
    * Push a socket to the resource list.

@@ -7,14 +7,17 @@ import {
   Mailbox,
   NetworkResultType,
   MessageType,
+  Held,
 } from "./index";
 
 export function _start(): void {
- test_spawn_inherit_with();
- test_tcp();
+  Process.dieWhenLinkDies = false;
+  testSpawnInheritWith();
+  testTcp();
+  testHeld();
 }
 
-function test_spawn_inherit_with(): void {
+function testSpawnInheritWith(): void {
   let process = Process.inheritSpawnWith<i32, i32>(42, (value: i32, mb: Mailbox<i32>): void => {
     assert(value == 42);
     trace("first success!")
@@ -26,7 +29,7 @@ function test_spawn_inherit_with(): void {
 }
 
 let port: u16 = 0xA000;
-function test_tcp(): void {
+function testTcp(): void {
   let address = IPAddress.v4([127, 0, 0, 1], port);
   let server = TCPServer.bind(address).expect();
   let process = Process.inheritSpawn<TCPSocket>((mailbox: Mailbox<TCPSocket>): void => {
@@ -76,7 +79,7 @@ function createTask(map: SharedMap<string>, task: (map: SharedMap<string>) => vo
   process.request<u8, u8>(0)
 }
 
-export function test_shared_map(): void {
+export function testSharedMap(): void {
   const map = new SharedMap<string>()
 
   map.set("abc", "def")
@@ -107,4 +110,15 @@ export function test_shared_map(): void {
   })
   assert(!map.has("xyz"))
   assert(!map.size)
+}
+
+export function testHeld(): void {
+  for (let i = 0; i < 1000; i++) {
+    let held = Held.create<i32>(i);
+    let value = held.value;
+    held.value = value + 1;
+    assert(held.value == i + 1);
+    trace("Finished held", 1, <f64>i);
+  }
+  trace("Finished held");
 }

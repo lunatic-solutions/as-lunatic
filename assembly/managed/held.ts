@@ -1,7 +1,7 @@
 import { Mailbox, Message } from "../message";
 import { Process } from "../process";
 import { process } from "../process/bindings";
-import { ASManaged, htDel, htSet } from "as-disposable";
+import { ASManaged, htDel, htGet, htSet } from "as-disposable/assembly";
 import { MessageType } from "../message/util";
 
 /** This class is used internally to box the value. */
@@ -63,11 +63,7 @@ export class Held<T> extends ASManaged {
       // box the held value
       let ctx = new HeldContext<T>(start.value);
 
-      // die when the parent dies
-      Process.dieWhenLinkDies = true;
-      process.link(0, start.parent);
-
-      for(;;) {
+      while (true) {
         // for each message
         let message = mb.receive();
 
@@ -77,7 +73,9 @@ export class Held<T> extends ASManaged {
             let event = message.unbox();
             if (event.handle(ctx, message)) return;
           }
-          case MessageType.Signal:
+          case MessageType.Signal: {
+            trace("Signal.", 1, <f64>message.tag);
+          }
           case MessageType.Timeout: {
             continue;
           }
@@ -91,7 +89,9 @@ export class Held<T> extends ASManaged {
   }
 
   /** Keeps track if the process is still perceived to be alive. */
-  private alive: bool = true;
+  private get alive(): bool {
+    return htGet(changetype<usize>(this)) != null;
+  }
 
   constructor(public proc: Process<HeldEvent<T>>) {
     // When the held is cleaned up, we kill the process remotely
@@ -100,15 +100,15 @@ export class Held<T> extends ASManaged {
 
   /** Get or set the value of type T. */
   get value(): T {
-    assert(this.alive);
+    assert(this.alive, "We should be alive");
     let event = new ObtainHeldEvent<T>();
-    let message = this.proc.request<ObtainHeldEvent<T>, T>(event);
-    assert(message.type == MessageType.Data);
+    let message = this.proc.request<ObtainHeldEvent<T>, T>(event, Process.replyTag++, 1000);
+    assert(message.type == MessageType.Data, "This should be a message of type data.");
     return message.unbox();
   }
 
   set value(value: T) {
-    assert(this.alive);
+    assert(this.alive, "We should be alive");
     let event = new ReplaceHeldEvent<T>(value);
     this.proc.send(event);
   }
@@ -116,7 +116,6 @@ export class Held<T> extends ASManaged {
   /** If the held value is no longer used, we can free the resouces safely. */
   kill(): void {
     if (this.alive) {
-      this.alive = false;
       this.proc.kill();
       htDel(changetype<usize>(this));
     }

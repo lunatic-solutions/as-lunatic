@@ -29,7 +29,7 @@ export namespace distributed {
    */
   // @ts-ignore: decorator
   @external("lunatic::distributed", "send")
-  export declare function send(node_id: u64, process_id: u64): void;
+  export declare function send(node_id: u64, process_id: u64): ErrCode;
 
 
   /**

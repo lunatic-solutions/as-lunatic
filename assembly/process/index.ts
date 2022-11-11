@@ -432,11 +432,12 @@ export class Process<TMessage> {
     // write the buffer
     message.write_data(changetype<usize>(buffer), bufferLength);
     heap.free(temp);
-    if (this.nodeID == u64.MAX_VALUE) message.send_receive_skip_search(this.id, timeout);
-    else distributed.send_receive_skip_search(this.nodeID, this.id, timeout);
+    let errCode: TimeoutErrCode;
+    if (this.nodeID == u64.MAX_VALUE) errCode = message.send_receive_skip_search(this.id, timeout);
+    else errCode = distributed.send_receive_skip_search(this.nodeID, this.id, timeout);
 
     // A message now sits in the scratch area
-    return new Message<TRet>(MessageType.Data);
+    return new Message<TRet>(errCode == TimeoutErrCode.Timeout ? MessageType.Timeout : MessageType.Data);
   }
 
   /**
