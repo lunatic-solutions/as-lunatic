@@ -12,9 +12,18 @@ import {
 
 export function _start(): void {
   Process.dieWhenLinkDies = false;
+  testTrace();
   testSpawnInheritWith();
   testTcp();
   testHeld();
+}
+
+
+function testTrace(): void {
+  trace("foo");
+  trace("bar", 1, 123);
+  trace("baz", 456, 1, 2, 3, 4, 5);
+  trace("qux", -789);
 }
 
 function testSpawnInheritWith(): void {
