@@ -183,7 +183,7 @@ export class Process<TMessage> {
   /**
    * Private tag value for request messages, automatically unique per request.
    */
-  static replyTag: u64 = 0;
+  static replyTag: u64 = 1;
 
   /**
    * Link a process and tag it with a unique identifier. When the process dies, it
@@ -414,24 +414,22 @@ export class Process<TMessage> {
    * @param {TMessage} msg - The message being sent.
    * @param {i64} tag - The message tag.
    */
-  request<UMessage extends TMessage, TRet>(msg: UMessage, tag: i64 = 0, timeout: u64 = u64.MAX_VALUE): Message<TRet> {
+  request<UMessage extends TMessage, TRet>(msg: UMessage, tag: i64 = Process.replyTag++, timeout: u64 = u64.MAX_VALUE): Message<TRet> {
     message.create_data(tag, MESSAGE_BUFFER_SIZE);
     let buffer = ASON.serialize<UMessage>(msg);
     let bufferLength = <usize>buffer.length;
-    let temp = heap.alloc(sizeof<u64>());
+    let temp = memory.data(sizeof<u64>());
 
     // need to write the sending process id
     store<u64>(temp, Process.processID);
     message.write_data(temp, sizeof<u64>());
 
     // need to write the sending process reply tag
-    let replyTag = Process.replyTag++;
-    store<u64>(temp, replyTag);
+    store<u64>(temp, tag);
     message.write_data(temp, sizeof<u64>());
 
     // write the buffer
     message.write_data(changetype<usize>(buffer), bufferLength);
-    heap.free(temp);
     let errCode: TimeoutErrCode;
     if (this.nodeID == u64.MAX_VALUE) errCode = message.send_receive_skip_search(this.id, timeout);
     else errCode = distributed.send_receive_skip_search(this.nodeID, this.id, timeout);

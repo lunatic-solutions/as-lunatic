@@ -5,7 +5,7 @@ import { MessageType } from "./util";
 
 let emptyTagset = [] as StaticArray<i64>;
 
-class Box<T> { constructor(public value: T) {} }
+export class Box<T> { constructor(public value: T) {} }
 
 /** Represents a message received from a mailbox. */
 export class Message<TMessage> {
@@ -68,9 +68,10 @@ export class Message<TMessage> {
     return this.buffer!;
   }
 
+  /** Reply back to the process that sent this message with the given reply tag. This should be used with process.request() */
   reply<UMessage>(message: UMessage): void {
     let p = new Process<UMessage>(this.sender, Process.tag++);
-    p.send(message);
+    p.send(message, this.replyTag);
   }
 
   unbox(): TMessage {
@@ -107,7 +108,6 @@ export class MessageWrapper<T> {
   receive(tags: StaticArray<i64> | null = null, timeout: u64 = u64.MAX_VALUE): Message<TMessage> {
     tags = tags || emptyTagset;
     let tagsLength = tags!.length;
-
     /**
      * Returns:
      * 0    if it's a data message.

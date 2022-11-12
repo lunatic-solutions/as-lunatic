@@ -4,6 +4,7 @@ import { process } from "../process/bindings";
 import { ASManaged, htDel, htGet, htSet } from "as-disposable/assembly";
 import { MessageType } from "../message/util";
 
+
 /** This class is used internally to box the value. */
 export class HeldContext<T> {
   constructor(public value: T) {}
@@ -42,6 +43,7 @@ export class ReplaceHeldEvent<T> extends HeldEvent<T> {
   }
 }
 
+
 /** This class is used a start message to notify the child process of the parent and the initial value. */
 export class HeldStartContext<T> {
   constructor(
@@ -49,6 +51,22 @@ export class HeldStartContext<T> {
     public value: T,
   ) {}
 }
+
+/** Represents a request to manipulate the held value with a callback. */
+export class ExecuteHeldEvent<T, U> extends HeldEvent<T> {
+  constructor(
+    public value: U,
+    public callback: (value: U, ctx: HeldContext<T>) => void,
+  ) {
+    super();
+  }
+
+  handle(ctx: HeldContext<T>, msg: Message<HeldEvent<T>>): bool {
+    this.callback(this.value, ctx);
+    return false;
+  }
+}
+
 
 /** Represents a value held on another process. */
 export class Held<T> extends ASManaged {
@@ -65,6 +83,7 @@ export class Held<T> extends ASManaged {
 
       while (true) {
         // for each message
+        trace("trying to receive held message");
         let message = mb.receive();
 
         switch (message.type) {
@@ -72,10 +91,11 @@ export class Held<T> extends ASManaged {
             // unbox the message and handle it
             let event = message.unbox();
             if (event.handle(ctx, message)) return;
+            continue;
           }
-          case MessageType.Signal: {
-            trace("Signal.", 1, <f64>message.tag);
-          }
+          case MessageType.Signal:
+            continue;
+          default:
           case MessageType.Timeout: {
             continue;
           }
@@ -93,30 +113,38 @@ export class Held<T> extends ASManaged {
     return htGet(changetype<usize>(this)) != null;
   }
 
-  constructor(public proc: Process<HeldEvent<T>>) {
+  constructor(public heldProcess: Process<HeldEvent<T>>) {
     // When the held is cleaned up, we kill the process remotely
-    super(proc.id, process.kill);
+    super(heldProcess.id, process.kill);
   }
 
   /** Get or set the value of type T. */
   get value(): T {
-    assert(this.alive, "We should be alive");
+    assert(this.alive);
     let event = new ObtainHeldEvent<T>();
-    let message = this.proc.request<ObtainHeldEvent<T>, T>(event, Process.replyTag++, 1000);
-    assert(message.type == MessageType.Data, "This should be a message of type data.");
+    trace("requesting the value");
+    let message = this.heldProcess.request<ObtainHeldEvent<T>, T>(event, Process.replyTag++, 10000);
+    assert(message.type == MessageType.Data);
     return message.unbox();
   }
 
   set value(value: T) {
-    assert(this.alive, "We should be alive");
+    trace("setting value");
+    assert(this.alive);
     let event = new ReplaceHeldEvent<T>(value);
-    this.proc.send(event);
+    this.heldProcess.send(event);
+  }
+
+  execute<U>(value: U, callback: (value: U, ctx: HeldContext<T>) => void): void {
+    trace("Executing.");
+    let event = new ExecuteHeldEvent<T, U>(value, callback);
+    this.heldProcess.send(event);
   }
 
   /** If the held value is no longer used, we can free the resouces safely. */
   kill(): void {
     if (this.alive) {
-      this.proc.kill();
+      this.heldProcess.kill();
       htDel(changetype<usize>(this));
     }
   }
@@ -130,16 +158,16 @@ export class Held<T> extends ASManaged {
     // get the return value
     let array = new StaticArray<u8>(sizeof<u64>());
     // store the process id
-    store<u64>(changetype<usize>(array), held.proc.id);
+    store<u64>(changetype<usize>(array), held.heldProcess.id);
     return array;
   }
 
   /** Used by ASON to safely deserialize a Held<T>. */
   __asonDeserialize(array: StaticArray<u8>): void {
     // create the process object unsafely
-    this.proc = new Process<HeldEvent<T>>(load<u64>(changetype<usize>(array)),0);
+    this.heldProcess = new Process<HeldEvent<T>>(load<u64>(changetype<usize>(array)),0);
 
     // @ts-ignore function index, used to set up the disposable callback
-    htSet(changetype<usize>(this), this.proc.id, process.kill.index);
+    htSet(changetype<usize>(this), this.heldProcess.id, process.kill.index);
   }
 }

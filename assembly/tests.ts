@@ -8,14 +8,18 @@ import {
   NetworkResultType,
   MessageType,
   Held,
+  Box,
 } from "./index";
+import { Maybe, MaybeCallbackContext } from "./managed/maybe";
 
 export function _start(): void {
   Process.dieWhenLinkDies = false;
-  testTrace();
-  testSpawnInheritWith();
-  testTcp();
-  testHeld();
+  // testTrace();
+  // testSpawnInheritWith();
+  // testTcp();
+  // trace("tcp success");
+  // testHeld();
+  testMaybe();
 }
 
 
@@ -127,7 +131,32 @@ export function testHeld(): void {
     let value = held.value;
     held.value = value + 1;
     assert(held.value == i + 1);
-    trace("Finished held", 1, <f64>i);
   }
   trace("Finished held");
+}
+
+export function testMaybe(): void {
+  for (let i = 0; i < 1000; i++) {
+    let maybe = Maybe.resolve<i32, i32>(42)
+      .then<i32, i32>((value: Box<i32> | null, ctx: MaybeCallbackContext<i32, i32>) => {
+        assert(value);
+        assert(value!.value == 42);
+        ctx.reject(41);
+        trace("resolved");
+      });
+
+    let result = maybe.then<i32, i32>(
+      (val: Box<i32> | null, ctx: MaybeCallbackContext<i32, i32>) => {
+        assert(false);
+      },
+      (value: Box<i32> | null, ctx: MaybeCallbackContext<i32, i32>) => {
+      assert(value);
+      assert(value!.value == 41);
+      trace("rejected");
+      ctx.resolve(12345);
+    }).resolve;
+
+    assert(result);
+    assert(result!.value == 12345);
+  }
 }
