@@ -94,7 +94,15 @@ export function __lunatic_trace( // eslint-disable-line @typescript-eslint/no-un
   // 8: len
   // 12: buf...
 
-  const iovPtr = __alloc(offsetof<iovec>() + sizeof<usize>() + 1 + <usize>(max(String.UTF8.byteLength(message), MAX_DOUBLE_LENGTH << 1)));
+  let size: usize
+  const iovPtr = __alloc(size =
+    offsetof<iovec>() +
+    sizeof<usize>() +
+    1 + // \n
+    7 + // "trace: "
+    <usize>(max(String.UTF8.byteLength(message), MAX_DOUBLE_LENGTH << 1)) + // message
+    24 * max(0, min(n, 5)) // a{0,1,2,3,4}
+  );
   const lenPtr = iovPtr + offsetof<iovec>();
   const bufPtrBase = lenPtr + sizeof<usize>();
   let bufPtr = bufPtrBase;

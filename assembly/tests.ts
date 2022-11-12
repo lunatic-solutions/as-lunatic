@@ -10,8 +10,16 @@ import {
 } from "./index";
 
 export function _start(): void {
+ test_trace();
  test_spawn_inherit_with();
  test_tcp();
+}
+
+function test_trace(): void {
+  trace("foo");
+  trace("bar", 1, 123);
+  trace("baz", 456, 1, 2, 3, 4, 5);
+  trace("qux", -789);
 }
 
 function test_spawn_inherit_with(): void {
