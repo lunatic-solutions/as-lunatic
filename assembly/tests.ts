@@ -14,12 +14,12 @@ import { Maybe, MaybeCallbackContext } from "./managed/maybe";
 
 export function _start(): void {
   Process.dieWhenLinkDies = false;
-  // testTrace();
-  // testSpawnInheritWith();
-  // testTcp();
-  // trace("tcp success");
-  // testHeld();
+  testTrace();
+  testSpawnInheritWith();
+  testTcp();
+  testHeld();
   testMaybe();
+  testSharedMap();
 }
 
 
@@ -33,10 +33,8 @@ function testTrace(): void {
 function testSpawnInheritWith(): void {
   let process = Process.inheritSpawnWith<i32, i32>(42, (value: i32, mb: Mailbox<i32>): void => {
     assert(value == 42);
-    trace("first success!")
     let message = mb.receive();
     assert(message.type == MessageType.Data);
-    trace("second success!");
   }).expect();
   process.send(41);
 }
@@ -65,7 +63,6 @@ function testTcp(): void {
   let buffer: u8[] = [1, 2, 3, 4];
   socket.write(buffer);
   process.request<TCPSocket, u8>(inbound);
-
   assert(socket.read(buffer).type === NetworkResultType.Success);
   assert(buffer[0] == 5);
   assert(buffer[1] == 6);
@@ -131,11 +128,13 @@ export function testHeld(): void {
     let value = held.value;
     held.value = value + 1;
     assert(held.value == i + 1);
+    trace("running held test");
   }
   trace("Finished held");
 }
 
 export function testMaybe(): void {
+  trace("maybe?");
   for (let i = 0; i < 1000; i++) {
     let maybe = Maybe.resolve<i32, i32>(42)
       .then<i32, i32>((value: Box<i32> | null, ctx: MaybeCallbackContext<i32, i32>) => {

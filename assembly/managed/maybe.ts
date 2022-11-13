@@ -5,41 +5,41 @@ import { Held, HeldContext, HeldEvent, ObtainHeldEvent } from "./held";
 
 /** Represents the status of a resolution */
 export const enum MaybeResolutionStatus {
-    Pending,
-    Resolved,
-    Rejected,
+  Pending,
+  Resolved,
+  Rejected,
 }
 
 /** This class is passed to the maybe callback, and it allows users to resolve or reject a Maybe. */
 export class MaybeCallbackContext<TResolve, TReject> {
-    private resolutionType: MaybeResolutionStatus = MaybeResolutionStatus.Pending;
-    private resolved: Box<TResolve> | null = null;
-    private rejected: Box<TReject> | null = null;
+  private resolutionType: MaybeResolutionStatus = MaybeResolutionStatus.Pending;
+  private resolved: Box<TResolve> | null = null;
+  private rejected: Box<TReject> | null = null;
 
-    /** Resolve the Maybe. Can only call resolve or reject once. */
-    resolve(value: TResolve): void {
-      if (this.resolutionType == MaybeResolutionStatus.Pending) {
-        this.resolved = new Box<TResolve>(value);
-        this.resolutionType = MaybeResolutionStatus.Resolved;
-      }
+  /** Resolve the Maybe. Can only call resolve or reject once. */
+  resolve(value: TResolve): void {
+    if (this.resolutionType == MaybeResolutionStatus.Pending) {
+      this.resolved = new Box<TResolve>(value);
+      this.resolutionType = MaybeResolutionStatus.Resolved;
     }
+  }
 
-    /** Reject the Maybe. Can only call resolve or reject once. */
-    reject(value: TReject): void {
-      if (this.resolutionType == MaybeResolutionStatus.Pending) {
-        this.rejected = new Box<TReject>(value);
-        this.resolutionType = MaybeResolutionStatus.Rejected;
-      }
+  /** Reject the Maybe. Can only call resolve or reject once. */
+  reject(value: TReject): void {
+    if (this.resolutionType == MaybeResolutionStatus.Pending) {
+      this.rejected = new Box<TReject>(value);
+      this.resolutionType = MaybeResolutionStatus.Rejected;
     }
+  }
 
-    /** Return a class that represents the resolution of this MaybeContext. */
-    unpack(): MaybeResolution<TResolve, TReject> {
-        return new MaybeResolution(
-            this.resolutionType == MaybeResolutionStatus.Pending ? MaybeResolutionStatus.Resolved : this.resolutionType,
-            this.resolved,
-            this.rejected,
-        );
-    }
+  /** Return a class that represents the resolution of this MaybeContext. */
+  unpack(): MaybeResolution<TResolve, TReject> {
+    return new MaybeResolution(
+      this.resolutionType == MaybeResolutionStatus.Pending ? MaybeResolutionStatus.Resolved : this.resolutionType,
+      this.resolved,
+      this.rejected,
+    );
+  }
 }
 
 export type MaybeCallback<TResolve, TReject> = (ctx: MaybeCallbackContext<TResolve, TReject>) => void; 
@@ -133,7 +133,6 @@ export class Maybe<TResolve, TReject> {
       >(new ObtainHeldEvent<MaybeResolution<TResolve, TReject> | null>());
       assert(startMessage.type == MessageType.Data);
       let resolution = resolutionMessage.unbox();
-      startMessage.replyTag = startMessage.tag
       startMessage.reply(0);
 
       if (resolution.status == MaybeResolutionStatus.Resolved) {

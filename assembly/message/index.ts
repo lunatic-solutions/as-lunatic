@@ -1,5 +1,6 @@
 import { ASON } from "@ason/assembly";
 import { Process } from "../process";
+import { opaquePtr } from "../util";
 import { message } from "./bindings";
 import { MessageType } from "./util";
 
@@ -17,44 +18,28 @@ export class Message<TMessage> {
   public box: Box<TMessage> | null = null;
   /** The sender process. */
   public sender: u64 = 0;
-  public replyTag: u64 = 0;
 
   constructor(
     public type: MessageType,
   ) {
     // if the message is a data message, read it
     if (type == MessageType.Data) {
-      // read the message data
-      let size = message.data_size();
-      let tempPtr = heap.alloc(<usize>size);
-      let count = message.read_data(tempPtr, <usize>size);
-      assert(count == size);
+      // get the buffer sizes
+      let size = <usize>message.data_size();
+      let bufferSize = size - sizeof<u64>();
+      let count = message.read_data(opaquePtr, sizeof<u64>());
+      assert(count == sizeof<u64>());
+      this.sender = load<u64>(opaquePtr);
 
-      // set the raw buffer
-      let dataLength = size - sizeof<u64>() * 2;
-      let data = new StaticArray<u8>(<i32>dataLength);
-      memory.copy(
-        changetype<usize>(data),
-        tempPtr + sizeof<u64>() * 2,
-        <usize>dataLength,
-      );
-      this.buffer = data;
+      let data = new StaticArray<u8>(<i32>bufferSize);
+      message.read_data(changetype<usize>(data), bufferSize);
 
-      // serialize
-      let value = ASON.deserialize<TMessage>(data)
+      // deserialize and obtain the message tag
+      let value = ASON.deserialize<TMessage>(data);
       this.tag = message.get_tag();
       this.box = new Box<TMessage>(value);
 
-      // set the sender
-      this.sender =  load<u64>(tempPtr);
-
-      // set the reply tag
-      this.replyTag = load<u64>(tempPtr, sizeof<u64>());
-
-      // free heap allocation
-      heap.free(tempPtr);
-
-      // signals have tags too, usually representing the resource id that is signalling a parent
+      // signals have tags too, usually representing the process id that is signalling a parent
     } else if (type == MessageType.Signal) {
       this.tag = message.get_tag();
     }
@@ -71,7 +56,7 @@ export class Message<TMessage> {
   /** Reply back to the process that sent this message with the given reply tag. This should be used with process.request() */
   reply<UMessage>(message: UMessage): void {
     let p = new Process<UMessage>(this.sender, Process.tag++);
-    p.send(message, this.replyTag);
+    p.send(message, this.tag);
   }
 
   unbox(): TMessage {

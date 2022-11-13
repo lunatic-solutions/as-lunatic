@@ -388,22 +388,15 @@ export class Process<TMessage> {
    */
   send<UMessage extends TMessage>(msg: UMessage, tag: i64 = 0): void {
     message.create_data(tag, MESSAGE_BUFFER_SIZE);
-    let buffer = ASON.serialize<UMessage>(msg);
+    let buffer = ASON.serialize(msg);
     let bufferLength = <usize>buffer.length;
-    let temp = heap.alloc(sizeof<u64>());
 
     // need to write the sending process id
-    store<u64>(temp, Process.processID);
-    message.write_data(temp, sizeof<u64>());
-
-    // need to write the sending process reply tag
-    let replyTag = Process.replyTag++;
-    store<u64>(temp, replyTag);
-    message.write_data(temp, sizeof<u64>());
+    store<u64>(opaquePtr, Process.processID);
+    message.write_data(opaquePtr, sizeof<u64>());
 
     // write the buffer
     message.write_data(changetype<usize>(buffer), bufferLength);
-    heap.free(temp);
     if (this.nodeID == u64.MAX_VALUE) message.send(this.id);
     else distributed.send(this.nodeID, this.id);
   }
@@ -416,24 +409,19 @@ export class Process<TMessage> {
    */
   request<UMessage extends TMessage, TRet>(msg: UMessage, tag: i64 = Process.replyTag++, timeout: u64 = u64.MAX_VALUE): Message<TRet> {
     message.create_data(tag, MESSAGE_BUFFER_SIZE);
-    let buffer = ASON.serialize<UMessage>(msg);
+    let buffer = ASON.serialize(msg);
     let bufferLength = <usize>buffer.length;
-    let temp = memory.data(sizeof<u64>());
 
     // need to write the sending process id
-    store<u64>(temp, Process.processID);
-    message.write_data(temp, sizeof<u64>());
-
-    // need to write the sending process reply tag
-    store<u64>(temp, tag);
-    message.write_data(temp, sizeof<u64>());
+    store<u64>(opaquePtr, Process.processID);
+    message.write_data(opaquePtr, sizeof<u64>());
 
     // write the buffer
     message.write_data(changetype<usize>(buffer), bufferLength);
     let errCode: TimeoutErrCode;
+
     if (this.nodeID == u64.MAX_VALUE) errCode = message.send_receive_skip_search(this.id, timeout);
     else errCode = distributed.send_receive_skip_search(this.nodeID, this.id, timeout);
-
     // A message now sits in the scratch area
     return new Message<TRet>(errCode == TimeoutErrCode.Timeout ? MessageType.Timeout : MessageType.Data);
   }
@@ -446,19 +434,14 @@ export class Process<TMessage> {
    */
   @unsafe sendUnsafe<UMessage>(msg: UMessage, tag: i64 = 0): void {
     message.create_data(tag, MESSAGE_BUFFER_SIZE);
-    let buffer = ASON.serialize<UMessage>(msg);
+    let buffer = ASON.serialize(msg);
     let bufferLength = <usize>buffer.length;
-    let temp = heap.alloc(sizeof<u64>());
 
     // need to write the sending process id
-    store<u64>(temp, Process.processID);
-    message.write_data(temp, sizeof<u64>());
-    // need to write the sending process reply tag
-    store<u64>(temp, 0);
-    message.write_data(temp, sizeof<u64>());
+    store<u64>(opaquePtr, Process.processID);
+    message.write_data(opaquePtr, sizeof<u64>());
 
     message.write_data(changetype<usize>(buffer), bufferLength);
-    heap.free(temp);
     if (this.nodeID == u64.MAX_VALUE) message.send(this.id);
     else distributed.send(this.nodeID, this.id);
   }
