@@ -128,11 +128,12 @@ export class Maybe<TResolve, TReject> {
       
       // obtain the resolution from the parent
       let resolutionMessage = start.parentProcess.request<
-        HeldEvent<MaybeResolution<TResolve, TReject>>,
-        MaybeResolution<TResolve, TReject>,
-      >(new ObtainHeldEvent<MaybeResolution<TResolve, TReject>>());
+        HeldEvent<MaybeResolution<TResolve, TReject> | null>,
+        MaybeResolution<TResolve, TReject>
+      >(new ObtainHeldEvent<MaybeResolution<TResolve, TReject> | null>());
       assert(startMessage.type == MessageType.Data);
       let resolution = resolutionMessage.unbox();
+      startMessage.replyTag = startMessage.tag
       startMessage.reply(0);
 
       if (resolution.status == MaybeResolutionStatus.Resolved) {
