@@ -15,12 +15,23 @@ const MESSAGE_BUFFER_SIZE =
     : 0;
 
 /** This utf-8 string is the name of the export that gets called when a process bootstraps. */
-const bootstrapUTF8 = [0x5f, 0x5f, // "__"
+export const bootstrapUTF8 = [0x5f, 0x5f, // "__"
   0x6c, 0x75, 0x6e, 0x61, 0x74, 0x69, 0x63, // "lunatic"
   0x5f, // "_"
   0x70, 0x72, 0x6f, 0x63, 0x65, 0x73, 0x73, // "process"
   0x5f, // "_"
   0x62, 0x6f, 0x6f, 0x74, 0x73, 0x74, 0x72, 0x61, 0x70, // "bootstrap"
+] as StaticArray<u8>;
+
+export const bootstrapParameterUTF8 = [
+  0x5f, 0x5f, // __
+  0x6c, 0x75, 0x6e, 0x61, 0x74, 0x69, 0x63, // lunatic
+  0x5f, // _
+  0x70, 0x72, 0x6f, 0x63, 0x65, 0x73, 0x73, // process
+  0x5f, // _
+  0x62, 0x6f, 0x6f, 0x74, 0x73, 0x74, 0x72, 0x61, 0x70, // bootstrap
+  0x5f,  // _
+  0x70, 0x61, 0x72, 0x61, 0x6d, 0x65, 0x74, 0x65, 0x72 // parameter
 ] as StaticArray<u8>;
 
 /**
@@ -380,6 +391,35 @@ export class Process<TMessage> {
     return new Result<Process<TMessage> | null>(null, spawnID);
   }
 
+  static inheritSpawnParameter<TMessage>(value: u64, func: (value: u64, mb: Mailbox<TMessage>) => void): Result<Process<TMessage> | null> {
+    let paramsPtr = Parameters.reset()
+      .i32(func.index)
+      .i64(value)
+      .ptr;
+
+    let tag = Process.tag++;
+
+    // store the function pointer bytes little endian (lower bytes in front)
+    let result = process.spawn(
+      tag,
+      -1, // use the same config
+      -1,
+      // This callback accepts a single parameter beyond the function index
+      changetype<usize>(bootstrapParameterUTF8),
+      <usize>bootstrapParameterUTF8.length,
+      paramsPtr,
+      17, // 17 * 1
+      opaquePtr,
+    );
+
+    let spawnID = load<u64>(opaquePtr);
+
+    if (result == ErrCode.Success) {
+      return new Result<Process<TMessage> | null>(new Process(spawnID, tag));
+    }
+    return new Result<Process<TMessage> | null>(null, spawnID);
+  }
+
   /**
    * Send a message with an optional tag.
    *
@@ -387,8 +427,12 @@ export class Process<TMessage> {
    * @param {i64} tag - The message tag.
    */
   send<UMessage extends TMessage>(msg: UMessage, tag: i64 = 0): void {
+    if (isReference(msg)) {
+      trace(`sending ${nameof<UMessage>()} with ${idof<UMessage>()}`);
+    }
+
     message.create_data(tag, MESSAGE_BUFFER_SIZE);
-    let buffer = ASON.serialize(msg);
+    let buffer = ASON.serialize(msg); // Something is creating a message here
     let bufferLength = <usize>buffer.length;
 
     // need to write the sending process id
@@ -408,6 +452,9 @@ export class Process<TMessage> {
    * @param {i64} tag - The message tag.
    */
   request<UMessage extends TMessage, TRet>(msg: UMessage, tag: i64 = Process.replyTag++, timeout: u64 = u64.MAX_VALUE): Message<TRet> {
+    if (isReference(msg)) {
+      trace(`sending ${nameof<UMessage>()} with ${idof<UMessage>()}`);
+    }
     message.create_data(tag, MESSAGE_BUFFER_SIZE);
     let buffer = ASON.serialize(msg);
     let bufferLength = <usize>buffer.length;
@@ -433,6 +480,10 @@ export class Process<TMessage> {
    * @param {i64} tag - The message tag.
    */
   @unsafe sendUnsafe<UMessage>(msg: UMessage, tag: i64 = 0): void {
+    if (isReference(msg)) {
+      trace(`sending ${nameof<UMessage>()} with ${idof<UMessage>()}`);
+    }
+
     message.create_data(tag, MESSAGE_BUFFER_SIZE);
     let buffer = ASON.serialize(msg);
     let bufferLength = <usize>buffer.length;

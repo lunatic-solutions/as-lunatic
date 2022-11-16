@@ -128,7 +128,11 @@ export function testHeld(): void {
     let value = held.value;
     held.value = value + 1;
     assert(held.value == i + 1);
-    trace("running held test");
+    Process.inheritSpawnWith<Held<i32>, i32>(held, (held: Held<i32>, mb: Mailbox<i32>) => {
+      let value = mb.receive().unbox();
+      assert(held.value = value);
+      trace("held test finished");
+    }).expect().send(i + 1);
   }
   trace("Finished held");
 }
@@ -149,13 +153,12 @@ export function testMaybe(): void {
         assert(false);
       },
       (value: Box<i32> | null, ctx: MaybeCallbackContext<i32, i32>) => {
-      assert(value);
       assert(value!.value == 41);
       trace("rejected");
       ctx.resolve(12345);
-    }).resolve;
+    }).value;
 
     assert(result);
-    assert(result!.value == 12345);
+    assert(result.resolved!.value == 12345);
   }
 }

@@ -3,10 +3,13 @@ import { Process } from "../process";
 import { process } from "../process/bindings";
 import { ASManaged, htDel, htGet, htSet } from "as-disposable/assembly";
 import { MessageType } from "../message/util";
+import { Parameters } from "../process/util";
+import { ErrCode, opaquePtr } from "../util";
 
 
 /** This class is used internally to box the value. */
 export class HeldContext<T> {
+  ref: i32 = 1;
   constructor(public value: T) {}
 }
 
@@ -14,7 +17,7 @@ export class HeldContext<T> {
 export abstract class HeldEvent<T> {
   constructor() {}
   /** Handle the event. */
-  abstract handle(ctx: HeldContext<T>, msg: Message<HeldEvent<T>>): bool;
+  abstract handle(ctx: HeldContext<T>, msg: Message<HeldEvent<T> | null>): bool;
 }
 
 /** Represents a request to obtain the value from a Held. */
@@ -24,7 +27,7 @@ export class ObtainHeldEvent<T> extends HeldEvent<T> {
   }
 
   /** Reply to the message with the held value. */
-  handle(ctx: HeldContext<T>, msg: Message<HeldEvent<T>>): bool {
+  handle(ctx: HeldContext<T>, msg: Message<HeldEvent<T> | null>): bool {
     msg.reply<T>(ctx.value);
     return false;
   }
@@ -37,7 +40,7 @@ export class ReplaceHeldEvent<T> extends HeldEvent<T> {
   }
 
   /** Replace the held value. */
-  handle(ctx: HeldContext<T>, _msg: Message<HeldEvent<T>>): bool {
+  handle(ctx: HeldContext<T>, _msg: Message<HeldEvent<T> | null>): bool {
     ctx.value = this.value;
     return false;
   }
@@ -61,12 +64,92 @@ export class ExecuteHeldEvent<T, U> extends HeldEvent<T> {
     super();
   }
 
-  handle(ctx: HeldContext<T>, msg: Message<HeldEvent<T>>): bool {
+  handle(ctx: HeldContext<T>, msg: Message<HeldEvent<T> | null>): bool {
     this.callback(this.value, ctx);
     return false;
   }
 }
 
+export class IncrementHeldEvent<T> extends HeldEvent<T> {
+  constructor() {
+    super();
+  }
+  handle(ctx: HeldContext<T>, _msg: Message<HeldEvent<T> | null>): bool {
+    ctx.ref++;
+    return false;
+  }
+}
+
+export class DecrementHeldEvent<T> extends HeldEvent<T> {
+  constructor() {
+    super();
+  }
+  handle(ctx: HeldContext<T>, _msg: Message<HeldEvent<T> | null>): bool {
+    let ref = ctx.ref--;
+    return (ref - 1) <= 0; 
+  }
+}
+
+export class LinkHeldEvent<T> extends HeldEvent<T> {
+  constructor() {
+    super();
+  }
+
+  handle(ctx: HeldContext<T>, msg: Message<HeldEvent<T> | null>): bool {
+    process.link(Process.tag++, msg.sender);
+    return false;
+  }
+}
+
+export class RequestHeldEvent<T, U, UReturn> extends HeldEvent<T> {
+  constructor(
+    public value: U,
+    public callback: (value: U, ctx: HeldContext<T>) => UReturn,
+  ) {
+    super();
+  }
+
+  handle(ctx: HeldContext<T>, msg: Message<HeldEvent<T> | null>): bool {
+    let value = this.callback(this.value, ctx);
+    msg.reply<UReturn>(value);
+    return false;
+  }
+}
+
+// UTF8 for __heldDecrement
+const __heldDecrementName = [0x5f, 0x5f, 0x68, 0x65, 0x6c, 0x64, 0x44, 0x65, 0x63, 0x72, 0x65, 0x6d, 0x65, 0x6e, 0x74] as StaticArray<u8>;
+
+// UTF8 for __heldLink
+const __heldLinkName = [
+  95,  95, 104, 101,
+ 108, 100,  76, 105,
+ 110, 107
+] as StaticArray<u8>;
+
+// UTF8 for __heldIncrement
+const __heldIncrementName = [
+  95,  95, 104, 101, 108,
+ 100,  73, 110,  99, 114,
+ 101, 109, 101, 110, 116
+] as StaticArray<u8>;
+
+export function heldProcessDecrement(held: u64): void {
+  trace("decrementing process " + held.toString());
+  let params = Parameters.reset()
+    .i64(held);
+    
+  let result = process.spawn(
+    0,
+    -1,
+    -1,
+    changetype<usize>(__heldDecrementName),
+    <usize>__heldDecrementName.length,
+    params.ptr,
+    params.byteLength,
+    opaquePtr,
+  );
+  assert(result == ErrCode.Success);
+}
 
 /** Represents a value held on another process. */
 export class Held<T> extends ASManaged {
@@ -77,32 +160,41 @@ export class Held<T> extends ASManaged {
     let startCxt = new HeldStartContext<T>(Process.processID, value); 
 
     // create a new process
-    let proc = Process.inheritSpawnWith<HeldStartContext<T>, HeldEvent<T>>(startCxt, (start: HeldStartContext<T>, mb: Mailbox<HeldEvent<T>>): void => {
-      // box the held value
-      let ctx = new HeldContext<T>(start.value);
+    let proc = Process.inheritSpawnWith<HeldStartContext<T>, HeldEvent<T> | null>(
+      startCxt, 
+      (start: HeldStartContext<T>, mb: Mailbox<HeldEvent<T> | null>): void => {
+        Process.dieWhenLinkDies = false;
 
-      while (true) {
-        // for each message
-        trace("trying to receive held message");
-        let message = mb.receive();
+        // box the held value
+        let ctx = new HeldContext<T>(start.value);
 
-        switch (message.type) {
-          case MessageType.Data: {
-            // unbox the message and handle it
-            let event = message.unbox();
-            if (event.handle(ctx, message)) return;
-            continue;
-          }
-          case MessageType.Signal:
-            continue;
-          default:
-          case MessageType.Timeout: {
-            continue;
+        while (true) {
+          trace("We are about to receive");
+          // for each message
+          let message = mb.receive();
+
+          switch (message.type) {
+            case MessageType.Data: {
+              // unbox the message and handle it
+              let event = message.unbox();
+              if (!event) {
+                ctx.ref--;
+                if (ctx.ref <= 0) return;
+              } else if (event.handle(ctx, message)) return;
+              continue;
+            }
+            case MessageType.Signal:
+              ctx.ref--;
+              continue;
+            default:
+            case MessageType.Timeout: {
+              continue;
+            }
           }
         }
-      }
-      // we expect the value 
-    }).expect();
+        // we expect the value 
+      },
+    ).expect();
 
     // return the held
     return new Held<T>(proc);
@@ -113,32 +205,38 @@ export class Held<T> extends ASManaged {
     return htGet(changetype<usize>(this)) != null;
   }
 
-  constructor(public heldProcess: Process<HeldEvent<T>>) {
+  constructor(public heldProcess: Process<HeldEvent<T> | null>) {
+    
     // When the held is cleaned up, we kill the process remotely
-    super(heldProcess.id, process.kill);
+    super(heldProcess.id, heldProcessDecrement);
+    heldProcess.send<LinkHeldEvent<T>>(new LinkHeldEvent<T>());
   }
 
   /** Get or set the value of type T. */
   get value(): T {
     assert(this.alive);
     let event = new ObtainHeldEvent<T>();
-    trace("requesting the value");
     let message = this.heldProcess.request<ObtainHeldEvent<T>, T>(event, Process.replyTag++, 10000);
     assert(message.type == MessageType.Data);
     return message.unbox();
   }
 
   set value(value: T) {
-    trace("setting value");
     assert(this.alive);
     let event = new ReplaceHeldEvent<T>(value);
     this.heldProcess.send(event);
   }
 
   execute<U>(value: U, callback: (value: U, ctx: HeldContext<T>) => void): void {
-    trace("Executing.");
     let event = new ExecuteHeldEvent<T, U>(value, callback);
-    this.heldProcess.send(event);
+    this.heldProcess.send<HeldEvent<T> | null>(event);
+  }
+
+  request<U, UReturn>(value: U, callback: (value: U, ctx: HeldContext<T>) => UReturn): UReturn {
+    let reply = this.heldProcess
+      .request<RequestHeldEvent<T, U, UReturn>, UReturn>(new RequestHeldEvent<T, U, UReturn>(value, callback));
+    assert(reply.type == MessageType.Data);
+    return reply.unbox();
   }
 
   /** If the held value is no longer used, we can free the resouces safely. */
@@ -151,23 +249,33 @@ export class Held<T> extends ASManaged {
 
   /** Used by ASON to safely serialize a Held<T>. */
   __asonSerialize(): StaticArray<u8> {
-    // We need to create a process that holds onto the value properly
-    let held = Held.create<T>(this.value);
-    // we don't want to kill the process the moment it gets garbage collected
-    held.preventFinalize();
+
+    // node -p "[...Buffer.from(``STRING``)]" in PowerShell
+    Process.inheritSpawnParameter<i32>(this.heldProcess.id, (value: u64, mb: Mailbox<i32>) => {
+      let event = new IncrementHeldEvent<T>();
+      let p = new Process<HeldEvent<T>>(value, Process.tag++);
+      p.send(event);
+    }).expect();
+
     // get the return value
     let array = new StaticArray<u8>(sizeof<u64>());
     // store the process id
-    store<u64>(changetype<usize>(array), held.heldProcess.id);
+    store<u64>(changetype<usize>(array), this.heldProcess.id);
     return array;
   }
 
   /** Used by ASON to safely deserialize a Held<T>. */
   __asonDeserialize(array: StaticArray<u8>): void {
     // create the process object unsafely
-    this.heldProcess = new Process<HeldEvent<T>>(load<u64>(changetype<usize>(array)),0);
+    this.heldProcess = new Process<HeldEvent<T> | null>(load<u64>(changetype<usize>(array)), 0);
+
+    Process.inheritSpawnParameter<i32>(this.heldProcess.id, (value: u64, mb: Mailbox<i32>) => {
+      let event = new LinkHeldEvent<T>();
+      let p = new Process<HeldEvent<T> | null>(value, Process.tag++);
+      p.send(event);
+    }).expect();
 
     // @ts-ignore function index, used to set up the disposable callback
-    htSet(changetype<usize>(this), this.heldProcess.id, process.kill.index);
+    htSet(changetype<usize>(this), this.heldProcess.id, heldProcessDecrement.index);
   }
 }

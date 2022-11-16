@@ -1,4 +1,5 @@
 
+import { ASON } from "@ason/assembly";
 import {
   proc_exit,
   fd_write,
@@ -11,6 +12,10 @@ import {
   decimalCount32,
   dtoa_buffered
 } from "util/number";
+import { IncrementHeldEvent, LinkHeldEvent } from "./managed/held";
+import { message } from "./message/bindings";
+import { Process } from "./process";
+import { ErrCode, opaquePtr } from "./util";
 
 
 // All of the following wasi implementations for abort, trace and seed are
@@ -153,4 +158,17 @@ export function __lunatic_seed(): f64 { // eslint-disable-line @typescript-eslin
 /** Required lunatic export to make processes start. */
 export function __lunatic_process_bootstrap(index: u32): void {
   call_indirect(<u32>index, 0);
+}
+
+/** Required lunatic export to make processes start. */
+export function __lunatic_process_bootstrap_parameter(index: u32, param: u64): void {
+  call_indirect(<u32>index, 0, param);
+}
+
+export function __heldDecrement(pid: u64): void {
+  // this sends an ASON null
+  message.create_data(0, sizeof<u64>());
+  store<u64>(opaquePtr, 0);
+  message.write_data(opaquePtr, sizeof<u64>());
+  assert(message.send(pid) == ErrCode.Success);
 }

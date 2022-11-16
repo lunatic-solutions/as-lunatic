@@ -1,7 +1,5 @@
-import { Box, Mailbox, Message } from "../message";
-import { MessageType } from "../message/util";
-import { Process } from "../process";
-import { Held, HeldContext, HeldEvent, ObtainHeldEvent } from "./held";
+import { Box } from "../message";
+import { Held, HeldContext } from "./held";
 
 /** Represents the status of a resolution */
 export const enum MaybeResolutionStatus {
@@ -42,124 +40,117 @@ export class MaybeCallbackContext<TResolve, TReject> {
   }
 }
 
+/** Define the callback types */
 export type MaybeCallback<TResolve, TReject> = (ctx: MaybeCallbackContext<TResolve, TReject>) => void; 
 export type ThenCallback<TValue, TResolveNext, TRejectNext> = (value: Box<TValue> | null, ctx: MaybeCallbackContext<TResolveNext, TRejectNext>) => void;
 
 
 /** Data class that represents a maybe resolution. */
 export class MaybeResolution<TResolve, TReject> {
-    constructor(
-        /** The status of this resolution. */
-        public status: MaybeResolutionStatus = MaybeResolutionStatus.Pending,
-        /** The resolved value is boxed if it was explicitly resolved. */
-        public resolved: Box<TResolve> | null = null,
-        /** The rejected value is boxed if it was explicitly rejected. */
-        public rejected: Box<TReject> | null = null,
-    ) {}
-}
-
-
-export class MaybeStartContext<TResolve, TReject> {
-    constructor(
-        public heldProcess: Process<HeldEvent<MaybeResolution<TResolve, TReject> | null>>,
-        public callback: MaybeCallback<TResolve, TReject>,
-    ) {}
-}
-
-export abstract class MaybeProcessEvent<TResolve, TReject> {
-  abstract handle(ctx: MaybeCallbackContext<TResolve, TReject>, message: Message<MaybeProcessEvent<TResolve, TReject>>): bool;
-}
-
-
-
-export class ThenCallbackStartContext<TResolve, TReject, TResolveNext, TRejectNext> {
   constructor(
-    public parentProcess: Process<HeldEvent<MaybeResolution<TResolve, TReject> | null>>,
-    public resolveCallback: ThenCallback<TResolve, TResolveNext, TRejectNext>,
-    public rejectCallback: ThenCallback<TReject, TResolveNext, TRejectNext>,
+    /** The status of this resolution. */
+    public status: MaybeResolutionStatus = MaybeResolutionStatus.Pending,
+    /** The resolved value is boxed if it was explicitly resolved. */
+    public resolved: Box<TResolve> | null = null,
+    /** The rejected value is boxed if it was explicitly rejected. */
+    public rejected: Box<TReject> | null = null,
   ) {}
 }
 
+export class ThenContext<TResolve, TReject, TResolveNext, TRejectNext> {
+  constructor(
+    public resolve: ThenCallback<TResolve, TResolveNext, TRejectNext>,
+    public reject: ThenCallback<TReject, TResolveNext, TRejectNext>,
+    public held: Held<MaybeResolution<TResolve, TReject>>,
+  ) {}
+}
 
 export class Maybe<TResolve, TReject> {
+
   static resolve<TResolve, TReject>(value: TResolve): Maybe<TResolve, TReject> {
-    let result = new Maybe<TResolve, TReject>((ctx: MaybeCallbackContext<TResolve, TReject>) => {
-      let msg = Mailbox.create<TResolve>().receive();
-      assert(msg.type == MessageType.Data);
-      let resolved = msg.unbox();
-      ctx.resolve(resolved);
-    });
-    result.held.heldProcess.sendUnsafe<TResolve>(value);
-    return result;
+    let maybe = new Maybe<TResolve, TReject>(() => {});
+    maybe.held.execute<TResolve>(
+      value,
+      (value: TResolve, ctx: HeldContext<MaybeResolution<TResolve, TReject>>) => {
+        ctx.value.status = MaybeResolutionStatus.Resolved;
+        ctx.value.resolved = new Box<TResolve>(value);
+      },
+    );
+    return maybe;
   }
 
-  private held: Held<MaybeResolution<TResolve, TReject> | null>
-    = Held.create<MaybeResolution<TResolve, TReject> | null>(null);
+  static reject<TResolve, TReject>(value: TReject): Maybe<TResolve, TReject> {
+    let maybe = new Maybe<TResolve, TReject>(() => {});
+    maybe.held.execute<TReject>(
+      value,
+      (value: TReject, ctx: HeldContext<MaybeResolution<TResolve, TReject>>) => {
+        ctx.value.status = MaybeResolutionStatus.Rejected;
+        ctx.value.rejected = new Box<TReject>(value);
+      },
+    );
+    return maybe; 
+  }
+
+  /** The held value, resolution of the promise. */
+  private held: Held<MaybeResolution<TResolve, TReject>> = Held
+    .create<MaybeResolution<TResolve, TReject>>(new MaybeResolution<TResolve, TReject>());
 
   constructor(callback: MaybeCallback<TResolve, TReject>) {
-    this.held.execute(
+    // this operation is async and atomic
+    this.held.execute<MaybeCallback<TResolve, TReject>>(
       callback,
-      (callback: MaybeCallback<TResolve, TReject>, ctx: HeldContext<MaybeResolution<TResolve, TReject> | null>) => {
-        let callbackContext = new MaybeCallbackContext<TResolve, TReject>();
-        callback(callbackContext);
-        ctx.value = callbackContext.unpack();
+      (value: MaybeCallback<TResolve, TReject>, ctx: HeldContext<MaybeResolution<TResolve, TReject>>) => {
+        let maybeContext = new MaybeCallbackContext<TResolve, TReject>();
+        value(maybeContext);
+        ctx.value = maybeContext.unpack();
       },
     );
   }
 
+  /** Act upon the resolution of a Maybe asynchronously. */
   then<TResolveNext, TRejectNext>(
-    resolveCallback: ThenCallback<TResolve, TResolveNext, TRejectNext> = (val: Box<TResolve> | null, ctx: MaybeCallbackContext<TResolveNext, TRejectNext>) => {},
-    rejectCallback: ThenCallback<TReject, TResolveNext, TRejectNext> = (val: Box<TReject> | null, ctx: MaybeCallbackContext<TResolveNext, TRejectNext>) => {},
+    resolve: ThenCallback<TResolve, TResolveNext, TRejectNext> = () => {},
+    reject: ThenCallback<TReject, TResolveNext, TRejectNext> = () => {},
   ): Maybe<TResolveNext, TRejectNext> {
-    // assert(resolveCallback || rejectCallback);
 
-    let ctx = new ThenCallbackStartContext<TResolve, TReject, TResolveNext, TRejectNext>(
-      this.held.heldProcess,
-      resolveCallback,
-      rejectCallback
-    );
+    // create the maybe
+    let maybe = new Maybe<TResolveNext, TRejectNext>(() => {});
 
-    let m = new Maybe<TResolveNext, TRejectNext>((ctx: MaybeCallbackContext<TResolveNext, TRejectNext>) => {
-      // obtain the start value
-      let startMessage = Mailbox.create<ThenCallbackStartContext<TResolve, TReject, TResolveNext, TRejectNext>>()
-        .receive();
-      assert(startMessage.type == MessageType.Data);
-      let start =  startMessage.unbox();
-      
-      // obtain the resolution from the parent
-      let resolutionMessage = start.parentProcess.request<
-        HeldEvent<MaybeResolution<TResolve, TReject> | null>,
-        MaybeResolution<TResolve, TReject>
-      >(new ObtainHeldEvent<MaybeResolution<TResolve, TReject> | null>());
-      assert(startMessage.type == MessageType.Data);
-      let resolution = resolutionMessage.unbox();
-      startMessage.reply(0);
+    // execute an atomic operation on the maybe with a `ThenContext` which
+    // has the callbacks and the held of the parent `Maybe`
+    maybe.held.execute<ThenContext<TResolve, TReject, TResolveNext, TRejectNext>>(
+      new ThenContext<TResolve, TReject, TResolveNext, TRejectNext>(
+        resolve,
+        reject,
+        this.held,
+      ),
+      (
+        thenCtx: ThenContext<TResolve, TReject, TResolveNext, TRejectNext>,
+        heldCtx: HeldContext<MaybeResolution<TResolveNext, TRejectNext>>
+      ): void => {
+        // read the resolution of the parent Maybe
+        // note: Held#value is a getter that blocks until the Maybe resolves
+        let resolution = thenCtx.held.value;
 
-      if (resolution.status == MaybeResolutionStatus.Resolved) {
-        if (start.resolveCallback) {
-          start.resolveCallback!(resolution.resolved, ctx);
+        // every Maybe requires a MaybeCallbackContext to store the result of the resolution
+        // because AssemblyScript does not have closures.
+        let maybeCallbackCtx = new MaybeCallbackContext<TResolveNext, TRejectNext>();
+
+        // call the appropriate callback
+        if (resolution.status == MaybeResolutionStatus.Resolved) {
+          thenCtx.resolve(resolution.resolved, maybeCallbackCtx);
+        } else if (resolution.status == MaybeResolutionStatus.Rejected) {
+          thenCtx.reject(resolution.rejected, maybeCallbackCtx);
         }
-      } else if (resolution.status == MaybeResolutionStatus.Rejected) {
-        if (start.rejectCallback) {
-          start.rejectCallback!(resolution.rejected, ctx);
-        }
-      } else {
-        assert(false);
+
+        // finally set the resolution
+        heldCtx.value = maybeCallbackCtx.unpack();
       }
-    });
-    
-    // we are letting the process "borrow" the parent process. We reply to the start message to validate it's safe to continue
-    let tag = Process.replyTag++;
-    m.held.heldProcess.sendUnsafe<ThenCallbackStartContext<TResolve, TReject, TResolveNext, TRejectNext>>(ctx, tag);
-    Mailbox.create<i32>().receive([tag]);
-
-    return m;
+    );
+    return maybe;
   }
 
-  /** Resolve the value  */
-  get resolve(): Box<TResolve> | null {
-    return this.held.value!.resolved;
+  get value(): MaybeResolution<TResolve, TReject> {
+    return this.held.value;
   }
-
-
 }
