@@ -162,7 +162,7 @@ export function __lunatic_process_bootstrap(index: u32): void {
 
 /** Required lunatic export to make processes start. */
 export function __lunatic_process_bootstrap_parameter(index: u32, param: u64): void {
-  call_indirect(<u32>index, 0, param);
+  call_indirect(<u32>index, param, 0);
 }
 
 export function __heldDecrement(pid: u64): void {
@@ -170,5 +170,6 @@ export function __heldDecrement(pid: u64): void {
   message.create_data(0, sizeof<u64>());
   store<u64>(opaquePtr, 0);
   message.write_data(opaquePtr, sizeof<u64>());
-  assert(message.send(pid) == ErrCode.Success);
+  let result = message.send(pid)
+  assert(result == ErrCode.Success);
 }

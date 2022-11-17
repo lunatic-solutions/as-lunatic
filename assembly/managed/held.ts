@@ -119,22 +119,9 @@ export class RequestHeldEvent<T, U, UReturn> extends HeldEvent<T> {
 // UTF8 for __heldDecrement
 const __heldDecrementName = [0x5f, 0x5f, 0x68, 0x65, 0x6c, 0x64, 0x44, 0x65, 0x63, 0x72, 0x65, 0x6d, 0x65, 0x6e, 0x74] as StaticArray<u8>;
 
-// UTF8 for __heldLink
-const __heldLinkName = [
-  95,  95, 104, 101,
- 108, 100,  76, 105,
- 110, 107
-] as StaticArray<u8>;
-
-// UTF8 for __heldIncrement
-const __heldIncrementName = [
-  95,  95, 104, 101, 108,
- 100,  73, 110,  99, 114,
- 101, 109, 101, 110, 116
-] as StaticArray<u8>;
 
 export function heldProcessDecrement(held: u64): void {
-  trace("decrementing process " + held.toString());
+  // trace("decrementing process " + held.toString());
   let params = Parameters.reset()
     .i64(held);
     
@@ -169,7 +156,6 @@ export class Held<T> extends ASManaged {
         let ctx = new HeldContext<T>(start.value);
 
         while (true) {
-          trace("We are about to receive");
           // for each message
           let message = mb.receive();
 
@@ -217,6 +203,9 @@ export class Held<T> extends ASManaged {
     assert(this.alive);
     let event = new ObtainHeldEvent<T>();
     let message = this.heldProcess.request<ObtainHeldEvent<T>, T>(event, Process.replyTag++, 10000);
+    if (message.type == MessageType.Timeout) {
+      trace("message timeout");
+    }
     assert(message.type == MessageType.Data);
     return message.unbox();
   }
@@ -253,7 +242,7 @@ export class Held<T> extends ASManaged {
     // node -p "[...Buffer.from(``STRING``)]" in PowerShell
     Process.inheritSpawnParameter<i32>(this.heldProcess.id, (value: u64, mb: Mailbox<i32>) => {
       let event = new IncrementHeldEvent<T>();
-      let p = new Process<HeldEvent<T>>(value, Process.tag++);
+      let p = new Process<HeldEvent<T> | null>(value, Process.tag++);
       p.send(event);
     }).expect();
 

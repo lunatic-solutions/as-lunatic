@@ -8,9 +8,20 @@ import {
   NetworkResultType,
   MessageType,
   Held,
+  HeldEvent,
+  LinkHeldEvent,
+  IncrementHeldEvent,
   Box,
 } from "./index";
 import { Maybe, MaybeCallbackContext } from "./managed/maybe";
+
+abstract class Foo {}
+
+class Bar extends Foo {}
+
+function __instanceof<T>(obj: Object): bool {
+  return obj instanceof T;
+}
 
 export function _start(): void {
   Process.dieWhenLinkDies = false;
@@ -123,23 +134,29 @@ export function testSharedMap(): void {
 }
 
 export function testHeld(): void {
-  for (let i = 0; i < 1000; i++) {
-    let held = Held.create<i32>(i);
-    let value = held.value;
-    held.value = value + 1;
-    assert(held.value == i + 1);
+  for (let i = 0; i < 100; i++) {
+    let heldValue = i;
+    let held = Held.create<i32>(heldValue);
+    for (let j = 0; j < 100;j++) {
+      held.value += 1;
+      heldValue++;
+      assert(held.value == heldValue)
+    }
+    held.execute(0, (value: i32) => {
+      trace("held test finished");
+    });
     Process.inheritSpawnWith<Held<i32>, i32>(held, (held: Held<i32>, mb: Mailbox<i32>) => {
+      trace(`Process ${Process.processID}`);
       let value = mb.receive().unbox();
       assert(held.value = value);
-      trace("held test finished");
-    }).expect().send(i + 1);
+    }).expect().send(heldValue);
   }
   trace("Finished held");
 }
 
 export function testMaybe(): void {
   trace("maybe?");
-  for (let i = 0; i < 1000; i++) {
+  for (let i = 0; i < 100; i++) {
     let maybe = Maybe.resolve<i32, i32>(42)
       .then<i32, i32>((value: Box<i32> | null, ctx: MaybeCallbackContext<i32, i32>) => {
         assert(value);

@@ -365,9 +365,9 @@ export class Process<TMessage> {
    * @returns {Result<Process | null>} the process if the creation was successful.
    */
   static inheritSpawn<TMessage>(func: (mb: Mailbox<TMessage>) => void): Result<Process<TMessage> | null> {
-    let paramsPtr = Parameters.reset()
-      .i32(func.index)
-      .ptr;
+    let params = Parameters.reset()
+    // @ts-ignore
+      .i32(func.index);
 
     let tag = Process.tag++;
 
@@ -378,8 +378,8 @@ export class Process<TMessage> {
       -1,
       changetype<usize>(bootstrapUTF8),
       <usize>bootstrapUTF8.length,
-      paramsPtr,
-      17, // 17 * 1
+      params.ptr,
+      params.byteLength, // 17 * 1
       opaquePtr,
     );
 
@@ -392,10 +392,10 @@ export class Process<TMessage> {
   }
 
   static inheritSpawnParameter<TMessage>(value: u64, func: (value: u64, mb: Mailbox<TMessage>) => void): Result<Process<TMessage> | null> {
-    let paramsPtr = Parameters.reset()
+    let params = Parameters.reset()
+    // @ts-ignore
       .i32(func.index)
-      .i64(value)
-      .ptr;
+      .i64(value);
 
     let tag = Process.tag++;
 
@@ -407,8 +407,8 @@ export class Process<TMessage> {
       // This callback accepts a single parameter beyond the function index
       changetype<usize>(bootstrapParameterUTF8),
       <usize>bootstrapParameterUTF8.length,
-      paramsPtr,
-      17, // 17 * 1
+      params.ptr,
+      params.byteLength,
       opaquePtr,
     );
 
@@ -427,10 +427,6 @@ export class Process<TMessage> {
    * @param {i64} tag - The message tag.
    */
   send<UMessage extends TMessage>(msg: UMessage, tag: i64 = 0): void {
-    if (isReference(msg)) {
-      trace(`sending ${nameof<UMessage>()} with ${idof<UMessage>()}`);
-    }
-
     message.create_data(tag, MESSAGE_BUFFER_SIZE);
     let buffer = ASON.serialize(msg); // Something is creating a message here
     let bufferLength = <usize>buffer.length;
@@ -452,9 +448,6 @@ export class Process<TMessage> {
    * @param {i64} tag - The message tag.
    */
   request<UMessage extends TMessage, TRet>(msg: UMessage, tag: i64 = Process.replyTag++, timeout: u64 = u64.MAX_VALUE): Message<TRet> {
-    if (isReference(msg)) {
-      trace(`sending ${nameof<UMessage>()} with ${idof<UMessage>()}`);
-    }
     message.create_data(tag, MESSAGE_BUFFER_SIZE);
     let buffer = ASON.serialize(msg);
     let bufferLength = <usize>buffer.length;
@@ -480,10 +473,6 @@ export class Process<TMessage> {
    * @param {i64} tag - The message tag.
    */
   @unsafe sendUnsafe<UMessage>(msg: UMessage, tag: i64 = 0): void {
-    if (isReference(msg)) {
-      trace(`sending ${nameof<UMessage>()} with ${idof<UMessage>()}`);
-    }
-
     message.create_data(tag, MESSAGE_BUFFER_SIZE);
     let buffer = ASON.serialize(msg);
     let bufferLength = <usize>buffer.length;
