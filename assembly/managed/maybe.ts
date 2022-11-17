@@ -168,8 +168,9 @@ export class Maybe<TResolve, TReject> {
 
   private _timeout: u64 = u64.MAX_VALUE;
 
-  timeout(ms: u64): MaybeResolution<TResolve, TReject> {
+  timeout(ms: u64): Maybe<TResolve, TReject> {
     this._timeout = ms;
+    return this;
   }
 
   getTimeout(): u64 {

@@ -4,6 +4,7 @@ export * from "./error";
 export * from "./error/bindings";
 export * from "./managed";
 export * from "./managed/held";
+export * from "./managed/maybe";
 export * from "./message";
 export * from "./message/bindings";
 export * from "./message/util";

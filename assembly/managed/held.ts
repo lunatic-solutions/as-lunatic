@@ -82,22 +82,28 @@ export class IncrementHeldEvent<T> extends HeldEvent<T> {
 }
 
 export class DecrementHeldEvent<T> extends HeldEvent<T> {
-  constructor() {
+  constructor(
+    public parentProcessId: u64,
+  ) {
     super();
   }
   handle(ctx: HeldContext<T>, _msg: Message<HeldEvent<T> | null>): bool {
+    trace("valid decrement");
     let ref = ctx.ref--;
+    process.unlink(this.parentProcessId);
     return (ref - 1) <= 0; 
   }
 }
 
 export class LinkHeldEvent<T> extends HeldEvent<T> {
-  constructor() {
+  constructor(
+    public holderProcessId: u64,
+  ) {
     super();
   }
 
   handle(ctx: HeldContext<T>, msg: Message<HeldEvent<T> | null>): bool {
-    process.link(Process.tag++, msg.sender);
+    process.link(Process.tag++, this.holderProcessId);
     return false;
   }
 }
@@ -120,24 +126,6 @@ export class RequestHeldEvent<T, U, UReturn> extends HeldEvent<T> {
 // UTF8 for __heldDecrement
 const __heldDecrementName = [0x5f, 0x5f, 0x68, 0x65, 0x6c, 0x64, 0x44, 0x65, 0x63, 0x72, 0x65, 0x6d, 0x65, 0x6e, 0x74] as StaticArray<u8>;
 
-
-export function heldProcessDecrement(held: u64): void {
-  // trace("decrementing process " + held.toString());
-  let params = Parameters.reset()
-    .i64(held);
-    
-  let result = process.spawn(
-    0,
-    -1,
-    -1,
-    changetype<usize>(__heldDecrementName),
-    <usize>__heldDecrementName.length,
-    params.ptr,
-    params.byteLength,
-    opaquePtr,
-  );
-  assert(result == ErrCode.Success);
-}
 
 /** Represents a value held on another process. */
 export class Held<T> extends ASManaged {
@@ -195,12 +183,30 @@ export class Held<T> extends ASManaged {
   constructor(public heldProcess: Process<HeldEvent<T> | null>) {
     
     // When the held is cleaned up, we kill the process remotely
-    super(heldProcess.id, heldProcessDecrement);
-    heldProcess.send<LinkHeldEvent<T>>(new LinkHeldEvent<T>());
+    super(heldProcess.id, (held: u64): void => {
+      let params = Parameters.reset()
+        .i64(held)
+        .i64(Process.processID)
+        .i32(idof<DecrementHeldEvent<T>>());
+        
+      let result = process.spawn(
+        0,
+        -1,
+        -1,
+        changetype<usize>(__heldDecrementName),
+        <usize>__heldDecrementName.length,
+        params.ptr,
+        params.byteLength,
+        opaquePtr,
+      );
+      assert(result == ErrCode.Success);
+    });
+
+    heldProcess.send<LinkHeldEvent<T>>(new LinkHeldEvent<T>(Process.processID));
   }
 
   /** Get or set the value of type T. */
-  getValue(timeout: u64): UnmanagedResult<Box<T> | null> {
+  getValue(timeout: u64 = u64.MAX_VALUE): UnmanagedResult<Box<T> | null> {
     assert(this.alive);
     let event = new ObtainHeldEvent<T>();
     let message = this.heldProcess.request<ObtainHeldEvent<T>, T>(event, Process.replyTag++, timeout);
@@ -210,35 +216,42 @@ export class Held<T> extends ASManaged {
     return new UnmanagedResult<Box<T> | null>(message.box);
   }
 
+  /** Set the value, accepts a T. */
   setValue(value: T): void {
     assert(this.alive);
     let event = new ReplaceHeldEvent<T>(value);
     this.heldProcess.send(event);
   }
 
+  /** Execute a callback on the Held process with a value and a context. */
   execute<U>(value: U, callback: (value: U, ctx: HeldContext<T>) => void): void {
+    assert(this.alive);
     let event = new ExecuteHeldEvent<T, U>(value, callback);
     this.heldProcess.send<HeldEvent<T> | null>(event);
   }
 
-  request<U, UReturn>(value: U, callback: (value: U, ctx: HeldContext<T>) => UReturn): UReturn {
+  /** Request a calculated value, executing the callback that returns the requested value on the held process. */
+  request<U, UReturn>(value: U, callback: (value: U, ctx: HeldContext<T>) => UReturn, timeout: u64 = u64.MAX_VALUE): UnmanagedResult<Box<UReturn> | null> {
+    assert(this.alive);
+    // this operation blocks until the calllback is executed
     let reply = this.heldProcess
-      .request<RequestHeldEvent<T, U, UReturn>, UReturn>(new RequestHeldEvent<T, U, UReturn>(value, callback));
-    assert(reply.type == MessageType.Data);
-    return reply.unbox();
+      .request<RequestHeldEvent<T, U, UReturn>, UReturn>(new RequestHeldEvent<T, U, UReturn>(value, callback), Process.replyTag++, timeout);
+    
+    if (reply.type == MessageType.Timeout) return new UnmanagedResult<Box<UReturn> | null>(null, "The request timed out.");
+    return new UnmanagedResult<Box<UReturn> | null>(new Box<UReturn>(reply.unbox()));
   }
 
   /** If the held value is no longer used, we can free the resouces safely. */
-  kill(): void {
+  free(): void {
     if (this.alive) {
-      this.heldProcess.kill();
+      this.heldProcess.send(new DecrementHeldEvent<T>(Process.processID));
       htDel(changetype<usize>(this));
     }
   }
 
   /** Used by ASON to safely serialize a Held<T>. */
   __asonSerialize(): StaticArray<u8> {
-
+    assert(this.alive);
     // node -p "[...Buffer.from(``STRING``)]" in PowerShell
     Process.inheritSpawnParameter<i32>(this.heldProcess.id, (value: u64, mb: Mailbox<i32>) => {
       let event = new IncrementHeldEvent<T>();
@@ -258,13 +271,31 @@ export class Held<T> extends ASManaged {
     // create the process object unsafely
     this.heldProcess = new Process<HeldEvent<T> | null>(load<u64>(changetype<usize>(array)), 0);
 
-    Process.inheritSpawnParameter<i32>(this.heldProcess.id, (value: u64, mb: Mailbox<i32>) => {
-      let event = new LinkHeldEvent<T>();
-      let p = new Process<HeldEvent<T> | null>(value, Process.tag++);
+
+    Process.inheritSpawnTwoParameters<i32>(this.heldProcess.id, Process.processID, (sendProcessId: u64, holderProcessId: u64, mb: Mailbox<i32>) => {
+      let event = new LinkHeldEvent<T>(holderProcessId);
+      let p = new Process<HeldEvent<T> | null>(sendProcessId, Process.tag++);
       p.send(event);
     }).expect();
 
     // @ts-ignore function index, used to set up the disposable callback
-    htSet(changetype<usize>(this), this.heldProcess.id, heldProcessDecrement.index);
+    htSet(changetype<usize>(this), this.heldProcess.id, ((held: u64): void => {
+      let params = Parameters.reset()
+        .i64(held)
+        .i64(Process.processID)
+        .i32(idof<DecrementHeldEvent<T>>());
+        
+      let result = process.spawn(
+        0,
+        -1,
+        -1,
+        changetype<usize>(__heldDecrementName),
+        <usize>__heldDecrementName.length,
+        params.ptr,
+        params.byteLength,
+        opaquePtr,
+      );
+      assert(result == ErrCode.Success);
+    }).index);
   }
 }

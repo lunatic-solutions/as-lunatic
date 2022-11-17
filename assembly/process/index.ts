@@ -15,7 +15,8 @@ const MESSAGE_BUFFER_SIZE =
     : 0;
 
 /** This utf-8 string is the name of the export that gets called when a process bootstraps. */
-export const bootstrapUTF8 = [0x5f, 0x5f, // "__"
+// @ts-ignore: not lazy!
+@lazy export const bootstrapUTF8 = [0x5f, 0x5f, // "__"
   0x6c, 0x75, 0x6e, 0x61, 0x74, 0x69, 0x63, // "lunatic"
   0x5f, // "_"
   0x70, 0x72, 0x6f, 0x63, 0x65, 0x73, 0x73, // "process"
@@ -23,7 +24,8 @@ export const bootstrapUTF8 = [0x5f, 0x5f, // "__"
   0x62, 0x6f, 0x6f, 0x74, 0x73, 0x74, 0x72, 0x61, 0x70, // "bootstrap"
 ] as StaticArray<u8>;
 
-export const bootstrapParameterUTF8 = [
+// @ts-ignore: not lazy!
+@lazy export const bootstrapParameterUTF8 = [
   0x5f, 0x5f, // __
   0x6c, 0x75, 0x6e, 0x61, 0x74, 0x69, 0x63, // lunatic
   0x5f, // _
@@ -32,6 +34,20 @@ export const bootstrapParameterUTF8 = [
   0x62, 0x6f, 0x6f, 0x74, 0x73, 0x74, 0x72, 0x61, 0x70, // bootstrap
   0x5f,  // _
   0x70, 0x61, 0x72, 0x61, 0x6d, 0x65, 0x74, 0x65, 0x72 // parameter
+] as StaticArray<u8>;
+
+// @ts-ignore: not lazy!
+@lazy export const bootstrapTwoParametersUTF8 = [
+  0x5f, 0x5f, // __
+  0x6c, 0x75, 0x6e, 0x61, 0x74, 0x69, 0x63, // lunatic
+  0x5f, // _
+  0x70, 0x72, 0x6f, 0x63, 0x65, 0x73, 0x73, // process
+  0x5f, // _
+  0x62, 0x6f, 0x6f, 0x74, 0x73, 0x74, 0x72, 0x61, 0x70, // bootstrap
+  0x5f,  // _
+  0x74, 0x77, 0x6f, // two
+  0x5f,  // _
+  0x70, 0x61, 0x72, 0x61, 0x6d, 0x65, 0x74, 0x65, 0x72, 0x73 // parameters
 ] as StaticArray<u8>;
 
 /**
@@ -330,7 +346,7 @@ export class Process<TMessage> {
    * @returns {Result<Process<TMessage> | null>} The created process.
    */
   static inheritSpawnWith<TStart, TMessage>(start: TStart, func: (start: TStart, mb: Mailbox<TMessage>) => void): Result<Process<TMessage> | null> {
-    // we need to wrap up the callback and the start value into the message
+    // @ts-ignore: we need to wrap up the callback and the start value into the message
     let wrapped = new StartWrapper<TStart>(start, func.index);
 
     // create a regular process
@@ -391,6 +407,9 @@ export class Process<TMessage> {
     return new Result<Process<TMessage> | null>(null, spawnID);
   }
 
+  /**
+   * Create a process, spawning it with a single parameter, inheriting the environment and the config of the current process.
+   */
   static inheritSpawnParameter<TMessage>(value: u64, func: (value: u64, mb: Mailbox<TMessage>) => void): Result<Process<TMessage> | null> {
     let params = Parameters.reset()
     // @ts-ignore
@@ -407,6 +426,39 @@ export class Process<TMessage> {
       // This callback accepts a single parameter beyond the function index
       changetype<usize>(bootstrapParameterUTF8),
       <usize>bootstrapParameterUTF8.length,
+      params.ptr,
+      params.byteLength,
+      opaquePtr,
+    );
+
+    let spawnID = load<u64>(opaquePtr);
+
+    if (result == ErrCode.Success) {
+      return new Result<Process<TMessage> | null>(new Process(spawnID, tag));
+    }
+    return new Result<Process<TMessage> | null>(null, spawnID);
+  }
+
+  /**
+   * Create a process, spawning it with a single parameter, inheriting the environment and the config of the current process.
+   */
+  static inheritSpawnTwoParameters<TMessage>(value: u64, value2: u64, func: (value: u64, value2: u64, mb: Mailbox<TMessage>) => void): Result<Process<TMessage> | null> {
+    let params = Parameters.reset()
+    // @ts-ignore
+      .i32(func.index)
+      .i64(value)
+      .i64(value2);
+
+    let tag = Process.tag++;
+
+    // store the function pointer bytes little endian (lower bytes in front)
+    let result = process.spawn(
+      tag,
+      -1, // use the same config
+      -1,
+      // This callback accepts a single parameter beyond the function index
+      changetype<usize>(bootstrapTwoParametersUTF8),
+      <usize>bootstrapTwoParametersUTF8.length,
       params.ptr,
       params.byteLength,
       opaquePtr,

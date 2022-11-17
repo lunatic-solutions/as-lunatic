@@ -16,6 +16,7 @@ import { IncrementHeldEvent, LinkHeldEvent } from "./managed/held";
 import { message } from "./message/bindings";
 import { Process } from "./process";
 import { ErrCode, opaquePtr } from "./util";
+import { OBJECT, TOTAL_OVERHEAD } from "rt/common";
 
 
 // All of the following wasi implementations for abort, trace and seed are
@@ -165,11 +166,20 @@ export function __lunatic_process_bootstrap_parameter(index: u32, param: u64): v
   call_indirect(<u32>index, param, 0);
 }
 
-export function __heldDecrement(pid: u64): void {
-  // this sends an ASON null
-  message.create_data(0, sizeof<u64>());
-  store<u64>(opaquePtr, 0);
-  message.write_data(opaquePtr, sizeof<u64>());
-  let result = message.send(pid)
-  assert(result == ErrCode.Success);
+
+/** Required lunatic export to make processes start. */
+export function __lunatic_process_bootstrap_two_parameters(index: u32, param: u64, param2: u64): void {
+  call_indirect(<u32>index, param, param2, 0);
+}
+
+/** This method is one of those things your grandmother warned you about. */
+export function __heldDecrement(pid: u64, parentProcessId: u64, objId: u32): void {
+  // create a dummy process
+  let p = new Process<LinkHeldEvent<i32>>(pid, 0);
+  // create a dummy event that attempts to decrement the parent process
+  let result = new LinkHeldEvent<i32>(parentProcessId);
+  // modify the rtId dangerously because we like danger
+  changetype<OBJECT>(changetype<usize>(result) - TOTAL_OVERHEAD).rtId = objId;
+  // ASON.serialize should ignore the rtId...
+  p.send(result);
 }
