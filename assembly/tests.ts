@@ -8,9 +8,6 @@ import {
   NetworkResultType,
   MessageType,
   Held,
-  HeldEvent,
-  LinkHeldEvent,
-  IncrementHeldEvent,
   Box,
 } from "./index";
 import { Maybe, MaybeCallbackContext } from "./managed/maybe";
@@ -134,7 +131,7 @@ export function testSharedMap(): void {
 }
 
 export function testHeld(): void {
-  for (let i = 0; i < 100; i++) {
+  for (let i = 0; i < 25; i++) {
     let heldValue = i;
     let held = Held.create<i32>(heldValue);
     for (let j = 0; j < 100;j++) {
@@ -156,7 +153,7 @@ export function testHeld(): void {
 
 export function testMaybe(): void {
   trace("maybe?");
-  for (let i = 0; i < 100; i++) {
+  for (let i = 0; i < 25; i++) {
     let maybe = Maybe.resolve<i32, i32>(42)
       .then<i32, i32>((value: Box<i32> | null, ctx: MaybeCallbackContext<i32, i32>) => {
         assert(value);
