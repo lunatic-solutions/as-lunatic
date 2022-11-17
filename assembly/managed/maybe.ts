@@ -62,6 +62,7 @@ export class ThenContext<TResolve, TReject, TResolveNext, TRejectNext> {
     public resolve: ThenCallback<TResolve, TResolveNext, TRejectNext>,
     public reject: ThenCallback<TReject, TResolveNext, TRejectNext>,
     public held: Held<MaybeResolution<TResolve, TReject>>,
+    public timeout: u64,
   ) {}
 }
 
@@ -123,6 +124,7 @@ export class Maybe<TResolve, TReject> {
         resolve,
         reject,
         this.held,
+        this._timeout,
       ),
       (
         thenCtx: ThenContext<TResolve, TReject, TResolveNext, TRejectNext>,
@@ -130,27 +132,47 @@ export class Maybe<TResolve, TReject> {
       ): void => {
         // read the resolution of the parent Maybe
         // note: Held#value is a getter that blocks until the Maybe resolves
-        let resolution = thenCtx.held.value;
-
-        // every Maybe requires a MaybeCallbackContext to store the result of the resolution
+        let resolutionResult = thenCtx.held.getValue();
+         // every Maybe requires a MaybeCallbackContext to store the result of the resolution
         // because AssemblyScript does not have closures.
         let maybeCallbackCtx = new MaybeCallbackContext<TResolveNext, TRejectNext>();
 
-        // call the appropriate callback
-        if (resolution.status == MaybeResolutionStatus.Resolved) {
-          thenCtx.resolve(resolution.resolved, maybeCallbackCtx);
-        } else if (resolution.status == MaybeResolutionStatus.Rejected) {
-          thenCtx.reject(resolution.rejected, maybeCallbackCtx);
-        }
+        // the resolution could have timed out
+        if (resolutionResult.isOk()) {
+          let resolution = resolutionResult.expect().value;
+         
 
-        // finally set the resolution
-        heldCtx.value = maybeCallbackCtx.unpack();
+          // call the appropriate callback
+          if (resolution.status == MaybeResolutionStatus.Resolved) {
+            thenCtx.resolve(resolution.resolved, maybeCallbackCtx);
+          } else if (resolution.status == MaybeResolutionStatus.Rejected) {
+            thenCtx.reject(resolution.rejected, maybeCallbackCtx);
+          }
+
+          // finally set the resolution
+          heldCtx.value = maybeCallbackCtx.unpack();
+        } else {
+          // resolution wasn't okay. we resolve to an empty rejected
+          thenCtx.reject(null, maybeCallbackCtx);
+        }
       }
     );
     return maybe;
   }
 
+
+
   get value(): MaybeResolution<TResolve, TReject> {
-    return this.held.value;
+    return this.held.getValue().expect().value;
+  }
+
+  private _timeout: u64 = u64.MAX_VALUE;
+
+  timeout(ms: u64): MaybeResolution<TResolve, TReject> {
+    this._timeout = ms;
+  }
+
+  getTimeout(): u64 {
+    return this._timeout;
   }
 }

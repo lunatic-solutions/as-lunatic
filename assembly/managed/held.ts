@@ -1,10 +1,11 @@
-import { Mailbox, Message } from "../message";
+import { Box, Mailbox, Message } from "../message";
 import { Process } from "../process";
 import { process } from "../process/bindings";
 import { ASManaged, htDel, htGet, htSet } from "as-disposable/assembly";
 import { MessageType } from "../message/util";
 import { Parameters } from "../process/util";
 import { ErrCode, opaquePtr } from "../util";
+import { UnmanagedResult } from "../error";
 
 
 /** This class is used internally to box the value. */
@@ -199,18 +200,17 @@ export class Held<T> extends ASManaged {
   }
 
   /** Get or set the value of type T. */
-  get value(): T {
+  getValue(timeout: u64): UnmanagedResult<Box<T> | null> {
     assert(this.alive);
     let event = new ObtainHeldEvent<T>();
-    let message = this.heldProcess.request<ObtainHeldEvent<T>, T>(event, Process.replyTag++, 10000);
-    if (message.type == MessageType.Timeout) {
-      trace("message timeout");
-    }
+    let message = this.heldProcess.request<ObtainHeldEvent<T>, T>(event, Process.replyTag++, timeout);
+    if (message.type == MessageType.Timeout) return new UnmanagedResult<Box<T> | null>(null, "Request timed out.")
     assert(message.type == MessageType.Data);
-    return message.unbox();
+    
+    return new UnmanagedResult<Box<T> | null>(message.box);
   }
 
-  set value(value: T) {
+  setValue(value: T): void {
     assert(this.alive);
     let event = new ReplaceHeldEvent<T>(value);
     this.heldProcess.send(event);

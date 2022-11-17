@@ -12,14 +12,6 @@ import {
 } from "./index";
 import { Maybe, MaybeCallbackContext } from "./managed/maybe";
 
-abstract class Foo {}
-
-class Bar extends Foo {}
-
-function __instanceof<T>(obj: Object): bool {
-  return obj instanceof T;
-}
-
 export function _start(): void {
   Process.dieWhenLinkDies = false;
   testTrace();
@@ -113,8 +105,7 @@ export function testSharedMap(): void {
   for (let i = 0; i < map.size; i++) {
       const key = unchecked(keys[i])
       const value = unchecked(values[i])
-      assert(map.get(key) == value)
-      trace(`SharedMap: ${key}: ${value}`)
+      assert(map.get(key) == value);
   }
 
   assert(map.has("abc"))
@@ -135,31 +126,28 @@ export function testHeld(): void {
     let heldValue = i;
     let held = Held.create<i32>(heldValue);
     for (let j = 0; j < 100;j++) {
-      held.value += 1;
+      held.setValue(held.getValue().expect().value + 1);
       heldValue++;
-      assert(held.value == heldValue)
+      assert(held.getValue().expect().value == heldValue)
     }
     held.execute(0, (value: i32) => {
-      trace("held test finished");
+      assert(value == 0);
     });
     Process.inheritSpawnWith<Held<i32>, i32>(held, (held: Held<i32>, mb: Mailbox<i32>) => {
-      trace(`Process ${Process.processID}`);
       let value = mb.receive().unbox();
-      assert(held.value = value);
+      assert(held.getValue().expect().value = value);
     }).expect().send(heldValue);
   }
   trace("Finished held");
 }
 
 export function testMaybe(): void {
-  trace("maybe?");
   for (let i = 0; i < 25; i++) {
     let maybe = Maybe.resolve<i32, i32>(42)
       .then<i32, i32>((value: Box<i32> | null, ctx: MaybeCallbackContext<i32, i32>) => {
         assert(value);
         assert(value!.value == 42);
         ctx.reject(41);
-        trace("resolved");
       });
 
     let result = maybe.then<i32, i32>(
@@ -168,11 +156,12 @@ export function testMaybe(): void {
       },
       (value: Box<i32> | null, ctx: MaybeCallbackContext<i32, i32>) => {
       assert(value!.value == 41);
-      trace("rejected");
+
       ctx.resolve(12345);
     }).value;
 
     assert(result);
     assert(result.resolved!.value == 12345);
   }
+  trace("Finished maybe");
 }
