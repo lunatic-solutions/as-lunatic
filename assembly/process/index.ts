@@ -15,12 +15,39 @@ const MESSAGE_BUFFER_SIZE =
     : 0;
 
 /** This utf-8 string is the name of the export that gets called when a process bootstraps. */
-const bootstrapUTF8 = [0x5f, 0x5f, // "__"
+// @ts-ignore: not lazy!
+@lazy export const bootstrapUTF8 = [0x5f, 0x5f, // "__"
   0x6c, 0x75, 0x6e, 0x61, 0x74, 0x69, 0x63, // "lunatic"
   0x5f, // "_"
   0x70, 0x72, 0x6f, 0x63, 0x65, 0x73, 0x73, // "process"
   0x5f, // "_"
   0x62, 0x6f, 0x6f, 0x74, 0x73, 0x74, 0x72, 0x61, 0x70, // "bootstrap"
+] as StaticArray<u8>;
+
+// @ts-ignore: not lazy!
+@lazy export const bootstrapParameterUTF8 = [
+  0x5f, 0x5f, // __
+  0x6c, 0x75, 0x6e, 0x61, 0x74, 0x69, 0x63, // lunatic
+  0x5f, // _
+  0x70, 0x72, 0x6f, 0x63, 0x65, 0x73, 0x73, // process
+  0x5f, // _
+  0x62, 0x6f, 0x6f, 0x74, 0x73, 0x74, 0x72, 0x61, 0x70, // bootstrap
+  0x5f,  // _
+  0x70, 0x61, 0x72, 0x61, 0x6d, 0x65, 0x74, 0x65, 0x72 // parameter
+] as StaticArray<u8>;
+
+// @ts-ignore: not lazy!
+@lazy export const bootstrapTwoParametersUTF8 = [
+  0x5f, 0x5f, // __
+  0x6c, 0x75, 0x6e, 0x61, 0x74, 0x69, 0x63, // lunatic
+  0x5f, // _
+  0x70, 0x72, 0x6f, 0x63, 0x65, 0x73, 0x73, // process
+  0x5f, // _
+  0x62, 0x6f, 0x6f, 0x74, 0x73, 0x74, 0x72, 0x61, 0x70, // bootstrap
+  0x5f,  // _
+  0x74, 0x77, 0x6f, // two
+  0x5f,  // _
+  0x70, 0x61, 0x72, 0x61, 0x6d, 0x65, 0x74, 0x65, 0x72, 0x73 // parameters
 ] as StaticArray<u8>;
 
 /**
@@ -183,7 +210,7 @@ export class Process<TMessage> {
   /**
    * Private tag value for request messages, automatically unique per request.
    */
-  static replyTag: u64 = 0;
+  static replyTag: u64 = 1;
 
   /**
    * Link a process and tag it with a unique identifier. When the process dies, it
@@ -319,7 +346,7 @@ export class Process<TMessage> {
    * @returns {Result<Process<TMessage> | null>} The created process.
    */
   static inheritSpawnWith<TStart, TMessage>(start: TStart, func: (start: TStart, mb: Mailbox<TMessage>) => void): Result<Process<TMessage> | null> {
-    // we need to wrap up the callback and the start value into the message
+    // @ts-ignore: we need to wrap up the callback and the start value into the message
     let wrapped = new StartWrapper<TStart>(start, func.index);
 
     // create a regular process
@@ -354,9 +381,9 @@ export class Process<TMessage> {
    * @returns {Result<Process | null>} the process if the creation was successful.
    */
   static inheritSpawn<TMessage>(func: (mb: Mailbox<TMessage>) => void): Result<Process<TMessage> | null> {
-    let paramsPtr = Parameters.reset()
-      .i32(func.index)
-      .ptr;
+    let params = Parameters.reset()
+    // @ts-ignore
+      .i32(func.index);
 
     let tag = Process.tag++;
 
@@ -367,8 +394,73 @@ export class Process<TMessage> {
       -1,
       changetype<usize>(bootstrapUTF8),
       <usize>bootstrapUTF8.length,
-      paramsPtr,
-      17, // 17 * 1
+      params.ptr,
+      params.byteLength, // 17 * 1
+      opaquePtr,
+    );
+
+    let spawnID = load<u64>(opaquePtr);
+
+    if (result == ErrCode.Success) {
+      return new Result<Process<TMessage> | null>(new Process(spawnID, tag));
+    }
+    return new Result<Process<TMessage> | null>(null, spawnID);
+  }
+
+  /**
+   * Create a process, spawning it with a single parameter, inheriting the environment and the config of the current process.
+   */
+  static inheritSpawnParameter<TMessage>(value: u64, func: (value: u64, mb: Mailbox<TMessage>) => void): Result<Process<TMessage> | null> {
+    let params = Parameters.reset()
+    // @ts-ignore
+      .i32(func.index)
+      .i64(value);
+
+    let tag = Process.tag++;
+
+    // store the function pointer bytes little endian (lower bytes in front)
+    let result = process.spawn(
+      tag,
+      -1, // use the same config
+      -1,
+      // This callback accepts a single parameter beyond the function index
+      changetype<usize>(bootstrapParameterUTF8),
+      <usize>bootstrapParameterUTF8.length,
+      params.ptr,
+      params.byteLength,
+      opaquePtr,
+    );
+
+    let spawnID = load<u64>(opaquePtr);
+
+    if (result == ErrCode.Success) {
+      return new Result<Process<TMessage> | null>(new Process(spawnID, tag));
+    }
+    return new Result<Process<TMessage> | null>(null, spawnID);
+  }
+
+  /**
+   * Create a process, spawning it with a single parameter, inheriting the environment and the config of the current process.
+   */
+  static inheritSpawnTwoParameters<TMessage>(value: u64, value2: u64, func: (value: u64, value2: u64, mb: Mailbox<TMessage>) => void): Result<Process<TMessage> | null> {
+    let params = Parameters.reset()
+    // @ts-ignore
+      .i32(func.index)
+      .i64(value)
+      .i64(value2);
+
+    let tag = Process.tag++;
+
+    // store the function pointer bytes little endian (lower bytes in front)
+    let result = process.spawn(
+      tag,
+      -1, // use the same config
+      -1,
+      // This callback accepts a single parameter beyond the function index
+      changetype<usize>(bootstrapTwoParametersUTF8),
+      <usize>bootstrapTwoParametersUTF8.length,
+      params.ptr,
+      params.byteLength,
       opaquePtr,
     );
 
@@ -388,22 +480,15 @@ export class Process<TMessage> {
    */
   send<UMessage extends TMessage>(msg: UMessage, tag: i64 = 0): void {
     message.create_data(tag, MESSAGE_BUFFER_SIZE);
-    let buffer = ASON.serialize<UMessage>(msg);
+    let buffer = ASON.serialize(msg); // Something is creating a message here
     let bufferLength = <usize>buffer.length;
-    let temp = heap.alloc(sizeof<u64>());
 
     // need to write the sending process id
-    store<u64>(temp, Process.processID);
-    message.write_data(temp, sizeof<u64>());
-
-    // need to write the sending process reply tag
-    let replyTag = Process.replyTag++;
-    store<u64>(temp, replyTag);
-    message.write_data(temp, sizeof<u64>());
+    store<u64>(opaquePtr, Process.processID);
+    message.write_data(opaquePtr, sizeof<u64>());
 
     // write the buffer
     message.write_data(changetype<usize>(buffer), bufferLength);
-    heap.free(temp);
     if (this.nodeID == u64.MAX_VALUE) message.send(this.id);
     else distributed.send(this.nodeID, this.id);
   }
@@ -414,29 +499,23 @@ export class Process<TMessage> {
    * @param {TMessage} msg - The message being sent.
    * @param {i64} tag - The message tag.
    */
-  request<UMessage extends TMessage, TRet>(msg: UMessage, tag: i64 = 0, timeout: u64 = u64.MAX_VALUE): Message<TRet> {
+  request<UMessage extends TMessage, TRet>(msg: UMessage, tag: i64 = Process.replyTag++, timeout: u64 = u64.MAX_VALUE): Message<TRet> {
     message.create_data(tag, MESSAGE_BUFFER_SIZE);
-    let buffer = ASON.serialize<UMessage>(msg);
+    let buffer = ASON.serialize(msg);
     let bufferLength = <usize>buffer.length;
-    let temp = heap.alloc(sizeof<u64>());
 
     // need to write the sending process id
-    store<u64>(temp, Process.processID);
-    message.write_data(temp, sizeof<u64>());
-
-    // need to write the sending process reply tag
-    let replyTag = Process.replyTag++;
-    store<u64>(temp, replyTag);
-    message.write_data(temp, sizeof<u64>());
+    store<u64>(opaquePtr, Process.processID);
+    message.write_data(opaquePtr, sizeof<u64>());
 
     // write the buffer
     message.write_data(changetype<usize>(buffer), bufferLength);
-    heap.free(temp);
-    if (this.nodeID == u64.MAX_VALUE) message.send_receive_skip_search(this.id, timeout);
-    else distributed.send_receive_skip_search(this.nodeID, this.id, timeout);
+    let errCode: TimeoutErrCode;
 
+    if (this.nodeID == u64.MAX_VALUE) errCode = message.send_receive_skip_search(this.id, timeout);
+    else errCode = distributed.send_receive_skip_search(this.nodeID, this.id, timeout);
     // A message now sits in the scratch area
-    return new Message<TRet>(MessageType.Data);
+    return new Message<TRet>(errCode == TimeoutErrCode.Timeout ? MessageType.Timeout : MessageType.Data);
   }
 
   /**
@@ -447,19 +526,14 @@ export class Process<TMessage> {
    */
   @unsafe sendUnsafe<UMessage>(msg: UMessage, tag: i64 = 0): void {
     message.create_data(tag, MESSAGE_BUFFER_SIZE);
-    let buffer = ASON.serialize<UMessage>(msg);
+    let buffer = ASON.serialize(msg);
     let bufferLength = <usize>buffer.length;
-    let temp = heap.alloc(sizeof<u64>());
 
     // need to write the sending process id
-    store<u64>(temp, Process.processID);
-    message.write_data(temp, sizeof<u64>());
-    // need to write the sending process reply tag
-    store<u64>(temp, 0);
-    message.write_data(temp, sizeof<u64>());
+    store<u64>(opaquePtr, Process.processID);
+    message.write_data(opaquePtr, sizeof<u64>());
 
     message.write_data(changetype<usize>(buffer), bufferLength);
-    heap.free(temp);
     if (this.nodeID == u64.MAX_VALUE) message.send(this.id);
     else distributed.send(this.nodeID, this.id);
   }

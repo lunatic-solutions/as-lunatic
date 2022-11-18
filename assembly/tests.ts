@@ -7,34 +7,40 @@ import {
   Mailbox,
   NetworkResultType,
   MessageType,
+  Held,
+  Box,
 } from "./index";
+import { Maybe, MaybeCallbackContext } from "./managed/maybe";
 
 export function _start(): void {
- test_trace();
- test_spawn_inherit_with();
- test_tcp();
+  Process.dieWhenLinkDies = false;
+  testTrace();
+  testSpawnInheritWith();
+  testTcp();
+  testHeld();
+  testMaybe();
+  testSharedMap();
 }
 
-function test_trace(): void {
+
+function testTrace(): void {
   trace("foo");
   trace("bar", 1, 123);
   trace("baz", 456, 1, 2, 3, 4, 5);
   trace("qux", -789);
 }
 
-function test_spawn_inherit_with(): void {
+function testSpawnInheritWith(): void {
   let process = Process.inheritSpawnWith<i32, i32>(42, (value: i32, mb: Mailbox<i32>): void => {
     assert(value == 42);
-    trace("first success!")
     let message = mb.receive();
     assert(message.type == MessageType.Data);
-    trace("second success!");
   }).expect();
   process.send(41);
 }
 
 let port: u16 = 0xA000;
-function test_tcp(): void {
+function testTcp(): void {
   let address = IPAddress.v4([127, 0, 0, 1], port);
   let server = TCPServer.bind(address).expect();
   let process = Process.inheritSpawn<TCPSocket>((mailbox: Mailbox<TCPSocket>): void => {
@@ -57,7 +63,6 @@ function test_tcp(): void {
   let buffer: u8[] = [1, 2, 3, 4];
   socket.write(buffer);
   process.request<TCPSocket, u8>(inbound);
-
   assert(socket.read(buffer).type === NetworkResultType.Success);
   assert(buffer[0] == 5);
   assert(buffer[1] == 6);
@@ -84,7 +89,7 @@ function createTask(map: SharedMap<string>, task: (map: SharedMap<string>) => vo
   process.request<u8, u8>(0)
 }
 
-export function test_shared_map(): void {
+export function testSharedMap(): void {
   const map = new SharedMap<string>()
 
   map.set("abc", "def")
@@ -100,8 +105,7 @@ export function test_shared_map(): void {
   for (let i = 0; i < map.size; i++) {
       const key = unchecked(keys[i])
       const value = unchecked(values[i])
-      assert(map.get(key) == value)
-      trace(`SharedMap: ${key}: ${value}`)
+      assert(map.get(key) == value);
   }
 
   assert(map.has("abc"))
@@ -115,4 +119,49 @@ export function test_shared_map(): void {
   })
   assert(!map.has("xyz"))
   assert(!map.size)
+}
+
+export function testHeld(): void {
+  for (let i = 0; i < 25; i++) {
+    let heldValue = i;
+    let held = Held.create<i32>(heldValue);
+    for (let j = 0; j < 100;j++) {
+      held.setValue(held.getValue().expect().value + 1);
+      heldValue++;
+      assert(held.getValue().expect().value == heldValue)
+    }
+    held.execute(0, (value: i32) => {
+      assert(value == 0);
+    });
+    Process.inheritSpawnWith<Held<i32>, i32>(held, (held: Held<i32>, mb: Mailbox<i32>) => {
+      let value = mb.receive().unbox();
+      assert(held.getValue().expect().value = value);
+    }).expect().send(heldValue);
+  }
+  trace("Finished held");
+}
+
+export function testMaybe(): void {
+  for (let i = 0; i < 25; i++) {
+    let maybe = Maybe.resolve<i32, i32>(42)
+      .then<i32, i32>((value: Box<i32> | null, ctx: MaybeCallbackContext<i32, i32>) => {
+        assert(value);
+        assert(value!.value == 42);
+        ctx.reject(41);
+      });
+
+    let result = maybe.then<i32, i32>(
+      (val: Box<i32> | null, ctx: MaybeCallbackContext<i32, i32>) => {
+        assert(false);
+      },
+      (value: Box<i32> | null, ctx: MaybeCallbackContext<i32, i32>) => {
+      assert(value!.value == 41);
+
+      ctx.resolve(12345);
+    }).value;
+
+    assert(result);
+    assert(result.resolved!.value == 12345);
+  }
+  trace("Finished maybe");
 }
