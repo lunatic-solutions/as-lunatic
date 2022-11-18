@@ -12,10 +12,8 @@ import {
   decimalCount32,
   dtoa_buffered
 } from "util/number";
-import { IncrementHeldEvent, LinkHeldEvent } from "./managed/held";
-import { message } from "./message/bindings";
-import { Process } from "./process";
-import { ErrCode, opaquePtr } from "./util";
+import { DecrementHeldEvent } from "./managed/held"; 
+import { Process } from "./process"; 
 import { OBJECT, TOTAL_OVERHEAD } from "rt/common";
 
 
@@ -175,9 +173,9 @@ export function __lunatic_process_bootstrap_two_parameters(index: u32, param: u6
 /** This method is one of those things your grandmother warned you about. */
 export function __heldDecrement(pid: u64, parentProcessId: u64, objId: u32): void {
   // create a dummy process
-  let p = new Process<LinkHeldEvent<i32>>(pid, 0);
+  let p = new Process<DecrementHeldEvent<i32>>(pid, 0);
   // create a dummy event that attempts to decrement the parent process
-  let result = new LinkHeldEvent<i32>(parentProcessId);
+  let result = new DecrementHeldEvent<i32>(parentProcessId);
   // modify the rtId dangerously because we like danger
   changetype<OBJECT>(changetype<usize>(result) - TOTAL_OVERHEAD).rtId = objId;
   // ASON.serialize should ignore the rtId...
