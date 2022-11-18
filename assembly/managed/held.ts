@@ -18,7 +18,7 @@ export class HeldContext<T> {
 export abstract class HeldEvent<T> {
   constructor() {}
   /** Handle the event. */
-  abstract handle(ctx: HeldContext<T>, msg: Message<HeldEvent<T> | null>): bool;
+  abstract handle(ctx: HeldContext<T>, msg: Message<HeldEvent<T>>): bool;
 }
 
 /** Represents a request to obtain the value from a Held. */
@@ -28,7 +28,7 @@ export class ObtainHeldEvent<T> extends HeldEvent<T> {
   }
 
   /** Reply to the message with the held value. */
-  handle(ctx: HeldContext<T>, msg: Message<HeldEvent<T> | null>): bool {
+  handle(ctx: HeldContext<T>, msg: Message<HeldEvent<T>>): bool {
     msg.reply<T>(ctx.value);
     return false;
   }
@@ -41,7 +41,7 @@ export class ReplaceHeldEvent<T> extends HeldEvent<T> {
   }
 
   /** Replace the held value. */
-  handle(ctx: HeldContext<T>, _msg: Message<HeldEvent<T> | null>): bool {
+  handle(ctx: HeldContext<T>, _msg: Message<HeldEvent<T>>): bool {
     ctx.value = this.value;
     return false;
   }
@@ -65,7 +65,7 @@ export class ExecuteHeldEvent<T, U> extends HeldEvent<T> {
     super();
   }
 
-  handle(ctx: HeldContext<T>, msg: Message<HeldEvent<T> | null>): bool {
+  handle(ctx: HeldContext<T>, msg: Message<HeldEvent<T>>): bool {
     this.callback(this.value, ctx);
     return false;
   }
@@ -75,7 +75,7 @@ export class IncrementHeldEvent<T> extends HeldEvent<T> {
   constructor() {
     super();
   }
-  handle(ctx: HeldContext<T>, _msg: Message<HeldEvent<T> | null>): bool {
+  handle(ctx: HeldContext<T>, _msg: Message<HeldEvent<T>>): bool {
     ctx.ref++;
     return false;
   }
@@ -87,8 +87,7 @@ export class DecrementHeldEvent<T> extends HeldEvent<T> {
   ) {
     super();
   }
-  handle(ctx: HeldContext<T>, _msg: Message<HeldEvent<T> | null>): bool {
-    trace("valid decrement");
+  handle(ctx: HeldContext<T>, _msg: Message<HeldEvent<T>>): bool {
     let ref = ctx.ref--;
     process.unlink(this.parentProcessId);
     return (ref - 1) <= 0; 
@@ -102,7 +101,7 @@ export class LinkHeldEvent<T> extends HeldEvent<T> {
     super();
   }
 
-  handle(ctx: HeldContext<T>, msg: Message<HeldEvent<T> | null>): bool {
+  handle(ctx: HeldContext<T>, msg: Message<HeldEvent<T>>): bool {
     process.link(Process.tag++, this.holderProcessId);
     return false;
   }
@@ -116,7 +115,7 @@ export class RequestHeldEvent<T, U, UReturn> extends HeldEvent<T> {
     super();
   }
 
-  handle(ctx: HeldContext<T>, msg: Message<HeldEvent<T> | null>): bool {
+  handle(ctx: HeldContext<T>, msg: Message<HeldEvent<T>>): bool {
     let value = this.callback(this.value, ctx);
     msg.reply<UReturn>(value);
     return false;
@@ -136,9 +135,9 @@ export class Held<T> extends ASManaged {
     let startCxt = new HeldStartContext<T>(Process.processID, value); 
 
     // create a new process
-    let proc = Process.inheritSpawnWith<HeldStartContext<T>, HeldEvent<T> | null>(
+    let proc = Process.inheritSpawnWith<HeldStartContext<T>, HeldEvent<T>>(
       startCxt, 
-      (start: HeldStartContext<T>, mb: Mailbox<HeldEvent<T> | null>): void => {
+      (start: HeldStartContext<T>, mb: Mailbox<HeldEvent<T>>): void => {
         Process.dieWhenLinkDies = false;
 
         // box the held value
@@ -152,19 +151,12 @@ export class Held<T> extends ASManaged {
             case MessageType.Data: {
               // unbox the message and handle it
               let event = message.unbox();
-              if (!event) {
-                ctx.ref--;
-                if (ctx.ref <= 0) return;
-              } else if (event.handle(ctx, message)) return;
+              // assert(event);
+              if (event.handle(ctx, message)) return;
               continue;
             }
             case MessageType.Signal:
               ctx.ref--;
-              continue;
-            default:
-            case MessageType.Timeout: {
-              continue;
-            }
           }
         }
         // we expect the value 
@@ -180,7 +172,7 @@ export class Held<T> extends ASManaged {
     return htGet(changetype<usize>(this)) != null;
   }
 
-  constructor(public heldProcess: Process<HeldEvent<T> | null>) {
+  constructor(public heldProcess: Process<HeldEvent<T>>) {
     
     // When the held is cleaned up, we kill the process remotely
     super(heldProcess.id, (held: u64): void => {
@@ -227,7 +219,7 @@ export class Held<T> extends ASManaged {
   execute<U>(value: U, callback: (value: U, ctx: HeldContext<T>) => void): void {
     assert(this.alive);
     let event = new ExecuteHeldEvent<T, U>(value, callback);
-    this.heldProcess.send<HeldEvent<T> | null>(event);
+    this.heldProcess.send<HeldEvent<T>>(event);
   }
 
   /** Request a calculated value, executing the callback that returns the requested value on the held process. */
@@ -255,7 +247,7 @@ export class Held<T> extends ASManaged {
     // node -p "[...Buffer.from(``STRING``)]" in PowerShell
     Process.inheritSpawnParameter<i32>(this.heldProcess.id, (value: u64, mb: Mailbox<i32>) => {
       let event = new IncrementHeldEvent<T>();
-      let p = new Process<HeldEvent<T> | null>(value, Process.tag++);
+      let p = new Process<HeldEvent<T>>(value, Process.tag++);
       p.send(event);
     }).expect();
 
@@ -269,12 +261,12 @@ export class Held<T> extends ASManaged {
   /** Used by ASON to safely deserialize a Held<T>. */
   __asonDeserialize(array: StaticArray<u8>): void {
     // create the process object unsafely
-    this.heldProcess = new Process<HeldEvent<T> | null>(load<u64>(changetype<usize>(array)), 0);
+    this.heldProcess = new Process<HeldEvent<T>>(load<u64>(changetype<usize>(array)), 0);
 
 
     Process.inheritSpawnTwoParameters<i32>(this.heldProcess.id, Process.processID, (sendProcessId: u64, holderProcessId: u64, mb: Mailbox<i32>) => {
       let event = new LinkHeldEvent<T>(holderProcessId);
-      let p = new Process<HeldEvent<T> | null>(sendProcessId, Process.tag++);
+      let p = new Process<HeldEvent<T>>(sendProcessId, Process.tag++);
       p.send(event);
     }).expect();
 

@@ -161,18 +161,20 @@ export class Maybe<TResolve, TReject> {
   }
 
 
-
+  /** Obtain the resolution value */
   get value(): MaybeResolution<TResolve, TReject> {
     return this.held.getValue().expect().value;
   }
 
   private _timeout: u64 = u64.MAX_VALUE;
 
+  /** Set the Maybe timeout. */
   timeout(ms: u64): Maybe<TResolve, TReject> {
     this._timeout = ms;
     return this;
   }
 
+  /** Get the maybe timeout. */
   getTimeout(): u64 {
     return this._timeout;
   }
