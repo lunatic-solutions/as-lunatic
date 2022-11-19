@@ -374,3 +374,67 @@ export namespace udp {
   @external("lunatic::networking", "udp_local_addr")
   export declare function udp_local_addr(udp_socket_id: u64, id_u64_ptr: u32): ErrCode;
 }
+
+export namespace tls {
+    /**
+     * Creates a new TLS listener, which will be bound to the specified address. The returned listener
+     * is ready for accepting connections.
+     *
+     * Binding with a port number of 0 will request that the OS assigns a port to this listener. The
+     * port allocated can be queried via the `tls_local_addr` (TODO) method.
+     *
+     * Returns:
+     * * 0 on success - The ID of the newly created TLS listener is written to **id_u64_ptr**
+     * * 1 on error   - The error ID is written to **id_u64_ptr**
+     *
+     * Traps:
+     * * If any memory outside the guest heap space is referenced.
+     */
+    @external("lunatic::networking", "tls_bind")
+    export declare function tls_bind(
+        addr_type: IPType,
+        addr_u8_ptr: usize,
+        port: u16,
+        flow_info: u32,
+        scope_id: u32,
+        id_u64_ptr: usize,
+        certs_array_ptr: usize,
+        certs_array_len: usize,
+        keys_array_ptr: usize,
+        keys_array_len: usize,
+    ): ErrCode;
+
+  /**
+   * Get the IP address associated with this listener.
+   *
+   * @param {u64} tls_listener_id - The tcp_listener id.
+   * @param {usize} id_u64_ptr - The u64 pointer to write the dns iterator to.
+   */
+  // @ts-ignore: external is valid here
+  @external("lunatic::networking", "tls_local_addr")
+  export declare function tls_local_addr(
+      tls_listener_id: u64,
+      id_u64_ptr: usize,
+  ): ErrCode;
+
+  /**
+   * Drop a tls listener.
+   *
+   * @param {u64} id - The ID of the listener.
+   */
+  // @ts-ignore: external is valid here
+  @external("lunatic::networking", "drop_tls_listener")
+  export declare function drop_tls_listener(id: u64): void;
+
+  /**
+   * Accept a TLSSocket.
+   *
+   * @param listener_id - The TLSListener.
+   * @param id_ptr - A pointer to a u64 that will contain the TCPServer id or the error.
+   * @param socket_addr_id_ptr - A pointer to a u64 that will contain a dns iterator.
+   * @returns {ErrCode} - `err_code.Success` If the value written to `id_ptr` is an error or a socket id.
+   */
+  // @ts-ignore: external is valid here
+  @external("lunatic::networking", "tls_accept")
+  export declare function tls_accept(listener_id: u64, id_ptr: usize, socket_addr_id_ptr: usize): ErrCode;
+}
