@@ -11,7 +11,10 @@ import {
   Box,
 } from "./index";
 import { Maybe, MaybeCallbackContext } from "./managed/maybe";
+<<<<<<< HEAD
 import { Yieldable, YieldableContext } from "./managed/yieldable";
+=======
+>>>>>>> 4c5ced78706e3f7e401b2e3e101e0843c9909cc7
 
 export function _start(): void {
   Process.dieWhenLinkDies = false;
@@ -21,7 +24,10 @@ export function _start(): void {
   testHeld();
   testMaybe();
   testSharedMap();
+<<<<<<< HEAD
   testYieldable();
+=======
+>>>>>>> 4c5ced78706e3f7e401b2e3e101e0843c9909cc7
 }
 
 

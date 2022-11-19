@@ -516,6 +516,7 @@ export class Process<TMessage> {
     else errCode = distributed.send_receive_skip_search(this.nodeID, this.id, timeout);
     // A message now sits in the scratch area
     return new Message<TRet>(errCode == TimeoutErrCode.Timeout ? MessageType.Timeout : MessageType.Data);
+<<<<<<< HEAD
   }
 
   /**
@@ -543,6 +544,8 @@ export class Process<TMessage> {
     else errCode = distributed.send_receive_skip_search(this.nodeID, this.id, timeout);
     // A message now sits in the scratch area
     return new Message<TRet>(errCode == TimeoutErrCode.Timeout ? MessageType.Timeout : MessageType.Data);
+=======
+>>>>>>> 4c5ced78706e3f7e401b2e3e101e0843c9909cc7
   }
 
   /**
