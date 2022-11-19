@@ -187,6 +187,7 @@ export class TCPSocket extends ASManaged {
     }
     ERROR("Invalid type for TCPSocket#read()");
   }
+
   /**
    * Read data from the TCP stream into a buffer, or an array.
    */
@@ -227,6 +228,10 @@ export class TCPSocket extends ASManaged {
   }
 
 
+  /**
+   * Write data to a TCP Stream. Accepted generic type values include: String, StaticArray,
+   * TypedArray, Array<extends number>, and ArrayBuffer.
+   */
   write<T>(buffer: T): Result<NetworkResultType> {
     if (buffer instanceof String) {
       let encoded = String.UTF8.encode(<string>buffer);

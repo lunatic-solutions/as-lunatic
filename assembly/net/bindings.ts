@@ -437,4 +437,92 @@ export namespace tls {
   // @ts-ignore: external is valid here
   @external("lunatic::networking", "tls_accept")
   export declare function tls_accept(listener_id: u64, id_ptr: usize, socket_addr_id_ptr: usize): ErrCode;
+
+  /**
+   * Drop a tls stream.
+   *
+   * @param {u64} id - The ID of the stream.
+   */
+  // @ts-ignore: external is valid here
+  @external("lunatic::networking", "drop_tls_stream")
+  export declare function drop_tls_stream(id: u64): void;
+
+  
+  /**
+   * Read from a tls stream.
+   *
+   * @param stream_id - The TLS Stream to be read from.
+   * @param buffer_ptr - The pointer to the buffer.
+   * @param buffer_len - The length of the buffer.
+   * @param opaque_ptr - A pointer to the error id.
+   */
+  // @ts-ignore: external is valid here
+  @external("lunatic::networking", "tls_read")
+  export declare function tls_read(stream_id: u64, buffer_ptr: usize, buffer_len: usize, opaque_ptr: usize): TimeoutErrCode;
+
+  
+  /**
+   * Set the read timeout for a given tls stream.
+   *
+   * @param {u64} tls_listener_id - The listener id.
+   * @param {u64} duration - The duration in milliseconds.
+   */
+  // @ts-ignore: external is valid here
+  @external("lunatic::networking", "set_tls_read_timeout")
+  export declare function set_tls_read_timeout(
+    tls_listener_id: u64,
+    duration: u64,
+  ): void;
+
+  /**
+   * Get the current read timeout duration for a given tls stream.
+   *
+   * @param {u64} tls_listener_id - The tcp stream id.
+   */
+  // @ts-ignore: external is valid here
+  @external("lunatic::networking", "get_tls_read_timeout")
+  export declare function get_tls_read_timeout(
+    tls_listener_id: u64,
+  ): ErrCode;
+  
+  /**
+   * Set the write timeout for a given tls stream.
+   *
+   * @param {u64} tls_listener_id - The listener id.
+   * @param {u64} duration - The duration in milliseconds.
+   */
+  // @ts-ignore: external is valid here
+  @external("lunatic::networking", "set_tls_write_timeout")
+  export declare function set_tls_write_timeout(
+    tls_listener_id: u64,
+    duration: u64,
+  ): void;
+
+  /**
+   * Get the current write timeout duration for a given tls stream.
+   *
+   * @param {u64} tls_listener_id - The tcp stream id.
+   */
+  // @ts-ignore: external is valid here
+  @external("lunatic::networking", "get_tls_write_timeout")
+  export declare function get_tls_write_timeout(
+    tls_listener_id: u64,
+  ): ErrCode;
+
+  // @ts-ignore: external is valid here
+  @external("lunatic::networking", "tls_flush")
+  export declare function tls_flush(
+    tls_listener_id: u64,
+    error_id_ptr: usize,
+  ): ErrCode;
+
+  /**
+   * Clone a TLSStream.
+   *
+   * @param id - The id of the socket.
+   * @returns The internal id for this tls stream in this message.
+   */
+  // @ts-ignore: external is valid here
+  @external("lunatic::networking", "clone_tls_stream")
+  export declare function clone_tls_stream(id: u64): u64;
 }

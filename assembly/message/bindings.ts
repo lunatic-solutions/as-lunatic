@@ -63,6 +63,7 @@ export namespace message {
   // @ts-ignore: decorator
   @external("lunatic::message", "push_tcp_stream")
   export declare function push_tcp_stream(tcp_stream_id: u64): u64;
+
   /**
    * Take a tcp stream from the resource list by it's resource id.
    *
@@ -121,5 +122,25 @@ export namespace message {
   // @ts-ignore: decorator
   @external("lunatic::message", "receive")
   export declare function receive(tag: usize /* *const i64 */, tag_length: usize, timeout: u64): MessageType;
+  
+  /**
+   * Push a tls stream to the resource list.
+   *
+   * @param {u64} tls_stream_id - The tls stream id.
+   * @returns The resource ID.
+   */
+  // @ts-ignore: decorator
+  @external("lunatic::message", "push_tls_stream")
+  export declare function push_tls_stream(tcp_stream_id: u64): u64;
+  
+  /**
+   * Take a tls stream from the resource list by it's resource id.
+   *
+   * @param {u64} index - The resource id.
+   * @returns The tls id.
+   */
+  // @ts-ignore: decorator
+  @external("lunatic::message", "take_tls_stream")
+  export declare function take_tls_stream(index: u64): u64;
 }
 
