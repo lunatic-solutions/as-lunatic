@@ -525,4 +525,32 @@ export namespace tls {
   // @ts-ignore: external is valid here
   @external("lunatic::networking", "clone_tls_stream")
   export declare function clone_tls_stream(id: u64): u64;
+
+  /**
+   * Create a new tls connection to a TLS Server.
+   *
+   * @param {u32} addr_type - The address type, 4 or 6
+   * @param {usize} addr_u8_ptr - A pointer to a memory location containing the ip address
+   * @param {u16} port - The port of the ip address.
+   * @param {u32} flow_info - The flow info
+   * @param {u32} scope_id - The scope id.
+   * @param {u32} timeout - A timeout in ms.
+   * @param {usize} id_u64_ptr - A pointer to a 64 bit number that will contain the error string id,
+   *                             or the id of the tcp socket.
+   * @param {usize} certs_array_ptr - A pointer to the certsarray.
+   * @param {usize} certs_array_len - The length of the certsarray.
+   */
+  // @ts-ignore: external is valid here
+  @external("lunatic::networking", "tls_connect")
+  export declare function tls_connect(
+    addr_type: u32,
+    addr_u8_ptr: usize,
+    port: u32,
+    flow_info: u32,
+    scope_id: u32,
+    timeout: u64,
+    id_u64_ptr: usize,
+    certs_array_ptr: usize,
+    certs_array_len: usize,
+  ): ErrCode;
 }

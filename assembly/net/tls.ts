@@ -115,6 +115,68 @@ export class TLSServer extends ASManaged {
 }
 
 export class TLSSocket extends ASManaged {
+
+  /**
+   * Create a TCP connection using the given IPAddress object as the connection server.
+   *
+   * @param {IPAddress} ip - The given IP Address.
+   * @param {u32} timeout - A timeout.
+   * @returns {Result<TCPSocket | null>} The socket if the connection was successful.
+   */
+   static connect(ip: IPAddress, certs: StaticArray<u8>, timeout: u64 = u64.MAX_VALUE): Result<TLSSocket | null> {
+    return TLSSocket.connectUnsafe(
+      ip.type,
+      changetype<usize>(ip),
+      ip.port,
+      ip.flowInfo,
+      ip.scopeId,
+      timeout,
+      changetype<usize>(certs),
+      <usize>certs.length,
+    );
+  }
+
+  /**
+   * Connect to an IP Address. Considdered unsafe because of pointer usage.
+   *
+   * @param {IPType} addr_type - The IP Address type.
+   * @param {usize} addr_ptr - A pointer to the IP Address.
+   * @param {u16} port - The port.
+   * @param {u32} flow_info - The flow info of a given ipv6 address.
+   * @param {u32} scope_id - The scope id of a given ipv6 address.
+   * @param {u32} timeout - How long to wait before the operation times out in milliseconds.
+   * @returns {Result<TCPSocket | null>} The resulting TCPSocket if the connection was successful.
+   */
+  @unsafe static connectUnsafe(addr_type: IPType, addr_ptr: usize, port: u16, flow_info: u32, scope_id: u32, certs_array_ptr: u32, certs_array_len: usize, timeout: u64 = u64.MAX_VALUE): Result<TCPSocket | null> {
+    assert(addr_type == 4 || addr_type == 6);
+    let result = tls.tls_connect(
+      addr_type,
+      addr_ptr,
+      port,
+      flow_info,
+      scope_id,
+      timeout,
+      opaquePtr,
+      certs_array_ptr,
+      certs_array_len,
+    );
+    let id = load<u64>(opaquePtr);
+    if (result == ErrCode.Success) {
+      let ip = new IPAddress();
+
+      // copy the address
+      memory.copy(changetype<usize>(ip), addr_ptr, select<usize>(4, 16, addr_type == IPType.IPV4));
+
+      ip.type = addr_type;
+      ip.port = port;
+      ip.flowInfo = flow_info;
+      ip.scopeId = scope_id;
+
+      return new Result<TLSSocket | null>(new TLSSocket(id, ip));
+    }
+    return new Result<TLSSocket | null>(null, id);
+  }
+
   constructor(
     public id: u64,
     public ip: IPAddress,
