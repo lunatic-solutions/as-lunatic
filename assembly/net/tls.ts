@@ -145,9 +145,9 @@ export class TLSSocket extends ASManaged {
    * @param {u32} flow_info - The flow info of a given ipv6 address.
    * @param {u32} scope_id - The scope id of a given ipv6 address.
    * @param {u32} timeout - How long to wait before the operation times out in milliseconds.
-   * @returns {Result<TCPSocket | null>} The resulting TCPSocket if the connection was successful.
+   * @returns {Result<TLSSocket | null>} The resulting TCPSocket if the connection was successful.
    */
-  @unsafe static connectUnsafe(addr_type: IPType, addr_ptr: usize, port: u16, flow_info: u32, scope_id: u32, certs_array_ptr: u32, certs_array_len: usize, timeout: u64 = u64.MAX_VALUE): Result<TCPSocket | null> {
+  @unsafe static connectUnsafe(addr_type: IPType, addr_ptr: usize, port: u16, flow_info: u32, scope_id: u32, certs_array_ptr: u32, certs_array_len: usize, timeout: u64 = u64.MAX_VALUE): Result<TLSSocket | null> {
     assert(addr_type == 4 || addr_type == 6);
     let result = tls.tls_connect(
       addr_type,

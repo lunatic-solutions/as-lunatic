@@ -143,4 +143,3 @@ export namespace message {
   @external("lunatic::message", "take_tls_stream")
   export declare function take_tls_stream(index: u64): u64;
 }
-
