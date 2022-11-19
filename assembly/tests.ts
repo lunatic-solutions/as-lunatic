@@ -9,8 +9,11 @@ import {
   MessageType,
   Held,
   Box,
+  Yieldable,
+  YieldableContext,
+  Maybe,
+  MaybeCallbackContext
 } from "./index";
-import { Maybe, MaybeCallbackContext } from "./managed/maybe";
 
 export function _start(): void {
   Process.dieWhenLinkDies = false;
@@ -185,7 +188,7 @@ export function testYieldable(): void {
 
   let fibNums = [0, 1, 1, 2, 3, 5, 8, 13];
   for (let i = 0; i < fibNums.length; i++) {
-    assert(fib.next(0)!.expect().value == fibNums[i])
+    assert(fib.next(0).expect().value == fibNums[i])
   }
-  trace("finished yieldable");
+  trace("Finished yieldable");
 }
