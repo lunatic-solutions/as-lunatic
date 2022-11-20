@@ -518,6 +518,33 @@ export class Process<TMessage> {
     return new Message<TRet>(errCode == TimeoutErrCode.Timeout ? MessageType.Timeout : MessageType.Data);
   }
 
+    /**
+     * Send a message with an optional tag, that results in a reply of type TRet. This method is unsafe
+     * because the UMessage does not extend the process type. Only do this if you know what you are
+     * doing.
+     *
+     * @param {TMessage} msg - The message being sent.
+     * @param {i64} tag - The message tag.
+    */
+  @unsafe requestUnsafe<UMessage, TRet>(msg: UMessage, tag: i64 = Process.replyTag++, timeout: u64 = u64.MAX_VALUE): Message<TRet> {
+    message.create_data(tag, MESSAGE_BUFFER_SIZE);
+    let buffer = ASON.serialize(msg);
+    let bufferLength = <usize>buffer.length;
+
+    // need to write the sending process id
+    store<u64>(opaquePtr, Process.processID);
+    message.write_data(opaquePtr, sizeof<u64>());
+
+    // write the buffer
+    message.write_data(changetype<usize>(buffer), bufferLength);
+    let errCode: TimeoutErrCode;
+
+    if (this.nodeID == u64.MAX_VALUE) errCode = message.send_receive_skip_search(this.id, timeout);
+    else errCode = distributed.send_receive_skip_search(this.nodeID, this.id, timeout);
+    // A message now sits in the scratch area
+    return new Message<TRet>(errCode == TimeoutErrCode.Timeout ? MessageType.Timeout : MessageType.Data);
+  }
+
   /**
    * Send a message with an optional tag.
    *
