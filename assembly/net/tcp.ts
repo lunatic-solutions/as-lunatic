@@ -3,6 +3,10 @@ import { ASManaged } from "as-disposable/assembly";
 import { OBJECT, TOTAL_OVERHEAD } from "assemblyscript/std/assembly/rt/common";
 import { getError, Result } from "../error";
 import { error } from "../error/bindings";
+import { Held, HeldContext } from "../managed/held";
+import { Maybe, MaybeCallbackContext } from "../managed/maybe";
+import { Yieldable, YieldableContext } from "../managed/yieldable";
+import { Box } from "../message";
 import { message } from "../message/bindings";
 import { ErrCode, TimeoutErrCode, opaquePtr } from "../util";
 import { tcp } from "./bindings";
@@ -10,6 +14,13 @@ import { resolveDNSIterator } from "./dns";
 import { IPAddress, IPType, NetworkResultType, TCPResult } from "./util";
 
 const idPtr = memory.data(sizeof<u64>());
+
+export class ConnectMaybeContext {
+  constructor(
+    public ip: IPAddress,
+    public timeout: u64,
+  ) {}
+}
 
 /**
  * A TCP Socket that can be written to or read from.
@@ -36,6 +47,21 @@ export class TCPSocket extends ASManaged {
       ip.scopeId,
       timeout,
     );
+  }
+
+  /** Return a Maybe that connects to the given IP address. */
+  static connectMaybe(ip: IPAddress, timeout: u64 = u64.MAX_VALUE): Maybe<TCPSocket, string> {
+    let ctx = new ConnectMaybeContext(ip, timeout);
+    return Maybe.resolve<ConnectMaybeContext, i32>(ctx)
+      .then<TCPSocket, string>((box: Box<ConnectMaybeContext> | null, ctx: MaybeCallbackContext<TCPSocket, string>) => {
+        let connectCtx = box!.value;
+        let result = TCPSocket.connect(connectCtx.ip, connectCtx.timeout);
+        if (result.value) {
+          ctx.resolve(result.value!);
+        } else {
+          ctx.reject(result.errorString);
+        }
+      });
   }
 
   /**
@@ -407,6 +433,42 @@ export class TCPServer extends ASManaged {
     }
     return new Result<TCPServer | null>(null, id);
   }
+
+  static bindMaybe(ip: IPAddress): Yieldable<TCPSocket, string> {
+    let heldServer = Held.create<TCPServer | null>(null);
+    heldServer.execute<IPAddress>(ip, (address: IPAddress, ctx: HeldContext<TCPServer | null>) => {
+      let server = TCPServer.bind(ip)
+        .expect("Unable to bind to tcp server.");
+      ctx.value = server;
+    });
+    return Yieldable.startWith<Held<TCPServer | null>, i32, Maybe<TCPSocket, string>>(
+      heldServer,
+      (heldServer: Held<TCPServer | null>, ctx: YieldableContext<i32, Maybe<TCPSocket, string>>) => {
+        while (true) {
+          let result = heldServer.request<i32, Maybe<TCPSocket, string>>(
+            0,
+            (_value: i32, ctx: HeldContext<TCPServer | null>): Maybe<TCPSocket, string> => {
+              let socket = ctx.value!.accept();
+              if (socket.isOk()) {
+                return Maybe.resolve<TCPSocket, string>(socket.expect());
+              } else {
+                return Maybe.reject<TCPSocket, string>(socket.errorString);
+              }
+            }
+          );
+          if (result.value) {
+            ctx.yield(result.value!.value);
+          } else {
+            if (result.error) {
+              ctx.yield(Maybe.reject<TCPSocket, string>(result.error!))
+            } else {
+              ctx.yield(Maybe.reject<TCPSocket, string>("An unspecified error occured, cannot yield socket."));
+            }
+          }
+        }
+      }
+    )
+  } 
 
   /** Utilized by ason to serialize a process. */
   __asonSerialize(): StaticArray<u8> {

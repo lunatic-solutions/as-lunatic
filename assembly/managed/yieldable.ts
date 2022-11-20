@@ -33,8 +33,30 @@ export class MaybeNextConfiguration<TIn, TOut> {
   ) {}
 }
 
+export class StartWithYieldableContext<TStart, TIn, TOut> {
+    constructor(
+        public start: TStart,
+        public callback: (start: TStart, ctx: YieldableContext<TIn, TOut>) => void,
+    ) {}
+}
+
 /** Represents a handle to a a process that yields values. */
 export class Yieldable<TIn, TOut> {
+
+  static startWith<TStart, TIn, TOut>(start: TStart, callback: (start: TStart, ctx: YieldableContext<TIn, TOut>) => void): Yieldable<TIn, TOut> {
+    let result = new Yieldable<TIn, TOut>((ctx: YieldableContext<TIn, TOut>) => {
+      let startMessage = Mailbox.create<StartWithYieldableContext<TStart, TIn, TOut>>().receive();
+      assert(startMessage.type == MessageType.Data);
+      let start = startMessage.unbox();
+      start.callback(start.start, ctx);
+    });
+    result.held.heldProcess.sendUnsafe<StartWithYieldableContext<TStart, TIn, TOut>>(new StartWithYieldableContext<TStart, TIn, TOut>(
+      start,
+      callback,
+    ));
+    return result;
+  }
+
   private held: Held<YieldableContext<TIn, TOut>>;
 
   constructor(callback: YieldableCallback<TIn, TOut>) {
