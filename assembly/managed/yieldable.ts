@@ -80,8 +80,8 @@ export class Yieldable<TIn, TOut> {
         if (out.error) {
           ctx.reject(out.error);
         } else {
-          if (out.isOk()) {
-            ctx.resolve(out.expect().value);
+          if (out.value) {
+            ctx.resolve(out.value!.value);
           }
           // else we resolve to nothing because the iterator is done
         }
