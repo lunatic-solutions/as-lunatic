@@ -192,5 +192,37 @@ export function testYieldable(): void {
   for (let i = 0; i < fibNums.length; i++) {
     assert(fib.next(0).expect().value == fibNums[i]);
   }
+
+  let boxedFib = new Yieldable<i32, i32, Box<i32>>(42, (value: i32, ctx: YieldableContext<i32, i32, Box<i32>>) => {
+    assert(value == 42);
+    let first = 0;
+    let second = 1;
+    
+    ctx.yield(new Box(first));
+    ctx.yield(new Box(second));
+    
+    for(;;) {
+      let next = first + second;
+      ctx.yield(new Box(next));
+      first = second;
+      second = next;
+    }
+  });
+
+  let maybe = Maybe.resolve<Yieldable<i32, i32, Box<i32>>, i32>(boxedFib)
+    .then<i32, i32>((
+      fibBox: Box<Yieldable<i32, i32, Box<i32>>> | null,
+      ctx: MaybeCallbackContext<i32, i32>,
+    ) => {
+      let fib = fibBox!.value;
+      let fibNums = [0, 1, 1, 2, 3, 5, 8, 13];
+      for (let i = 0; i < fibNums.length; i++) {
+        assert(fib.next(0).expect().value.value == fibNums[i]);
+      }
+      return 100;
+    });
+  
+  assert(maybe.value.resolved!.value == 100);
+
   trace("Finished yieldable");
 }

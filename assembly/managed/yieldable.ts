@@ -4,7 +4,7 @@ import { Box, Mailbox, Message } from "../message";
 import { message } from "../message/bindings";
 import { MessageType } from "../message/util";
 import { Process } from "../process";
-import { Held, HeldContext } from "./held";
+import { Held, HeldContext, HeldEvent } from "./held";
 import { Maybe, MaybeCallbackContext } from "./maybe";
 
 export type YieldableCallback<TStart, TIn, TOut> = (start: TStart, ctx: YieldableContext<TStart, TIn, TOut>) => void;
@@ -13,16 +13,34 @@ export class YieldableContext<TStart, TIn, TOut> {
   constructor(
     public start: TStart, 
     public callback: YieldableCallback<TStart, TIn, TOut>,
+    public heldContext: HeldContext<YieldableContext<TStart, TIn, TOut>> | null = null, 
   ) {}
-  private last: Message<TIn> | null = null;
 
   public yield(out: TOut): TIn {
     while (true) {
-      let message = Mailbox.create<TIn>().receive();   
+      let mb = Mailbox.create<Object>();
+      let message = mb.receive();
+      
+      
       switch(message.type) {
         case MessageType.Data: {
-          message.reply(new Box<TOut>(out));
-          return message.unbox();
+          let value = message.box!.value;
+          // I don't even know if this results in a properly generated instanceof call.
+          // can we use ason.__asonInstanceOf()?
+          if (value instanceof HeldEvent<YieldableContext<TStart, TIn, TOut>>) {
+            (<HeldEvent<YieldableContext<TStart, TIn, TOut>>>value).handle(
+              this.heldContext!,
+              (changetype<Message<HeldEvent<YieldableContext<TStart, TIn, TOut>>>>(message))
+            );
+          } else {
+            message.reply(new Box<TOut>(out));
+            if (isReference<TIn>()) {
+              return <TIn>message.unbox();
+            } else {
+              // This is terribly unsafe
+              return (message.unbox() as Box<TIn>).value;
+            }
+          }
         }
       }
     }
@@ -61,6 +79,7 @@ export class Yieldable<TStart, TIn, TOut> implements Consumable<TIn, TOut> {
       (_: i32, ctx: HeldContext<YieldableContext<TStart, TIn, TOut>>) => {
         // execute the generator
         ctx.value.callback(ctx.value.start, ctx.value);
+        ctx.value.heldContext = ctx;
 
         // if there was a requestor, return null
         let last = load<Message<TIn> | null>(changetype<usize>(ctx.value));
@@ -80,9 +99,27 @@ export class Yieldable<TStart, TIn, TOut> implements Consumable<TIn, TOut> {
 
   /** Obtain a result to a box of the next generated value. */
   next(value: TIn, timeout: u64 = u64.MAX_VALUE): UnmanagedResult<Box<TOut> | null> {
-    let message = this.held.heldProcess.requestUnsafe<TIn, Box<TOut> | null>(value, Process.replyTag++, timeout);
-    if (message.type == MessageType.Data) {
-      return new UnmanagedResult<Box<TOut> | null>(message.unbox());
+    let type: MessageType;
+    let out: Box<TOut> | null = null;
+    if (isReference<TIn>()) {
+      let message = this.held.heldProcess
+        .requestUnsafe<TIn, Box<TOut> | null>(value, Process.replyTag++, timeout);
+      type = message.type;
+      if (message.box) {
+        out = message.box!.value;
+      }
+    } else {
+      let message = this.held.heldProcess
+        .requestUnsafe<Box<TIn>, Box<TOut> | null>(new Box<TIn>(value), Process.replyTag++, timeout);
+      type = message.type;
+      message.unbox();
+      if (message.box) {
+        out = message.box!.value;
+      }
+    }
+
+    if (type == MessageType.Data) {
+      return new UnmanagedResult<Box<TOut> | null>(out);
     }
     return new UnmanagedResult<Box<TOut> | null>(null, "Request timed out.");
   }
