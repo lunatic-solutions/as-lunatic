@@ -24,7 +24,6 @@ export function _start(): void {
   testMaybe();
   testSharedMap();
   testYieldable();
-  testYieldableStartWith();
 }
 
 
@@ -172,7 +171,9 @@ export function testMaybe(): void {
 }
 
 export function testYieldable(): void {
-  let fib = new Yieldable<i32, i32>((ctx: YieldableContext<i32, i32>) => {
+  let fib = new Yieldable<i32, i32, i32>(42, (value: i32, ctx: YieldableContext<i32, i32, i32>) => {
+    assert(value == 42);
+
     let first = 0;
     let second = 1;
 
@@ -189,24 +190,7 @@ export function testYieldable(): void {
 
   let fibNums = [0, 1, 1, 2, 3, 5, 8, 13];
   for (let i = 0; i < fibNums.length; i++) {
-    assert(fib.next(0).expect().value == fibNums[i])
+    assert(fib.next(0).expect().value == fibNums[i]);
   }
   trace("Finished yieldable");
-}
-
-export function testYieldableStartWith(): void {
-  let ctx = Yieldable.startWith<i32, i32, i32>(42, (start: i32, ctx: YieldableContext<i32, i32>) => {
-    assert(start == 42);
-    let i = 1;
-    while (true) {
-      i *= 2;
-      ctx.yield(i);
-    }
-  });
-
-  let values = [2, 4, 8, 16, 32, 64, 128];
-
-  for (let i = 0; i < values.length; i++) {
-    assert(ctx.next(0).value!.value == values[i]);
-  }
 }

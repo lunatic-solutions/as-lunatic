@@ -7,9 +7,13 @@ import { Process } from "../process";
 import { Held, HeldContext } from "./held";
 import { Maybe, MaybeCallbackContext } from "./maybe";
 
-export type YieldableCallback<TIn, TOut> = (ctx: YieldableContext<TIn, TOut>) => void;
+export type YieldableCallback<TStart, TIn, TOut> = (start: TStart, ctx: YieldableContext<TStart, TIn, TOut>) => void;
 
-export class YieldableContext<TIn, TOut> {
+export class YieldableContext<TStart, TIn, TOut> {
+  constructor(
+    public start: TStart, 
+    public callback: YieldableCallback<TStart, TIn, TOut>,
+  ) {}
   private last: Message<TIn> | null = null;
 
   public yield(out: TOut): TIn {
@@ -25,9 +29,14 @@ export class YieldableContext<TIn, TOut> {
   }
 }
 
+export interface Consumable<TIn, TOut> {
+  next(value: TIn, timeout: u64): UnmanagedResult<Box<TOut> | null>;
+  maybeNext(value: TIn, timeout: u64): Maybe<TOut, string>;
+}
+
 export class MaybeNextConfiguration<TIn, TOut> {
   constructor(
-    public self: Yieldable<TIn, TOut>,
+    public self: Consumable<TIn, TOut>,
     public value: TIn,
     public timeout: u64, 
   ) {}
@@ -36,36 +45,22 @@ export class MaybeNextConfiguration<TIn, TOut> {
 export class StartWithYieldableContext<TStart, TIn, TOut> {
     constructor(
         public start: TStart,
-        public callback: (start: TStart, ctx: YieldableContext<TIn, TOut>) => void,
+        public callback: (start: TStart, ctx: YieldableContext<TStart, TIn, TOut>) => void,
     ) {}
 }
 
 /** Represents a handle to a a process that yields values. */
-export class Yieldable<TIn, TOut> {
+export class Yieldable<TStart, TIn, TOut> implements Consumable<TIn, TOut> {
 
-  static startWith<TStart, TIn, TOut>(start: TStart, callback: (start: TStart, ctx: YieldableContext<TIn, TOut>) => void): Yieldable<TIn, TOut> {
-    let result = new Yieldable<TIn, TOut>((ctx: YieldableContext<TIn, TOut>) => {
-      let startMessage = Mailbox.create<StartWithYieldableContext<TStart, TIn, TOut>>().receive();
-      assert(startMessage.type == MessageType.Data);
-      let start = startMessage.unbox();
-      start.callback(start.start, ctx);
-    });
-    result.held.heldProcess.sendUnsafe<StartWithYieldableContext<TStart, TIn, TOut>>(new StartWithYieldableContext<TStart, TIn, TOut>(
-      start,
-      callback,
-    ));
-    return result;
-  }
+  private held: Held<YieldableContext<TStart, TIn, TOut>>;
 
-  private held: Held<YieldableContext<TIn, TOut>>;
-
-  constructor(callback: YieldableCallback<TIn, TOut>) {
-    this.held = Held.create(new YieldableContext<TIn, TOut>());
-    this.held.execute<YieldableCallback<TIn, TOut>>(
-      callback,
-      (callback: YieldableCallback<TIn, TOut>, ctx: HeldContext<YieldableContext<TIn, TOut>>) => {
+  constructor(start: TStart, callback: YieldableCallback<TStart, TIn, TOut>) {
+    this.held = Held.create(new YieldableContext<TStart, TIn, TOut>(start, callback));
+    this.held.execute<i32>(
+      0,
+      (_: i32, ctx: HeldContext<YieldableContext<TStart, TIn, TOut>>) => {
         // execute the generator
-        callback(ctx.value);
+        ctx.value.callback(ctx.value.start, ctx.value);
 
         // if there was a requestor, return null
         let last = load<Message<TIn> | null>(changetype<usize>(ctx.value));
