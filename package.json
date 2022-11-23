@@ -1,6 +1,6 @@
 {
   "name": "as-lunatic",
-  "version": "0.4.0",
+  "version": "0.12.0",
   "types": "assembly/index.ts",
   "main": "assembly/index.ts",
   "description": "Bindings for lunatic imports",
