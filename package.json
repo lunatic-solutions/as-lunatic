@@ -6,7 +6,7 @@
   "description": "Bindings for lunatic imports",
   "scripts": {
     "asbuild": "asc assembly/tests.ts --outFile build/test.wasm --textFile=build/test.wat --config asconfig.json --target debug",
-    "run:test": "lunatic build/test.wasm",
+    "run:test": "lunatic --dir ./ build/test.wasm",
     "test": "run-s asbuild run:test"
   },
   "repository": {

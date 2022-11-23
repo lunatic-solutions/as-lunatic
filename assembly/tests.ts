@@ -1,3 +1,4 @@
+import { readDir } from "./fs/sync";
 import {
   SharedMap,
   IPAddress,
@@ -18,13 +19,14 @@ import {
 
 export function _start(): void {
   Process.dieWhenLinkDies = false;
-  testTrace();
-  testSpawnInheritWith();
-  testTcp();
-  testHeld();
-  testMaybe();
-  testSharedMap();
-  testYieldable();
+  // testTrace();
+  // testSpawnInheritWith();
+  // testTcp();
+  // testHeld();
+  // testMaybe();
+  // testSharedMap();
+  // testYieldable();
+  testReaddir();
 }
 
 
@@ -207,3 +209,9 @@ export function testYieldable(): void {
   // trace("Finished yieldable");
 }
 
+function testReaddir(): void {
+  let dirs = readDir("./assembly").expect();
+  for (let i = 0; i < dirs.length; i++) {
+    trace(dirs[i].name);
+  }
+}
