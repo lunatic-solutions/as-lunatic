@@ -3,7 +3,6 @@ import { ASManaged } from "as-disposable/assembly";
 import { OBJECT, TOTAL_OVERHEAD } from "assemblyscript/std/assembly/rt/common";
 import { getError, Result } from "../error";
 import { error } from "../error/bindings";
-import { Held, HeldContext } from "../managed/held";
 import { Maybe, MaybeCallbackContext } from "../managed/maybe";
 import { Consumable, Yieldable, YieldableContext } from "../managed/yieldable";
 import { Box } from "../message";
@@ -363,7 +362,7 @@ export class TCPSocket extends ASManaged {
   intoConsumable(bufferSize: usize): Consumable<i32, Maybe<StaticArray<u8>, string>> {
     // create the yieldable start context closure
     let socketCtx = new ConsumableSocketContext(bufferSize, this);
-
+    // @ts-ignore: __asonPut is implemented
     return new Yieldable<ConsumableSocketContext, i32, Maybe<StaticArray<u8>, string>>(
       socketCtx,
       (
@@ -493,6 +492,7 @@ export class TCPServer extends ASManaged {
   }
 
   static bindMaybe(ip: IPAddress): Consumable<i32, Maybe<TCPSocket, string>> {
+    // @ts-ignore: __asonPut is implemented
     return new Yieldable<IPAddress, i32, Maybe<TCPSocket, string>>(
       ip,
       (ip: IPAddress, ctx: YieldableContext<IPAddress, i32, Maybe<TCPSocket, string>>) => {

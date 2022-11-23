@@ -7,6 +7,24 @@ import { resolveDNSIterator } from "./dns";
 import { IPAddress, IPType, NetworkResultType, TCPResult } from "./util";
 import { OBJECT, TOTAL_OVERHEAD } from "assemblyscript/std/assembly/rt/common";
 import { message } from "../message/bindings";
+import { Maybe, MaybeCallbackContext } from "../managed/maybe";
+import { Box } from "../message";
+import { Consumable, YieldableContext } from "../managed/yieldable";
+
+export class ConsumableTLSSocketContext {
+  constructor(
+    public bufferSize: usize,
+    public socket: TLSSocket,
+  ) {}
+}
+
+export class TLSBindMaybeContext {
+  constructor(
+    public ip: IPAddress,
+    public certs: StaticArray<u8>,
+    public keys: StaticArray<u8>,
+  ) {}
+}
 
 export class TLSServer extends ASManaged {
   constructor(
@@ -80,6 +98,32 @@ export class TLSServer extends ASManaged {
     return new Result<TLSServer | null>(null, id);
   }
 
+  static bindMaybe(ip: IPAddress, certs: StaticArray<u8>, keys: StaticArray<u8>): Consumable<i32, Maybe<TLSSocket, string>> {
+    // @ts-ignore: __asonPut is implemented
+    return new Yieldable<IPAddress, i32, Maybe<TCPSocket, string>>(
+      new TLSBindMaybeContext(ip, certs, keys),
+      (params: TLSBindMaybeContext, ctx: YieldableContext<IPAddress, i32, Maybe<TLSSocket, string>>) => {
+        let serverResult = TLSServer.bind(params.ip, params.certs, params.keys);
+        if (serverResult.isOk()) {
+          let server = serverResult.expect();
+          while (true) {
+            let acceptResult = server.accept();
+            if (acceptResult.isOk()) {
+              let socket = acceptResult.expect();
+              ctx.yield(Maybe.resolve<TLSSocket, string>(socket));
+            } else {
+              ctx.yield(Maybe.reject<TLSSocket, string>(acceptResult.errorString));
+              return;
+            }
+          }
+        } else {
+          ctx.yield(Maybe.reject<TLSSocket, string>(serverResult.errorString));
+          return;
+        }
+      }
+    );
+  }
+
   /** Utilized by ason to serialize a process. */
   __asonSerialize(): StaticArray<u8> {
     ERROR("TLSServer cannot be serialized.");
@@ -114,14 +158,22 @@ export class TLSServer extends ASManaged {
   }
 }
 
+export class ConnectTLSMaybeContext {
+  constructor(
+    public ip: IPAddress,
+    public certs: StaticArray<u8>,
+    public timeout: u64,
+  ) {}
+}
+
 export class TLSSocket extends ASManaged {
 
   /**
-   * Create a TCP connection using the given IPAddress object as the connection server.
+   * Create a TLS connection using the given IPAddress object as the connection server.
    *
    * @param {IPAddress} ip - The given IP Address.
    * @param {u32} timeout - A timeout.
-   * @returns {Result<TCPSocket | null>} The socket if the connection was successful.
+   * @returns {Result<TLSSocket | null>} The socket if the connection was successful.
    */
    static connect(ip: IPAddress, certs: StaticArray<u8>, timeout: u64 = u64.MAX_VALUE): Result<TLSSocket | null> {
     return TLSSocket.connectUnsafe(
@@ -175,6 +227,21 @@ export class TLSSocket extends ASManaged {
       return new Result<TLSSocket | null>(new TLSSocket(id, ip));
     }
     return new Result<TLSSocket | null>(null, id);
+  }
+
+  /** Return a Maybe that connects to the given IP address. */
+  static connectMaybe(ip: IPAddress, certs: StaticArray<u8>, timeout: u64 = u64.MAX_VALUE): Maybe<TLSSocket, string> {
+    let ctx = new ConnectTLSMaybeContext(ip, certs, timeout);
+    return Maybe.resolve<ConnectTLSMaybeContext, i32>(ctx)
+      .then<TLSSocket, string>((box: Box<ConnectTLSMaybeContext> | null, ctx: MaybeCallbackContext<TLSSocket, string>) => {
+        let connectCtx = box!.value;
+        let result = TLSSocket.connect(connectCtx.ip, connectCtx.certs, connectCtx.timeout);
+        if (result.value) {
+          ctx.resolve(result.value!);
+        } else {
+          ctx.reject(result.errorString);
+        }
+      });
   }
 
   constructor(
@@ -310,9 +377,55 @@ export class TLSSocket extends ASManaged {
    *
    * @returns A new tcp socket with the same stream id.
    */
-     clone(): TLSSocket {
-      return new TLSSocket(tls.clone_tls_stream(this.id), this.ip);
-    }
+  clone(): TLSSocket {
+    return new TLSSocket(tls.clone_tls_stream(this.id), this.ip);
+  }
+
+  /** Cast the socket into a Consumable that consumes Maybes that resolve into static arrays. */
+  intoConsumable(bufferSize: usize): Consumable<i32, Maybe<StaticArray<u8>, string>> {
+    // create the yieldable start context closure
+    let socketCtx = new ConsumableTLSSocketContext(bufferSize, this);
+    // @ts-ignore: __asonPut is implemented
+    return new Yieldable<ConsumableSocketContext, i32, Maybe<StaticArray<u8>, string>>(
+      socketCtx,
+      (
+        socketCtx: ConsumableTLSSocketContext,
+        ctx: YieldableContext<ConsumableTLSSocketContext, i32, Maybe<StaticArray<u8>, string>>
+      ) => {
+        let socket = socketCtx.socket;
+        let bufferSize = socketCtx.bufferSize;
+        let buffer = new StaticArray<u8>(bufferSize);
+
+        while (true) {
+          // read from the socket
+          let readResult = socket.read(buffer);
+
+          switch (readResult.type) {
+            case NetworkResultType.Closed: {
+              // resolve to nothing, the socket is closed, we are done
+              ctx.yield(new Maybe<StaticArray<u8>, string>(() => {}));
+              return;
+            }
+            case NetworkResultType.Error: {
+              // an error occured, we need to finish and return the string
+              ctx.yield(Maybe.reject<StaticArray<u8>, string>(readResult.error!));
+              return;
+            }
+            case NetworkResultType.Timeout: {
+              // if it's a timeout, we reject to a a string equal to "timeout", but continue
+              ctx.yield(Maybe.reject<StaticArray<u8>, string>("timeout"));
+              continue;
+            }
+            case NetworkResultType.Success: {
+              // pass the data back
+              ctx.yield(Maybe.resolve(buffer));
+              continue;
+            }
+          }
+        }
+      }
+    );
+  }
   
   /** Utilized by ason to serialize a socket. */
   __asonSerialize(): StaticArray<u8> {
