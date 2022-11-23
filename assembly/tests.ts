@@ -12,7 +12,8 @@ import {
   Yieldable,
   YieldableContext,
   Maybe,
-  MaybeCallbackContext
+  MaybeCallbackContext,
+  Consumable,
 } from "./index";
 
 export function _start(): void {
@@ -171,7 +172,9 @@ export function testMaybe(): void {
 }
 
 export function testYieldable(): void {
-  let fib = new Yieldable<i32, i32>((ctx: YieldableContext<i32, i32>) => {
+  let fib = new Yieldable<i32, i32, i32>(42, (value: i32, ctx: YieldableContext<i32, i32, i32>) => {
+    assert(value == 42);
+
     let first = 0;
     let second = 1;
 
@@ -188,7 +191,19 @@ export function testYieldable(): void {
 
   let fibNums = [0, 1, 1, 2, 3, 5, 8, 13];
   for (let i = 0; i < fibNums.length; i++) {
-    assert(fib.next(0).expect().value == fibNums[i])
+    assert(fib.next(0).expect().value == fibNums[i]);
   }
-  trace("Finished yieldable");
+
+
+  // Process.inheritSpawnWith<Consumable<i32, i32>, i32>(
+  //   fib,
+  //   (fib: Consumable<i32, i32>,) => {
+  //     let otherFibNumbers = [21, 34, 55, 89];
+  //     for (let i = 0; i < otherFibNumbers.length; i++) {
+  //       assert(fib.next(0, u64.MAX_VALUE).expect().value == otherFibNumbers[i]);
+  //     }
+  //   }
+  // ).expect();
+  // trace("Finished yieldable");
 }
+

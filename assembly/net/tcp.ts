@@ -3,6 +3,10 @@ import { ASManaged } from "as-disposable/assembly";
 import { OBJECT, TOTAL_OVERHEAD } from "assemblyscript/std/assembly/rt/common";
 import { getError, Result } from "../error";
 import { error } from "../error/bindings";
+import { Held, HeldContext } from "../managed/held";
+import { Maybe, MaybeCallbackContext } from "../managed/maybe";
+import { Consumable, Yieldable, YieldableContext } from "../managed/yieldable";
+import { Box } from "../message";
 import { message } from "../message/bindings";
 import { ErrCode, TimeoutErrCode, opaquePtr } from "../util";
 import { tcp } from "./bindings";
@@ -10,6 +14,20 @@ import { resolveDNSIterator } from "./dns";
 import { IPAddress, IPType, NetworkResultType, TCPResult } from "./util";
 
 const idPtr = memory.data(sizeof<u64>());
+
+export class ConsumableSocketContext {
+  constructor(
+    public bufferSize: usize,
+    public socket: TCPSocket,
+  ) {}
+}
+
+export class ConnectMaybeContext {
+  constructor(
+    public ip: IPAddress,
+    public timeout: u64,
+  ) {}
+}
 
 /**
  * A TCP Socket that can be written to or read from.
@@ -36,6 +54,21 @@ export class TCPSocket extends ASManaged {
       ip.scopeId,
       timeout,
     );
+  }
+
+  /** Return a Maybe that connects to the given IP address. */
+  static connectMaybe(ip: IPAddress, timeout: u64 = u64.MAX_VALUE): Maybe<TCPSocket, string> {
+    let ctx = new ConnectMaybeContext(ip, timeout);
+    return Maybe.resolve<ConnectMaybeContext, i32>(ctx)
+      .then<TCPSocket, string>((box: Box<ConnectMaybeContext> | null, ctx: MaybeCallbackContext<TCPSocket, string>) => {
+        let connectCtx = box!.value;
+        let result = TCPSocket.connect(connectCtx.ip, connectCtx.timeout);
+        if (result.value) {
+          ctx.resolve(result.value!);
+        } else {
+          ctx.reject(result.errorString);
+        }
+      });
   }
 
   /**
@@ -321,6 +354,52 @@ export class TCPSocket extends ASManaged {
     return new Result<i32>(0);
   }
 
+  /** Cast the socket into a Consumable that consumes Maybes that resolve into static arrays. */
+  intoConsumable(bufferSize: usize): Consumable<i32, Maybe<StaticArray<u8>, string>> {
+    // create the yieldable start context closure
+    let socketCtx = new ConsumableSocketContext(bufferSize, this);
+
+    return new Yieldable<ConsumableSocketContext, i32, Maybe<StaticArray<u8>, string>>(
+      socketCtx,
+      (
+        socketCtx: ConsumableSocketContext,
+        ctx: YieldableContext<ConsumableSocketContext, i32, Maybe<StaticArray<u8>, string>>
+      ) => {
+        let socket = socketCtx.socket;
+        let bufferSize = socketCtx.bufferSize;
+        let buffer = new StaticArray<u8>(bufferSize);
+
+        while (true) {
+          // read from the socket
+          let readResult = socket.read(buffer);
+
+          switch (readResult.type) {
+            case NetworkResultType.Closed: {
+              // resolve to nothing, the socket is closed, we are done
+              ctx.yield(new Maybe<StaticArray<u8>, string>(() => {}));
+              return;
+            }
+            case NetworkResultType.Error: {
+              // an error occured, we need to finish and return the string
+              ctx.yield(Maybe.reject<StaticArray<u8>, string>(readResult.error!));
+              return;
+            }
+            case NetworkResultType.Timeout: {
+              // if it's a timeout, we reject to a a string equal to "timeout", but continue
+              ctx.yield(Maybe.reject<StaticArray<u8>, string>("timeout"));
+              continue;
+            }
+            case NetworkResultType.Success: {
+              // pass the data back
+              ctx.yield(Maybe.resolve(buffer));
+              continue;
+            }
+          }
+        }
+      }
+    );
+  }
+
   /** Utilized by ason to serialize a socket. */
   __asonSerialize(): StaticArray<u8> {
     let id = tcp.clone_tcp_stream(this.id);
@@ -406,6 +485,31 @@ export class TCPServer extends ASManaged {
       return new Result<TCPServer | null>(null, iteratorId);
     }
     return new Result<TCPServer | null>(null, id);
+  }
+
+  static bindMaybe(ip: IPAddress): Consumable<i32, Maybe<TCPSocket, string>> {
+    return new Yieldable<IPAddress, i32, Maybe<TCPSocket, string>>(
+      ip,
+      (ip: IPAddress, ctx: YieldableContext<IPAddress, i32, Maybe<TCPSocket, string>>) => {
+        let serverResult = TCPServer.bind(ip);
+        if (serverResult.isOk()) {
+          let server = serverResult.expect();
+          while (true) {
+            let acceptResult = server.accept();
+            if (acceptResult.isOk()) {
+              let socket = acceptResult.expect();
+              ctx.yield(Maybe.resolve<TCPSocket, string>(socket));
+            } else {
+              ctx.yield(Maybe.reject<TCPSocket, string>(acceptResult.errorString));
+              return;
+            }
+          }
+        } else {
+          ctx.yield(Maybe.reject<TCPSocket, string>(serverResult.errorString));
+          return;
+        }
+      }
+    );
   }
 
   /** Utilized by ason to serialize a process. */

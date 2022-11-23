@@ -1,4 +1,5 @@
 import { Box } from "../message";
+import { Process } from "../process";
 import { Held, HeldContext } from "./held";
 
 /** Represents the status of a resolution */
@@ -178,4 +179,15 @@ export class Maybe<TResolve, TReject> {
   getTimeout(): u64 {
     return this._timeout;
   }
+}
+
+/**
+ * Resolve a maybe after a given amount of time in milliseconds.
+ */
+export function maybeTimeout(ms: u64): Maybe<i32, i32> {
+  return Maybe.resolve<i32, i32>(ms)
+    .then<i32, i32>((box: Box<i32> | null, ctx: MaybeCallbackContext<i32, i32>) => {
+      Process.sleep(box!.value);
+      ctx.resolve(0);
+    });
 }
