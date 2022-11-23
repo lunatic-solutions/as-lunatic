@@ -219,7 +219,7 @@ export class Held<T> extends ASManaged {
   execute<U>(value: U, callback: (value: U, ctx: HeldContext<T>) => void): void {
     assert(this.alive);
     let event = new ExecuteHeldEvent<T, U>(value, callback);
-    this.heldProcess.send<HeldEvent<T>>(event);
+    this.heldProcess.send(event);
   }
 
   /** Request a calculated value, executing the callback that returns the requested value on the held process. */
