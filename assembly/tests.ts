@@ -9,8 +9,12 @@ import {
   MessageType,
   Held,
   Box,
+  Yieldable,
+  YieldableContext,
+  Maybe,
+  MaybeCallbackContext,
+  Consumable,
 } from "./index";
-import { Maybe, MaybeCallbackContext } from "./managed/maybe";
 
 export function _start(): void {
   Process.dieWhenLinkDies = false;
@@ -20,6 +24,7 @@ export function _start(): void {
   testHeld();
   testMaybe();
   testSharedMap();
+  testYieldable();
 }
 
 
@@ -165,3 +170,40 @@ export function testMaybe(): void {
   }
   trace("Finished maybe");
 }
+
+export function testYieldable(): void {
+  let fib = new Yieldable<i32, i32, i32>(42, (value: i32, ctx: YieldableContext<i32, i32, i32>) => {
+    assert(value == 42);
+
+    let first = 0;
+    let second = 1;
+
+    ctx.yield(first);
+    ctx.yield(second);
+
+    for(;;) {
+      let next = first + second;
+      ctx.yield(next);
+      first = second;
+      second = next;
+    }
+  });
+
+  let fibNums = [0, 1, 1, 2, 3, 5, 8, 13];
+  for (let i = 0; i < fibNums.length; i++) {
+    assert(fib.next(0).expect().value == fibNums[i]);
+  }
+
+
+  // Process.inheritSpawnWith<Consumable<i32, i32>, i32>(
+  //   fib,
+  //   (fib: Consumable<i32, i32>,) => {
+  //     let otherFibNumbers = [21, 34, 55, 89];
+  //     for (let i = 0; i < otherFibNumbers.length; i++) {
+  //       assert(fib.next(0, u64.MAX_VALUE).expect().value == otherFibNumbers[i]);
+  //     }
+  //   }
+  // ).expect();
+  // trace("Finished yieldable");
+}
+

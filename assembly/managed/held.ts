@@ -123,7 +123,7 @@ export class RequestHeldEvent<T, U, UReturn> extends HeldEvent<T> {
 }
 
 // UTF8 for __heldDecrement
-const __heldDecrementName = [0x5f, 0x5f, 0x68, 0x65, 0x6c, 0x64, 0x44, 0x65, 0x63, 0x72, 0x65, 0x6d, 0x65, 0x6e, 0x74] as StaticArray<u8>;
+export const __heldDecrementName = [0x5f, 0x5f, 0x68, 0x65, 0x6c, 0x64, 0x44, 0x65, 0x63, 0x72, 0x65, 0x6d, 0x65, 0x6e, 0x74] as StaticArray<u8>;
 
 
 /** Represents a value held on another process. */
@@ -219,7 +219,7 @@ export class Held<T> extends ASManaged {
   execute<U>(value: U, callback: (value: U, ctx: HeldContext<T>) => void): void {
     assert(this.alive);
     let event = new ExecuteHeldEvent<T, U>(value, callback);
-    this.heldProcess.send<HeldEvent<T>>(event);
+    this.heldProcess.send(event);
   }
 
   /** Request a calculated value, executing the callback that returns the requested value on the held process. */
