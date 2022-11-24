@@ -107,19 +107,20 @@ export function readFile(path: string, flags: string = "r", encoding: string = "
   return readFileUnsafe(changetype<usize>(pathPtr), pathLen, lookupflags.SYMLINK_FOLLOW, rights, oflags);
 }
 
-export function readDir(path: string, flags: string = "r"): UnmanagedResult<Dirent[] | null> {
+export function readDir(path: string): UnmanagedResult<Dirent[] | null> {
   let pathPtr = String.UTF8.encode(path);
   let pathLen = <usize>pathPtr.byteLength;
 
   // let parsedFlags = parseFlags(flags);
   // if (!parsedFlags) return new UnmanagedResult<Dirent[] | null>(null, "Invalid flags.");
 
-  let rights: rights = parseRights(flags);
-  let oflags: oflags = parseOFlags(flags);
-  trace("flags", 2, <f64>rights, <f64>oflags);
-  if (rights == u64.MAX_VALUE || oflags == u16.MAX_VALUE) return new UnmanagedResult<Dirent[] | null>(null, "Invalid flags.");
-  trace("flags parsed");
+  let fdrights: rights = 0;
+  let fdoflags: oflags = 0;
 
-  return readDirUnsafe(changetype<usize>(pathPtr), pathLen, lookupflags.SYMLINK_FOLLOW, rights, oflags);
+  // we always want to readdir, and fail if not a directory
+  fdrights |= rights.FD_READDIR;
+  fdoflags |= oflags.DIRECTORY;
+
+  return readDirUnsafe(changetype<usize>(pathPtr), pathLen, lookupflags.SYMLINK_FOLLOW, fdrights, fdoflags);
 }
 
