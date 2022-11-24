@@ -30,11 +30,10 @@ export class Dirent {
     return this.type == filetype.SYMBOLIC_LINK;
   }
 }
-
+// 0 is out, 1 is in, 2 is err, 3 is preopened dir cwd, AS-WASI
 @lazy export const ROOT_FD: u32 = <u32>3;
 @lazy export const FD_PTR = memory.data(sizeof<u32>());
 export const ioVector = changetype<iovec>(memory.data(offsetof<iovec>()));
-
 
 export function parseOFlags(flags: string): oflags {
   if (flags.charCodeAt(0) == 0x72) {

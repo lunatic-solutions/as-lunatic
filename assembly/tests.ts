@@ -14,6 +14,7 @@ import {
   YieldableContext,
   Maybe,
   MaybeCallbackContext,
+  Config,
   Consumable,
 } from "./index";
 
@@ -210,7 +211,7 @@ export function testYieldable(): void {
 }
 
 function testReaddir(): void {
-  let dirs = readDir("./assembly").expect();
+  let dirs = readDir("./assembly/").expect();
   for (let i = 0; i < dirs.length; i++) {
     trace(dirs[i].name);
   }

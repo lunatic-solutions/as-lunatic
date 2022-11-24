@@ -116,7 +116,9 @@ export function readDir(path: string, flags: string = "r"): UnmanagedResult<Dire
 
   let rights: rights = parseRights(flags);
   let oflags: oflags = parseOFlags(flags);
+  trace("flags", 2, <f64>rights, <f64>oflags);
   if (rights == u64.MAX_VALUE || oflags == u16.MAX_VALUE) return new UnmanagedResult<Dirent[] | null>(null, "Invalid flags.");
+  trace("flags parsed");
 
   return readDirUnsafe(changetype<usize>(pathPtr), pathLen, lookupflags.SYMLINK_FOLLOW, rights, oflags);
 }

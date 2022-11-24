@@ -8,7 +8,7 @@ import { MessageType } from "../message/util";
 import { CompileModuleErrCode, ErrCode, opaquePtr, TimeoutErrCode } from "../util";
 import { process } from "./bindings";
 import { Parameters, StartWrapper } from "./util";
-
+import { wasi } from "../wasi/bindings";
 const MESSAGE_BUFFER_SIZE =
   isDefined(MESSAGE_BUFFER_PREALLOC_SIZE)
     ? MESSAGE_BUFFER_PREALLOC_SIZE
@@ -113,6 +113,28 @@ export class Config extends ASManaged {
 
   set maxMemory(value: u64) {
     process.config_set_max_memory(this.id, value);
+  }
+
+  addCliArg(arg: string): void {
+    let argPtr = String.UTF8.encode(arg);
+    wasi.config_add_command_line_argument(this.id, changetype<usize>(argPtr), <usize>argPtr.byteLength);
+  }
+
+  addEnv(key: string, value: string): void {
+    let keyPtr = String.UTF8.encode(key);
+    let valuePtr = String.UTF8.encode(value);
+    wasi.config_add_environment_variable(
+      this.id,
+      changetype<usize>(keyPtr),
+      <usize>keyPtr.byteLength,
+      changetype<usize>(valuePtr),
+      <usize>valuePtr.byteLength,
+    );
+  }
+
+  addPreopen(dir: string): void {
+    let dirPtr = String.UTF8.encode(dir);
+    wasi.config_preopen_dir(this.id, changetype<usize>(dirPtr), <usize>dirPtr.byteLength);
   }
 }
 

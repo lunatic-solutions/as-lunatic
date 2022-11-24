@@ -34,7 +34,7 @@ export namespace process {
    * Drop an existing config. Traps if the config doesn't exist in the resources.
    */
   // @ts-ignore: external is valid here
-  @external("lunatic::process", "create_config")
+  @external("lunatic::process", "drop_config")
   export declare function drop_config(config_id: u64): void;
 
   /**

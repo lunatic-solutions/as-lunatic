@@ -124,11 +124,13 @@ export function readDirUnsafe(
   rights: rights,
   oflags: oflags
 ): UnmanagedResult<Dirent[] | null> {
+  // this is probably not right lol and I was just told I need to go. Oh, okay. I can do this for a few more minutes
+  // rights: seek, fdstat_set_flags, write, readlink, filestat_set_size
   let result = path_open(ROOT_FD, lkupflags, pathPtr, pathLen, oflags, rights, rights, 0, FD_PTR);
   if (result != errno.SUCCESS) {
     return new UnmanagedResult<Dirent[] | null>(null, errnoToString(result));
   }
-
+  trace("path opened");
   // start values
   let fd = load<u32>(FD_PTR);
   let size = <usize>4096;
@@ -138,6 +140,7 @@ export function readDirUnsafe(
   while (true) {
     let result = fd_readdir(fd, ptr, size, 0 as dircookie, opaquePtr);
     bytesRead = <usize>load<u32>(opaquePtr);
+    trace("reading dir");
 
     // if the read was unsuccessful we return the errno
     if (result != errno.SUCCESS) {
