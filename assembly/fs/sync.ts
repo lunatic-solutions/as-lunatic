@@ -10,13 +10,12 @@ import { readDirUnsafe, readFileUnsafe, writeFileUnsafe } from "./unsafe";
 import { Dirent, parseOFlags, parseRights } from "./util";
 
 /** Write a file to the filesystem. Encoding can be either "utf8" or "utf16le" */
-export function writeFile<T>(path: string, contents: T, flags: string = "w", encoding: string = "utf8"): UnmanagedResult<usize> {
+export function writeFile<T>(path: string, contents: T, encoding: string = "utf8"): UnmanagedResult<usize> {
   let pathPtr = String.UTF8.encode(path);
   let pathLen = <usize>pathPtr.byteLength;
 
-  let rights: rights = parseRights(flags);
-  let oflags: oflags = parseOFlags(flags);
-  if (rights == u64.MAX_VALUE || oflags == u16.MAX_VALUE) return new UnmanagedResult<usize>(0, "Invalid flags.");
+  let fdrights: rights = rights.FD_WRITE;
+  let fdoflags: oflags = oflags.CREAT | oflags.TRUNC;
 
   if (contents instanceof String) {
     if (encoding == "utf8" || encoding == "utf-8") {
@@ -27,8 +26,8 @@ export function writeFile<T>(path: string, contents: T, flags: string = "w", enc
         changetype<usize>(bytes),
         <usize>bytes.byteLength,
         lookupflags.SYMLINK_FOLLOW,
-        rights,
-        oflags,
+        fdrights,
+        fdoflags,
       );
     } else if (encoding == "utf16le") {
       return writeFileUnsafe(
@@ -37,8 +36,8 @@ export function writeFile<T>(path: string, contents: T, flags: string = "w", enc
         changetype<usize>(contents),
         <usize>changetype<OBJECT>(changetype<usize>(contents) - TOTAL_OVERHEAD).rtSize,
         lookupflags.SYMLINK_FOLLOW,
-        rights,
-        oflags,
+        fdrights,
+        fdoflags,
       );
     } else return new UnmanagedResult<usize>(0, "Invalid encoding: " + encoding);
   } else if (contents instanceof ArrayBuffer) {
@@ -48,8 +47,8 @@ export function writeFile<T>(path: string, contents: T, flags: string = "w", enc
       changetype<usize>(contents),
       <usize>contents.byteLength,
       lookupflags.SYMLINK_FOLLOW,
-      rights,
-      oflags,
+      fdrights,
+      fdoflags,
     );
     // @ts-ignore: ArrayBufferView is defined
   } else if (contents instanceof ArrayBufferView) {
@@ -63,8 +62,8 @@ export function writeFile<T>(path: string, contents: T, flags: string = "w", enc
       dataStart,
       byteLength,
       lookupflags.SYMLINK_FOLLOW,
-      rights,
-      oflags,
+      fdrights,
+      fdoflags,
     );
   } else if (contents instanceof Array) {
     if (isReference<valueof<T>>()) ERROR("Cannot call write if type of valueof<T> is a reference.");
@@ -76,8 +75,8 @@ export function writeFile<T>(path: string, contents: T, flags: string = "w", enc
       contents.dataStart,
       byteLength,
       lookupflags.SYMLINK_FOLLOW,
-      rights,
-      oflags,
+      fdrights,
+      fdoflags,
     );
   } else if (contents instanceof StaticArray) {
     if (isReference<valueof<T>>()) ERROR("Cannot call write if type of valueof<T> is a reference.");
@@ -89,22 +88,25 @@ export function writeFile<T>(path: string, contents: T, flags: string = "w", enc
       changetype<usize>(contents),
       byteLength,
       lookupflags.SYMLINK_FOLLOW,
-      rights,
-      oflags,
+      fdrights,
+      fdoflags,
     );
   }
   return new UnmanagedResult<usize>(0, "Invalid data type.");
 }
 
-export function readFile(path: string, flags: string = "r", encoding: string = "utf8"): UnmanagedResult<StaticArray<u8> | null> {
+export function readFile(path: string): UnmanagedResult<StaticArray<u8> | null> {
   let pathPtr = String.UTF8.encode(path);
   let pathLen = <usize>pathPtr.byteLength;
 
-  let rights: rights = parseRights(flags);
-  let oflags: oflags = parseOFlags(flags);
-  if (rights == u64.MAX_VALUE || oflags == u16.MAX_VALUE) return new UnmanagedResult<StaticArray<u8> | null>(null, "Invalid flags.");
-
-  return readFileUnsafe(changetype<usize>(pathPtr), pathLen, lookupflags.SYMLINK_FOLLOW, rights, oflags);
+  let fdrights: rights = rights.FD_READ
+                       | rights.FD_SEEK
+                       | rights.FD_TELL
+                       | rights.FD_FILESTAT_GET
+                       | rights.FD_READDIR;
+  let fdoflags: oflags = 0;
+  if (fdrights == u64.MAX_VALUE || fdoflags == u16.MAX_VALUE) return new UnmanagedResult<StaticArray<u8> | null>(null, "Invalid flags.");
+  return readFileUnsafe(changetype<usize>(pathPtr), pathLen, lookupflags.SYMLINK_FOLLOW, fdrights, fdoflags);
 }
 
 export function readDir(path: string): UnmanagedResult<Dirent[] | null> {

@@ -1,4 +1,4 @@
-import { readDir } from "./fs/sync";
+import { readDir, readFile, writeFile } from "./fs/sync";
 import {
   SharedMap,
   IPAddress,
@@ -28,6 +28,7 @@ export function _start(): void {
   // testSharedMap();
   // testYieldable();
   testReaddir();
+  testWriteAndReadFile();
 }
 
 
@@ -215,4 +216,19 @@ function testReaddir(): void {
   for (let i = 0; i < dirs.length; i++) {
     trace(dirs[i].name);
   }
+}
+
+function testWriteAndReadFile(): void {
+  trace("write file");
+  writeFile("./build/test.txt", "Hello world!", "utf8").expect();
+  trace("read file");
+  let contents = readFile("./build/test.txt").expect();
+  let expected = String.UTF8.encode("Hello world!");
+
+  assert(contents.length == expected.byteLength);
+  assert(memory.compare(
+    changetype<usize>(contents),
+    changetype<usize>(expected),
+    <usize>expected.byteLength,
+  ) == 0);
 }

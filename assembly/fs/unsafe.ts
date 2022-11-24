@@ -106,15 +106,14 @@ export function readFileUnsafe(
     1,
     opaquePtr,
   );
-
   // once the operation is done, we need to close the fd
   fd_close(fd);
 
   // return the result
-  return result == errno.SUCCESS
-    ? new UnmanagedResult<usize>(<usize>load<u64>(opaquePtr))
-    // failure should return the string
-    : new UnmanagedResult<usize>(0, errnoToString(result));
+  if (result == errno.SUCCESS) {
+    return new UnmanagedResult<usize>(<usize>load<u64>(opaquePtr));
+  }
+  return new UnmanagedResult<usize>(0, errnoToString(result)); 
 }
 
 export function readDirUnsafe(
