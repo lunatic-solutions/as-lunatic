@@ -20,13 +20,13 @@ import {
 
 export function _start(): void {
   Process.dieWhenLinkDies = false;
-  // testTrace();
-  // testSpawnInheritWith();
-  // testTcp();
-  // testHeld();
-  // testMaybe();
-  // testSharedMap();
-  // testYieldable();
+  testTrace();
+  testSpawnInheritWith();
+  testTcp();
+  testHeld();
+  testMaybe();
+  testSharedMap();
+  testYieldable();
   testReaddir();
   testWriteAndReadFile();
 }
@@ -219,9 +219,7 @@ function testReaddir(): void {
 }
 
 function testWriteAndReadFile(): void {
-  trace("write file");
   writeFile("./build/test.txt", "Hello world!", "utf8").expect();
-  trace("read file");
   let contents = readFile("./build/test.txt").expect();
   let expected = String.UTF8.encode("Hello world!");
 
@@ -232,3 +230,4 @@ function testWriteAndReadFile(): void {
     <usize>expected.byteLength,
   ) == 0);
 }
+

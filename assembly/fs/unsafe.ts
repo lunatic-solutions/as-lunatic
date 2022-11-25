@@ -10,13 +10,14 @@ import {
   fd_write,
   dirent,
   fd_readdir,
-  dircookie
+  dircookie,
+  path_filestat_get
 } from "@assemblyscript/wasi-shim/assembly/bindings/wasi_snapshot_preview1";
 import { UnmanagedResult } from "../error";
 import { opaquePtr } from "../util";
-import { Dirent, ROOT_FD, FD_PTR, ioVector } from "./util";
+import { Dirent, ROOT_FD, FD_PTR, ioVector, FStat } from "./util";
 
-export function readFileUnsafe(
+@unsafe export function readFileUnsafe(
   pathPtr: usize,
   pathLen: usize,
   lkupflags: lookupflags,
@@ -116,6 +117,7 @@ export function readFileUnsafe(
   return new UnmanagedResult<usize>(0, errnoToString(result)); 
 }
 
+@unsafe()
 export function readDirUnsafe(
   pathPtr: usize,
   pathLen: usize,
@@ -181,4 +183,24 @@ export function readDirUnsafe(
 
   heap.free(ptr);
   return new UnmanagedResult<Dirent[] | null>(output);
+}
+
+@unsafe export function fstatUnsafe(pathPtr: usize, pathLen: usize): UnmanagedResult<FStat | null> {
+  let fstat = changetype<filestat>(memory.data(offsetof<filestat>()));
+  let result = path_filestat_get(ROOT_FD, lookupflags.SYMLINK_FOLLOW, pathPtr, pathLen, fstat);
+  if (result == errno.SUCCESS) {
+    let output = new FStat(
+      fstat.dev,
+      fstat.ino,
+      fstat.filetype,
+      fstat.nlink,
+      fstat.size,
+      fstat.atim,
+      fstat.mtim,
+      fstat.ctim,
+    );
+    return new UnmanagedResult<FStat | null>(output);
+  } else {
+    return new UnmanagedResult<FStat | null>(null, errnoToString(result));
+  }
 }

@@ -30,57 +30,30 @@ export class Dirent {
     return this.type == filetype.SYMBOLIC_LINK;
   }
 }
+
+export class FStat {
+  constructor(
+    /** Device ID of device containing the file. */
+    public dev: device,
+    /** File serial number. */
+    public ino: inode,
+    /** File type. */
+    public filetype: filetype,
+    /** Number of hard links to the file. */
+    public nlink: linkcount,
+    /** For regular files, the file size in bytes. For symbolic links, the length in bytes of the pathname contained in the symbolic link. */
+    public size: filesize,
+    /** Last data access timestamp. */
+    public atim: timestamp,
+    /** Last data modification timestamp. */
+    public mtim: timestamp,
+    /** Last file status change timestamp. */
+    public ctim: timestamp,
+  ) {}
+}
+
+
 // 0 is out, 1 is in, 2 is err, 3 is preopened dir cwd, AS-WASI
 @lazy export const ROOT_FD: u32 = <u32>3;
 @lazy export const FD_PTR = memory.data(sizeof<u32>());
 export const ioVector = changetype<iovec>(memory.data(offsetof<iovec>()));
-
-export function parseOFlags(flags: string): oflags {
-  if (flags.charCodeAt(0) == 0x72) {
-    if (flags == "r") {
-      return 0;
-    } else if (flags == "r+") {
-      return 0;
-    } else return u16.MAX_VALUE;
-  } else if (flags.charCodeAt(0) == 0x77) {
-    if (flags == "w") {
-      return oflags.CREAT | oflags.TRUNC;
-    } else if (flags == "wx") {
-      return oflags.CREAT | oflags.TRUNC | oflags.EXCL;
-    } else if (flags == "w+") {
-      return oflags.CREAT | oflags.TRUNC;
-    } else if (flags == "wx+") {
-      return oflags.CREAT | oflags.TRUNC | oflags.EXCL;      
-    } else return u16.MAX_VALUE;
-  } else return u16.MAX_VALUE;
-}
-
-export function parseRights(flags: string): rights {
-  // "r"
-  if (flags.charCodeAt(0) == 0x72) {
-    if (flags == "r") {
-      return rights.FD_READ | rights.FD_SEEK | rights.FD_TELL | rights.FD_FILESTAT_GET |
-        rights.FD_READDIR;
-    } else if (flags == "r+") {
-      return rights.FD_WRITE |
-        rights.FD_READ | rights.FD_SEEK | rights.FD_TELL | rights.FD_FILESTAT_GET |
-        rights.PATH_CREATE_FILE;
-    } else return u64.MAX_VALUE;
-  } else if (flags.charCodeAt(0) == 0x77) {
-    if (flags == "w") {
-      return rights.FD_WRITE | rights.FD_SEEK | rights.FD_TELL | rights.FD_FILESTAT_GET |
-        rights.PATH_CREATE_FILE;
-    } else if (flags == "wx") {
-      return rights.FD_WRITE | rights.FD_SEEK | rights.FD_TELL | rights.FD_FILESTAT_GET |
-        rights.PATH_CREATE_FILE;
-    } else if (flags == "w+") {
-      return rights.FD_WRITE |
-        rights.FD_READ | rights.FD_SEEK | rights.FD_TELL | rights.FD_FILESTAT_GET |
-        rights.PATH_CREATE_FILE;
-    } else if (flags == "wx+") {
-      return rights.FD_WRITE |
-        rights.FD_READ | rights.FD_SEEK | rights.FD_TELL | rights.FD_FILESTAT_GET |
-        rights.PATH_CREATE_FILE;
-    } else return u64.MAX_VALUE;
-  } else return u64.MAX_VALUE;
-}

@@ -6,8 +6,8 @@ import {
 } from "@assemblyscript/wasi-shim/assembly/bindings/wasi_snapshot_preview1";
 import { UnmanagedResult } from "../error";
 import { OBJECT, TOTAL_OVERHEAD } from "rt/common";
-import { readDirUnsafe, readFileUnsafe, writeFileUnsafe } from "./unsafe";
-import { Dirent, parseOFlags, parseRights } from "./util";
+import { fstatUnsafe, readDirUnsafe, readFileUnsafe, writeFileUnsafe } from "./unsafe";
+import { Dirent, FStat, parseOFlags, parseRights } from "./util";
 
 /** Write a file to the filesystem. Encoding can be either "utf8" or "utf16le" */
 export function writeFile<T>(path: string, contents: T, encoding: string = "utf8"): UnmanagedResult<usize> {
@@ -105,7 +105,6 @@ export function readFile(path: string): UnmanagedResult<StaticArray<u8> | null> 
                        | rights.FD_FILESTAT_GET
                        | rights.FD_READDIR;
   let fdoflags: oflags = 0;
-  if (fdrights == u64.MAX_VALUE || fdoflags == u16.MAX_VALUE) return new UnmanagedResult<StaticArray<u8> | null>(null, "Invalid flags.");
   return readFileUnsafe(changetype<usize>(pathPtr), pathLen, lookupflags.SYMLINK_FOLLOW, fdrights, fdoflags);
 }
 
@@ -116,13 +115,14 @@ export function readDir(path: string): UnmanagedResult<Dirent[] | null> {
   // let parsedFlags = parseFlags(flags);
   // if (!parsedFlags) return new UnmanagedResult<Dirent[] | null>(null, "Invalid flags.");
 
-  let fdrights: rights = 0;
-  let fdoflags: oflags = 0;
-
   // we always want to readdir, and fail if not a directory
-  fdrights |= rights.FD_READDIR;
-  fdoflags |= oflags.DIRECTORY;
+  let fdrights: rights = rights.FD_READDIR;
+  let fdoflags: oflags = oflags.DIRECTORY;
 
   return readDirUnsafe(changetype<usize>(pathPtr), pathLen, lookupflags.SYMLINK_FOLLOW, fdrights, fdoflags);
 }
 
+export function fstat(path: string): UnmanagedResult<FStat | null> {
+  let buffer = String.UTF8.encode(path);
+  return fstatUnsafe(changetype<usize>(buffer), <usize>buffer.byteLength);
+}
