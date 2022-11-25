@@ -98,7 +98,7 @@ export function writeFile<T>(path: string, contents: T, encoding: string = "utf8
 }
 
 /** Read the contents of a file into a static array. */
-export function readFile(path: string): UnmanagedResult<StaticArray<u8> | null> {
+export function readFileStaticArray(path: string): UnmanagedResult<StaticArray<u8> | null> {
   let pathPtr = String.UTF8.encode(path);
   let pathLen = <usize>pathPtr.byteLength;
 
@@ -108,7 +108,21 @@ export function readFile(path: string): UnmanagedResult<StaticArray<u8> | null> 
                        | rights.FD_FILESTAT_GET
                        | rights.FD_READDIR;
   let fdoflags: oflags = 0;
-  return readFileUnsafe(changetype<usize>(pathPtr), pathLen, lookupflags.SYMLINK_FOLLOW, fdrights, fdoflags);
+  return readFileUnsafe<StaticArray<u8>>(changetype<usize>(pathPtr), pathLen, lookupflags.SYMLINK_FOLLOW, fdrights, fdoflags);
+}
+
+/** Read the contents of a file into a static array. */
+export function readFileBuffer(path: string): UnmanagedResult<ArrayBuffer | null> {
+  let pathPtr = String.UTF8.encode(path);
+  let pathLen = <usize>pathPtr.byteLength;
+
+  let fdrights: rights = rights.FD_READ
+                       | rights.FD_SEEK
+                       | rights.FD_TELL
+                       | rights.FD_FILESTAT_GET
+                       | rights.FD_READDIR;
+  let fdoflags: oflags = 0;
+  return readFileUnsafe<ArrayBuffer>(changetype<usize>(pathPtr), pathLen, lookupflags.SYMLINK_FOLLOW, fdrights, fdoflags);
 }
 
 export function readDir(path: string): UnmanagedResult<Dirent[] | null> {

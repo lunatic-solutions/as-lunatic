@@ -21,13 +21,13 @@ import { Dirent, ROOT_FD, FD_PTR, ioVector, FStat } from "./util";
 
 /** Read a file, referencing a path with a pointer and a length, with the given flags. */
 // @ts-ignore
-@unsafe export function readFileUnsafe(
+@unsafe export function readFileUnsafe<T>(
   pathPtr: usize,
   pathLen: usize,
   lkupflags: lookupflags,
   rights: rights,
   oflags: oflags
-): UnmanagedResult<StaticArray<u8> | null> {
+): UnmanagedResult<T | null> {
   let result = path_open(
     ROOT_FD,
     lkupflags,
@@ -40,7 +40,7 @@ import { Dirent, ROOT_FD, FD_PTR, ioVector, FStat } from "./util";
     FD_PTR
   );
   if (result != errno.SUCCESS)
-    return new UnmanagedResult<StaticArray<u8> | null>(null, errnoToString(result));
+    return new UnmanagedResult<T | null>(null, errnoToString(result));
 
   // obtain the size of the record
   let fd = load<u32>(FD_PTR);
@@ -50,28 +50,28 @@ import { Dirent, ROOT_FD, FD_PTR, ioVector, FStat } from "./util";
 
   if (result != errno.SUCCESS) {
     fd_close(fd);
-    return new UnmanagedResult<StaticArray<u8> | null>(null, errnoToString(result));
+    return new UnmanagedResult<T | null>(null, errnoToString(result));
   }
 
   if (stat.filetype != filetype.REGULAR_FILE) {
     fd_close(fd);
-    return new UnmanagedResult<StaticArray<u8> | null>(null, "Invalid file type.");
+    return new UnmanagedResult<T | null>(null, "Invalid file type.");
   }
 
   let size = <usize>stat.size;
-  let output = new StaticArray<u8>(<i32>size);
+  let output = instantiate<T>(<i32>size);
   ioVector.buf = changetype<usize>(output);
   ioVector.buf_len = size;
   result = fd_read(fd, changetype<usize>(ioVector), 1, opaquePtr);
   fd_close(fd);
 
   if (result != errno.SUCCESS) {
-    return new UnmanagedResult<StaticArray<u8> | null>(null, errnoToString(result));
+    return new UnmanagedResult<T | null>(null, errnoToString(result));
   }
   let bytesRead = load<u64>(opaquePtr);
   assert(size == <usize>bytesRead);
 
-  return new UnmanagedResult<StaticArray<u8> | null>(output);
+  return new UnmanagedResult<T | null>(output);
 }
 
 

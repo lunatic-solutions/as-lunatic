@@ -1,6 +1,6 @@
 import { Maybe, MaybeCallbackContext } from "../managed/maybe";
 import { Box } from "../message";
-import { fstat, readDir, readFile, rename, unlink, writeFile } from "./sync";
+import { fstat, readDir, readFileStaticArray, readFileBuffer, rename, unlink, writeFile } from "./sync";
 import { Dirent, FStat } from "./util";
 
 export class WriteFileMaybeContext<T> {
@@ -25,10 +25,22 @@ export function writeFileMaybe<T>(path: string, contents: T, flags: string = "w"
     });
 }
 
-export function readFileMaybe(path: string): Maybe<StaticArray<u8>, string> {
+export function readFileStaticArrayMaybe(path: string): Maybe<StaticArray<u8>, string> {
   return Maybe.resolve<string, i32>(path)
     .then<StaticArray<u8>, string>((value: Box<string> | null, ctx: MaybeCallbackContext<StaticArray<u8>, string>) => {
-      let result = readFile(value!.value);
+      let result = readFileStaticArray(value!.value);
+      if (result.error) {
+        ctx.reject(result.error);
+      } else {
+        ctx.resolve(result.value!);
+      }
+    });
+}
+
+export function readFileBufferMaybe(path: string): Maybe<ArrayBuffer, string> {
+  return Maybe.resolve<string, i32>(path)
+    .then<ArrayBuffer, string>((value: Box<string> | null, ctx: MaybeCallbackContext<ArrayBuffer, string>) => {
+      let result = readFileBuffer(value!.value);
       if (result.error) {
         ctx.reject(result.error);
       } else {

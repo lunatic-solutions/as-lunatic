@@ -1,4 +1,4 @@
-import { readDir, readFile, writeFile } from "./fs/sync";
+import { readDir, readFileStaticArray, writeFile } from "./fs/sync";
 import {
   SharedMap,
   IPAddress,
@@ -220,7 +220,7 @@ function testReaddir(): void {
 
 function testWriteAndReadFile(): void {
   writeFile("./build/test.txt", "Hello world!", "utf8").expect();
-  let contents = readFile("./build/test.txt").expect();
+  let contents = readFileStaticArray("./build/test.txt").expect();
   let expected = String.UTF8.encode("Hello world!");
 
   assert(contents.length == expected.byteLength);
