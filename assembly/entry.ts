@@ -181,3 +181,7 @@ export function __heldDecrement(pid: u64, parentProcessId: u64, objId: u32): voi
   // ASON.serialize should ignore the rtId...
   p.send(result);
 }
+
+export {
+  random_get
+}
