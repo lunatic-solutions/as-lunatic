@@ -11,12 +11,16 @@ import {
   dirent,
   fd_readdir,
   dircookie,
-  path_filestat_get
+  path_filestat_get,
+  path_rename,
+  path_unlink_file
 } from "@assemblyscript/wasi-shim/assembly/bindings/wasi_snapshot_preview1";
 import { UnmanagedResult } from "../error";
 import { opaquePtr } from "../util";
 import { Dirent, ROOT_FD, FD_PTR, ioVector, FStat } from "./util";
 
+/** Read a file, referencing a path with a pointer and a length, with the given flags. */
+// @ts-ignore
 @unsafe export function readFileUnsafe(
   pathPtr: usize,
   pathLen: usize,
@@ -75,6 +79,7 @@ import { Dirent, ROOT_FD, FD_PTR, ioVector, FStat } from "./util";
  * Write a file to the file system at the given path, returning an Unmanaged result of
  * the number of bytes written or a string error.
  */
+// @ts-ignore
  @unsafe export function writeFileUnsafe(
   pathPtr: usize,
   pathLen: usize,
@@ -117,8 +122,9 @@ import { Dirent, ROOT_FD, FD_PTR, ioVector, FStat } from "./util";
   return new UnmanagedResult<usize>(0, errnoToString(result)); 
 }
 
-@unsafe()
-export function readDirUnsafe(
+/** Read the contents of a directory,  */
+// @ts-ignore
+@unsafe export function readDirUnsafe(
   pathPtr: usize,
   pathLen: usize,
   lkupflags: lookupflags,
@@ -185,6 +191,8 @@ export function readDirUnsafe(
   return new UnmanagedResult<Dirent[] | null>(output);
 }
 
+/** Get the stats from the filesystem by the given path. */
+// @ts-ignore
 @unsafe export function fstatUnsafe(pathPtr: usize, pathLen: usize): UnmanagedResult<FStat | null> {
   let fstat = changetype<filestat>(memory.data(offsetof<filestat>()));
   let result = path_filestat_get(ROOT_FD, lookupflags.SYMLINK_FOLLOW, pathPtr, pathLen, fstat);
@@ -203,4 +211,25 @@ export function readDirUnsafe(
   } else {
     return new UnmanagedResult<FStat | null>(null, errnoToString(result));
   }
+}
+
+/** Rename a file or folder with the given paths. */
+// @ts-ignore
+@unsafe export function renameUnsafe(oldPathPtr: usize, oldPathLen: usize, newPathPtr: usize, newPathLen: usize): UnmanagedResult<bool> {
+  let result = path_rename(
+    ROOT_FD,
+    oldPathPtr, oldPathLen,
+    ROOT_FD,
+    newPathPtr, newPathLen, 
+  );
+  if (result == errno.SUCCESS) return new UnmanagedResult<bool>(true);
+  return new UnmanagedResult(false, errnoToString(result));
+}
+
+/** Delete a file or a folder with a given path. */
+// @ts-ignore
+@unsafe export function unlinkUnsafe(pathPtr: usize, pathLen: usize): UnmanagedResult<bool> {
+  let result = path_unlink_file(ROOT_FD, pathPtr, pathLen);
+  if (result == errno.SUCCESS) return new UnmanagedResult<bool>(true);
+  return new UnmanagedResult<bool>(false, errnoToString(result));
 }

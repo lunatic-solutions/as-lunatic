@@ -1,4 +1,4 @@
-import { filetype, iovec, oflags, rights } from "@assemblyscript/wasi-shim/assembly/bindings/wasi_snapshot_preview1";
+import { device, filesize, filetype, inode, iovec, linkcount, oflags, rights, timestamp } from "@assemblyscript/wasi-shim/assembly/bindings/wasi_snapshot_preview1";
 
 export class Dirent {
   constructor(

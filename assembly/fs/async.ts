@@ -1,6 +1,6 @@
 import { Maybe, MaybeCallbackContext } from "../managed/maybe";
 import { Box } from "../message";
-import { fstat, readDir, readFile, writeFile } from "./sync";
+import { fstat, readDir, readFile, rename, unlink, writeFile } from "./sync";
 import { Dirent, FStat } from "./util";
 
 export class WriteFileMaybeContext<T> {
@@ -60,3 +60,35 @@ export function fstatMaybe(path: string): Maybe<FStat, string> {
       }
     });
 }
+
+export class RenameMaybeContext {
+  constructor(
+    public oldPath: string,
+    public newPath: string,
+  ) {}
+}
+
+export function renameMaybe(oldPath: string, newPath: string): Maybe<bool, string> {
+  return Maybe.resolve<RenameMaybeContext, i32>(new RenameMaybeContext(oldPath, newPath))
+    .then<bool, string>((value: Box<RenameMaybeContext> | null, ctx: MaybeCallbackContext<bool, string>) => {
+      let result = rename(value!.value.oldPath, value!.value.newPath);
+      if (result.error) {
+        ctx.reject(result.error);
+      } else {
+        ctx.resolve(result.value!);
+      }
+    });
+}
+
+export function unlinkMaybe(path: string): Maybe<bool, string> {
+  return Maybe.resolve<string, i32>(path)
+    .then<bool, string>((value: Box<string> | null, ctx: MaybeCallbackContext<bool, string>) => {
+      let result = unlink(value!.value);
+      if (result.error) {
+        ctx.reject(result.error);
+      } else {
+        ctx.resolve(result.value!);
+      }
+    });
+}
+
