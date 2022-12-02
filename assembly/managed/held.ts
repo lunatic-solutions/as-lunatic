@@ -265,7 +265,6 @@ export class Held<T> extends ASManaged {
   execute<U>(value: U, callback: (value: U, ctx: T) => T): void {
     assert(this.alive);
     let event = new ExecuteHeldEvent<T, U>(value, callback);
-    trace("sending");
     this.heldProcess.send(event);
   }
 

@@ -137,7 +137,6 @@ import { Dirent, ROOT_FD, FD_PTR, ioVector, FStat } from "./util";
   if (result != errno.SUCCESS) {
     return new UnmanagedResult<Dirent[] | null>(null, errnoToString(result));
   }
-  trace("path opened");
   // start values
   let fd = load<u32>(FD_PTR);
   let size = <usize>4096;
@@ -147,7 +146,6 @@ import { Dirent, ROOT_FD, FD_PTR, ioVector, FStat } from "./util";
   while (true) {
     let result = fd_readdir(fd, ptr, size, 0 as dircookie, opaquePtr);
     bytesRead = <usize>load<u32>(opaquePtr);
-    trace("reading dir");
 
     // if the read was unsuccessful we return the errno
     if (result != errno.SUCCESS) {

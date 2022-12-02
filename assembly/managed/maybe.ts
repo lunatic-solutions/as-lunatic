@@ -29,7 +29,8 @@ export class MaybeCallbackContext<TResolve, TReject> {
     if (this.resolutionType == MaybeResolutionStatus.Pending) {
       this.rejected = new Box<TReject>(value);
       this.resolutionType = MaybeResolutionStatus.Rejected;
-      this.stackTrace = Process.getStackTrace();
+      // this.stackTrace = Process.getStackTrace();
+      this.stackTrace = "Stack Traces Aren't Supported Yet";
     }
   }
 
