@@ -19,6 +19,7 @@ export * from "./net/tcp";
 export * from "./net/udp";
 export * from "./net/util";
 export * from "./process";
+export * from "./process/sandbox";
 export * from "./process/bindings";
 export * from "./registry"
 export * from "./registry/bindings";

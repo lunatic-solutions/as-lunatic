@@ -5,8 +5,8 @@
   "main": "assembly/index.ts",
   "description": "Bindings for lunatic imports",
   "scripts": {
-    "asbuild": "asc assembly/tests.ts --outFile build/test.wasm --textFile=build/test.wat --config asconfig.json --target release",
-    "run:test": "lunatic --dir ./ build/test.wasm",
+    "asbuild": "asc assembly/tests.ts --outFile build/test.wasm --textFile=build/test.wat --config asconfig.json --target debug",
+    "run:test": "lunatic build/test.wasm",
     "test": "run-s asbuild run:test"
   },
   "repository": {
@@ -25,7 +25,7 @@
   },
   "homepage": "https://github.com/lunatic-solutions/as-lunatic#readme",
   "dependencies": {
-    "@ason/assembly": "0.8.1",
+    "@ason/assembly": "0.10.0",
     "@assemblyscript/wasi-shim": "^0.1.0",
     "as-disposable": "^0.1.2"
   },

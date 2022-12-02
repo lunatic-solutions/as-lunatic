@@ -1,7 +1,7 @@
 import { ASON } from "@ason/assembly";
 import { ASManaged } from "as-disposable/assembly";
 import { distributed } from "../distributed/bindings";
-import { Result } from "../error";
+import { Result, UnmanagedResult } from "../error";
 import { Mailbox, Message, MessageWrapper } from "../message";
 import { message } from "../message/bindings";
 import { MessageType } from "../message/util";
@@ -260,6 +260,20 @@ export class Process<TMessage> {
    */
   static set dieWhenLinkDies(value: bool) {
     process.die_when_link_dies(value);
+  }
+
+  /** Obtain the current stack trace. */
+  static getStackTrace(): string {
+    process.trace_get(opaquePtr);
+    let traceId = load<u64>(opaquePtr);
+    let size = <usize>process.trace_get_size(traceId);
+    let ptr = heap.alloc(size);
+    let read = process.trace_read(traceId, ptr, size);
+    assert(read == size);
+    let trace = String.UTF8.decodeUnsafe(ptr, read);
+    heap.free(ptr);
+    process.drop_trace(traceId);
+    return trace;
   }
 
   // @ts-ignore: unsafe valid here

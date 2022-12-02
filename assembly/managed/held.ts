@@ -6,6 +6,7 @@ import { MessageType } from "../message/util";
 import { Parameters } from "../process/util";
 import { ErrCode, opaquePtr } from "../util";
 import { UnmanagedResult } from "../error";
+import { sandbox } from "../process/sandbox";
 
 
 /** This class is used internally to box the value. */
@@ -56,17 +57,31 @@ export class HeldStartContext<T> {
   ) {}
 }
 
+export class ExecuteHeldEventSandboxContext<T, U> {
+  constructor(
+    public event: ExecuteHeldEvent<T, U>,
+    public value: T,
+  ) {}
+}
+
 /** Represents a request to manipulate the held value with a callback. */
 export class ExecuteHeldEvent<T, U> extends HeldEvent<T> {
   constructor(
     public value: U,
-    public callback: (value: U, ctx: HeldContext<T>) => void,
+    public callback: (value: U, ctx: T) => T,
+    public timeout: u64 = u64.MAX_VALUE,
   ) {
     super();
   }
 
   handle(ctx: HeldContext<T>, msg: Message<HeldEvent<T>>): bool {
-    this.callback(this.value, ctx);
+    let handleContext = new ExecuteHeldEventSandboxContext<T, U>(this, ctx.value);
+    let result = sandbox<ExecuteHeldEventSandboxContext<T, U>, T>(handleContext, (ctx: ExecuteHeldEventSandboxContext<T, U>) => {
+      return ctx.event.callback(ctx.event.value, ctx.value);
+    });
+    if (result.isOk()) {
+      ctx.value = result.expect().value;
+    }
     return false;
   }
 }
@@ -107,6 +122,20 @@ export class LinkHeldEvent<T> extends HeldEvent<T> {
   }
 }
 
+export class RequestHeldEventSandboxContext<T, U, UReturn> {
+  constructor(
+    public event: RequestHeldEvent<T, U, UReturn>,
+    public ctx: HeldContext<T>,
+  ) {}
+}
+
+export class RequestHeldEventSandboxReturn<T, UReturn> {
+  constructor(
+    public ctx: HeldContext<T>,
+    public ret: UReturn,
+  ) {}
+}
+
 export class RequestHeldEvent<T, U, UReturn> extends HeldEvent<T> {
   constructor(
     public value: U,
@@ -115,9 +144,26 @@ export class RequestHeldEvent<T, U, UReturn> extends HeldEvent<T> {
     super();
   }
 
-  handle(ctx: HeldContext<T>, msg: Message<HeldEvent<T>>): bool {
-    let value = this.callback(this.value, ctx);
-    msg.reply<UReturn>(value);
+  handle(ctx: HeldContext<T>, msg: Message<HeldEvent<T>>, timeout: u64 = u64.MAX_VALUE): bool {
+    let sandboxCtx = new RequestHeldEventSandboxContext(this, ctx);
+    let result = sandbox<
+      RequestHeldEventSandboxContext<T, U, UReturn>,
+      RequestHeldEventSandboxReturn<T, UReturn>
+    >(
+      sandboxCtx,
+      (val: RequestHeldEventSandboxContext<T, U, UReturn>) => {
+        let ret = val.event.callback(val.event.value, val.ctx);
+        return new RequestHeldEventSandboxReturn<T, UReturn>(val.ctx, ret);
+      },
+      timeout
+    );
+
+    if (result.isOk()) {
+      let unboxed = result.expect().value;
+      ctx.value = unboxed.ctx.value;
+      msg.reply<UReturn>(unboxed.ret);
+    }
+
     return false;
   }
 }
@@ -216,7 +262,7 @@ export class Held<T> extends ASManaged {
   }
 
   /** Execute a callback on the Held process with a value and a context. */
-  execute<U>(value: U, callback: (value: U, ctx: HeldContext<T>) => void): void {
+  execute<U>(value: U, callback: (value: U, ctx: T) => T): void {
     assert(this.alive);
     let event = new ExecuteHeldEvent<T, U>(value, callback);
     this.heldProcess.send(event);

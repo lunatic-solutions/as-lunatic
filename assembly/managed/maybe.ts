@@ -14,6 +14,7 @@ export class MaybeCallbackContext<TResolve, TReject> {
   private resolutionType: MaybeResolutionStatus = MaybeResolutionStatus.Pending;
   private resolved: Box<TResolve> | null = null;
   private rejected: Box<TReject> | null = null;
+  private stackTrace: string | null = null;
 
   /** Resolve the Maybe. Can only call resolve or reject once. */
   resolve(value: TResolve): void {
@@ -28,6 +29,7 @@ export class MaybeCallbackContext<TResolve, TReject> {
     if (this.resolutionType == MaybeResolutionStatus.Pending) {
       this.rejected = new Box<TReject>(value);
       this.resolutionType = MaybeResolutionStatus.Rejected;
+      this.stackTrace = Process.getStackTrace();
     }
   }
 
@@ -37,6 +39,7 @@ export class MaybeCallbackContext<TResolve, TReject> {
       this.resolutionType == MaybeResolutionStatus.Pending ? MaybeResolutionStatus.Resolved : this.resolutionType,
       this.resolved,
       this.rejected,
+      this.stackTrace,
     );
   }
 }
@@ -55,6 +58,8 @@ export class MaybeResolution<TResolve, TReject> {
     public resolved: Box<TResolve> | null = null,
     /** The rejected value is boxed if it was explicitly rejected. */
     public rejected: Box<TReject> | null = null,
+    /** The stack trace at which the rejection was created. */
+    public stackTrace: string | null = null,
   ) {}
 }
 

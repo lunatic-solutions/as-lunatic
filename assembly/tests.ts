@@ -1,6 +1,6 @@
-import { readDir, readFileStaticArray, writeFile } from "./fs/sync";
+// import { readDir, readFileStaticArray, writeFile } from "./fs/sync";
 import {
-  SharedMap,
+//   SharedMap,
   IPAddress,
   TCPServer,
   TCPSocket,
@@ -9,13 +9,13 @@ import {
   NetworkResultType,
   MessageType,
   Held,
-  Box,
-  Yieldable,
-  YieldableContext,
-  Maybe,
-  MaybeCallbackContext,
-  Config,
-  Consumable,
+//   Box,
+//   Yieldable,
+//   YieldableContext,
+//   Maybe,
+//   MaybeCallbackContext,
+//   Config,
+//   Consumable,
 } from "./index";
 
 export function _start(): void {
@@ -24,11 +24,12 @@ export function _start(): void {
   testSpawnInheritWith();
   testTcp();
   testHeld();
-  testMaybe();
-  testSharedMap();
-  testYieldable();
-  testReaddir();
-  testWriteAndReadFile();
+  // testMaybe();
+  // testSharedMap();
+  // testYieldable();
+  // testReaddir();
+  // testWriteAndReadFile();
+  //  testStackTrace();
 }
 
 
@@ -78,7 +79,7 @@ function testTcp(): void {
   assert(buffer[2] == 7);
   assert(buffer[3] == 8);
 }
-
+/*
 class TaskContext {
   constructor(
       public readonly map: SharedMap<string>,
@@ -129,7 +130,7 @@ export function testSharedMap(): void {
   assert(!map.has("xyz"))
   assert(!map.size)
 }
-
+*/
 export function testHeld(): void {
   for (let i = 0; i < 25; i++) {
     let heldValue = i;
@@ -139,17 +140,18 @@ export function testHeld(): void {
       heldValue++;
       assert(held.getValue().expect().value == heldValue)
     }
-    held.execute(0, (value: i32) => {
+    held.execute(0, (value: i32): i32 => {
       assert(value == 0);
+      return 0;
     });
-    Process.inheritSpawnWith<Held<i32>, i32>(held, (held: Held<i32>, mb: Mailbox<i32>) => {
-      let value = mb.receive().unbox();
-      assert(held.getValue().expect().value = value);
-    }).expect().send(heldValue);
+    // Process.inheritSpawnWith<Held<i32>, i32>(held, (held: Held<i32>, mb: Mailbox<i32>) => {
+    //   let value = mb.receive().unbox();
+    //   assert(held.getValue().expect().value = value);
+    // }).expect().send(heldValue);
   }
   trace("Finished held");
 }
-
+/*
 export function testMaybe(): void {
   for (let i = 0; i < 25; i++) {
     let maybe = Maybe.resolve<i32, i32>(42)
@@ -230,4 +232,4 @@ function testWriteAndReadFile(): void {
     <usize>expected.byteLength,
   ) == 0);
 }
-
+*/
