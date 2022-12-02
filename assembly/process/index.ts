@@ -403,6 +403,7 @@ export class Process<TMessage> {
 
     // if process creation was successful, send the first message which should be a TStart wrapper
     if (p.value) {
+      trace("sending initial payload", 0);
       p.value!.sendUnsafe<StartWrapper<TStart>>(wrapped);
     }
 
