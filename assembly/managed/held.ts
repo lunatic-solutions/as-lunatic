@@ -140,12 +140,13 @@ export class RequestHeldEvent<T, U, UReturn> extends HeldEvent<T> {
   constructor(
     public value: U,
     public callback: (value: U, ctx: HeldContext<T>) => UReturn,
+    public timeout: u64 = u64.MAX_VALUE,
   ) {
     super();
   }
 
-  handle(ctx: HeldContext<T>, msg: Message<HeldEvent<T>>, timeout: u64 = u64.MAX_VALUE): bool {
-    let sandboxCtx = new RequestHeldEventSandboxContext(this, ctx);
+  handle(ctx: HeldContext<T>, msg: Message<HeldEvent<T>>): bool {
+    let sandboxCtx = new RequestHeldEventSandboxContext<T, U, UReturn>(this, ctx);
     let result = sandbox<
       RequestHeldEventSandboxContext<T, U, UReturn>,
       RequestHeldEventSandboxReturn<T, UReturn>
@@ -155,13 +156,15 @@ export class RequestHeldEvent<T, U, UReturn> extends HeldEvent<T> {
         let ret = val.event.callback(val.event.value, val.ctx);
         return new RequestHeldEventSandboxReturn<T, UReturn>(val.ctx, ret);
       },
-      timeout
+      this.timeout
     );
 
     if (result.isOk()) {
       let unboxed = result.expect().value;
       ctx.value = unboxed.ctx.value;
-      msg.reply<UReturn>(unboxed.ret);
+      msg.reply<Box<UReturn> | null>(new Box<UReturn>(unboxed.ret));
+    } else {
+      msg.reply<Box<UReturn> | null>(null);
     }
 
     return false;
@@ -273,10 +276,11 @@ export class Held<T> extends ASManaged {
     assert(this.alive);
     // this operation blocks until the calllback is executed
     let reply = this.heldProcess
-      .request<RequestHeldEvent<T, U, UReturn>, UReturn>(new RequestHeldEvent<T, U, UReturn>(value, callback), Process.replyTag++, timeout);
+      .request<RequestHeldEvent<T, U, UReturn>, Box<UReturn> | null>(new RequestHeldEvent<T, U, UReturn>(value, callback, timeout), Process.replyTag++, timeout);
     
     if (reply.type == MessageType.Timeout) return new UnmanagedResult<Box<UReturn> | null>(null, "The request timed out.");
-    return new UnmanagedResult<Box<UReturn> | null>(new Box<UReturn>(reply.unbox()));
+    
+    return new UnmanagedResult<Box<UReturn> | null>(reply.unbox());
   }
 
   /** If the held value is no longer used, we can free the resouces safely. */

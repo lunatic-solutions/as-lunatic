@@ -14,7 +14,7 @@ import {
   YieldableContext,
   Maybe,
   MaybeCallbackContext,
-  Config,
+  HeldContext,
   writeFile,
   readFileStaticArray,
   readDir,
@@ -144,13 +144,15 @@ export function testHeld(): void {
       heldValue++;
       assert(held.getValue().expect().value == heldValue)
     }
-    held.execute(0, (value: i32): i32 => {
+    held.execute(0, (value: i32, ctx: i32): i32 => {
       assert(value == 0);
       return 0;
     });
+    let result = held.request<i32, i32>(2, (start: i32, ctx: HeldContext<i32>) => {
+      return start * 2;
+    });
+    assert(result.expect().value == 4);
   }
-  __collect();
-  Process.sleep(10000);
   trace("Finished held");
 }
 
