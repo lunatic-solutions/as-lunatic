@@ -131,7 +131,6 @@ import { Dirent, ROOT_FD, FD_PTR, ioVector, FStat } from "./util";
   rights: rights,
   oflags: oflags
 ): UnmanagedResult<Dirent[] | null> {
-  // this is probably not right lol and I was just told I need to go. Oh, okay. I can do this for a few more minutes
   // rights: seek, fdstat_set_flags, write, readlink, filestat_set_size
   let result = path_open(ROOT_FD, lkupflags, pathPtr, pathLen, oflags, rights, rights, 0, FD_PTR);
   if (result != errno.SUCCESS) {
