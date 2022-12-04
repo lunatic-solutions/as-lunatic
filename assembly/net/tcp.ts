@@ -514,12 +514,13 @@ export class TCPServer extends ASManaged {
 
   /** Utilized by ason to serialize a process. */
   __asonSerialize(): StaticArray<u8> {
-    ERROR("TCPServer cannot be serialized.");
+    assert(false, "TCPServer cannot be serialized.");
+    return new StaticArray<u8>(0);
   }
 
   /** Utilized by ason to deserialize a process. */
   __asonDeserialize(_buffer: StaticArray<u8>): void {
-    ERROR("TCPServer cannot be deserialized.");
+    assert(false, "TCPServer cannot be deserialized.");
   }
 
   /**

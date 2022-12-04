@@ -34,7 +34,7 @@ export namespace process {
    * Drop an existing config. Traps if the config doesn't exist in the resources.
    */
   // @ts-ignore: external is valid here
-  @external("lunatic::process", "create_config")
+  @external("lunatic::process", "drop_config")
   export declare function drop_config(config_id: u64): void;
 
   /**
@@ -213,4 +213,33 @@ export namespace process {
   // @ts-ignore: external is valid here
   @external("lunatic::process", "kill")
   export declare function kill(process_id: u64): void;
+
+  // /**
+  //  * Obtain a trace and retrieve the id.
+  //  */
+  // // @ts-ignore
+  // @external("lunatic::process", "trace_get")
+  // export declare function trace_get(ptr: usize): void;
+// 
+  // /**
+  //  * Obtain the size of a given trace.
+  //  */
+  // // @ts-ignore
+  // @external("lunatic::process", "trace_get_size")
+  // export declare function trace_get_size(id: u64): usize;
+// 
+  // /**
+  //  * Obtain the trace itself by its id and write it to the given pointer with the given length.
+  //  */
+  // // @ts-ignore
+  // @external("lunatic::process", "trace_read")
+  // export declare function trace_read(id: u64, data_ptr: usize, data_len: usize): usize;
+// 
+  // /**
+  //  * Drop a trace by its id.
+  //  */
+  // // @ts-ignore
+  // @external("lunatic::process", "drop_trace")
+  // export declare function drop_trace(id: u64): void;
+
 }
