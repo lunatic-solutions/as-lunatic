@@ -56,7 +56,9 @@ function testSpawnInheritWith(): void {
   let rawProcess = Process.inheritSpawn<i32>((mb: Mailbox<i32>) => {
     let raw = mb.receiveUnsafe();
     assert(raw.type == MessageType.Data);
-
+    for (let i = 0; i < 10; i++) {
+      assert(raw.buffer![i] == <u8>i);
+    }
   }).expect();
   rawProcess.sendDataUnsafe([0, 1, 2, 3, 4, 5, 6, 7, 8, 9]);
 }
