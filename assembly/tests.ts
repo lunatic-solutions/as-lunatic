@@ -28,11 +28,11 @@ export function _start(): void {
   testSpawnInheritWith();
   testTcp();
   testHeld();
-  // testMaybe();
-  // testSharedMap();
-  // testYieldable();
-  // testReaddir();
-  // testWriteAndReadFile();
+  testMaybe();
+  testSharedMap();
+  testYieldable();
+  testReaddir();
+  testWriteAndReadFile();
   // testStackTrace();
 }
 
@@ -51,6 +51,14 @@ function testSpawnInheritWith(): void {
     assert(message.type == MessageType.Data);
   }).expect();
   process.send(41);
+
+
+  let rawProcess = Process.inheritSpawn<i32>((mb: Mailbox<i32>) => {
+    let raw = mb.receiveUnsafe();
+    assert(raw.type == MessageType.Data);
+
+  }).expect();
+  rawProcess.sendDataUnsafe([0, 1, 2, 3, 4, 5, 6, 7, 8, 9]);
 }
 
 let port: u16 = 0xA000;
