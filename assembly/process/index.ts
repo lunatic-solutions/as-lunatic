@@ -2,7 +2,7 @@ import { ASON } from "@ason/assembly";
 import { ASManaged } from "as-disposable/assembly";
 import { distributed } from "../distributed/bindings";
 import { Result, UnmanagedResult } from "../error";
-import { Mailbox, Message, MessageWrapper } from "../message";
+import { Mailbox, Message, MessageWrapper, UnmanagedMessage } from "../message";
 import { message } from "../message/bindings";
 import { MessageType } from "../message/util";
 import { CompileModuleErrCode, ErrCode, opaquePtr, TimeoutErrCode } from "../util";
@@ -579,6 +579,24 @@ export class Process<TMessage> {
     else errCode = distributed.send_receive_skip_search(this.nodeID, this.id, timeout);
     // A message now sits in the scratch area
     return new Message<TRet>(errCode == TimeoutErrCode.Timeout ? MessageType.Timeout : MessageType.Data);
+  }
+
+  @unsafe requestDataUnsafe(buffer: StaticArray<u8>, tag: i64 = Process.replyTag++, timeout: u64 = u64.MAX_VALUE): UnmanagedMessage {
+    message.create_data(tag, MESSAGE_BUFFER_SIZE);
+    let bufferLength = <usize>buffer.length;
+
+    // need to write the sending process id
+    store<u64>(opaquePtr, Process.processID);
+    message.write_data(opaquePtr, sizeof<u64>());
+
+    // write the buffer
+    message.write_data(changetype<usize>(buffer), bufferLength);
+    let errCode: TimeoutErrCode;
+    
+    if (this.nodeID == u64.MAX_VALUE) errCode = message.send_receive_skip_search(this.id, timeout);
+    else errCode = distributed.send_receive_skip_search(this.nodeID, this.id, timeout);
+    // A message now sits in the scratch area
+    return new UnmanagedMessage(errCode == TimeoutErrCode.Timeout ? MessageType.Timeout : MessageType.Data);
   }
 
   /**
