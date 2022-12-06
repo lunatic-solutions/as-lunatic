@@ -6,7 +6,7 @@ import {
 } from "@assemblyscript/wasi-shim/assembly/bindings/wasi_snapshot_preview1";
 import { UnmanagedResult } from "../error";
 import { OBJECT, TOTAL_OVERHEAD } from "rt/common";
-import { fstatUnsafe, readDirUnsafe, readFileUnsafe, renameUnsafe, unlinkUnsafe, writeFileUnsafe } from "./unsafe";
+import { fstatUnsafe, mkdirUnsafe, readDirUnsafe, readFileUnsafe, renameUnsafe, unlinkUnsafe, writeFileUnsafe } from "./unsafe";
 import { Dirent, FStat } from "./util";
 
 /** Write a file to the filesystem. Encoding can be either "utf8" or "utf16le" */
@@ -156,4 +156,10 @@ export function rename(oldPath: string, newPath: string): UnmanagedResult<bool> 
 export function unlink(path: string): UnmanagedResult<bool> {
   let pathPtr = String.UTF8.encode(path);
   return unlinkUnsafe(changetype<usize>(pathPtr), <usize>pathPtr.byteLength);
+}
+
+/** Make a directory. */
+export function mkdir(path: string): UnmanagedResult<bool> {
+  let pathPtr = String.UTF8.encode(path);
+  return mkdirUnsafe(changetype<usize>(pathPtr), <usize>pathPtr.byteLength);
 }

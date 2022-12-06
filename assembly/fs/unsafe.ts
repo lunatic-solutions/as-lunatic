@@ -13,10 +13,12 @@ import {
   dircookie,
   path_filestat_get,
   path_rename,
-  path_unlink_file
+  path_unlink_file,
+  path_create_directory
 } from "@assemblyscript/wasi-shim/assembly/bindings/wasi_snapshot_preview1";
+import { PROFILE } from "assemblyscript/std/assembly/rt/common";
 import { UnmanagedResult } from "../error";
-import { opaquePtr } from "../util";
+import { ErrCode, opaquePtr } from "../util";
 import { Dirent, ROOT_FD, FD_PTR, ioVector, FStat } from "./util";
 
 /** Read a file, referencing a path with a pointer and a length, with the given flags. */
@@ -228,5 +230,15 @@ import { Dirent, ROOT_FD, FD_PTR, ioVector, FStat } from "./util";
 @unsafe export function unlinkUnsafe(pathPtr: usize, pathLen: usize): UnmanagedResult<bool> {
   let result = path_unlink_file(ROOT_FD, pathPtr, pathLen);
   if (result == errno.SUCCESS) return new UnmanagedResult<bool>(true);
+  return new UnmanagedResult<bool>(false, errnoToString(result));
+}
+
+/** Make a directory. */
+// @ts-ignore
+@unsafe export function mkdirUnsafe(pathPtr: usize, pathLen: usize): UnmanagedResult<bool> {
+  let result = path_create_directory(ROOT_FD, pathPtr, pathLen);
+  if (result == errno.SUCCESS) {
+    return new UnmanagedResult<bool>(true);
+  }
   return new UnmanagedResult<bool>(false, errnoToString(result));
 }
