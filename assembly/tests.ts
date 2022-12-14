@@ -1,3 +1,4 @@
+// import { readDir, readFileStaticArray, writeFile } from "./fs/sync";
 import {
   SharedMap,
   IPAddress,
@@ -13,7 +14,12 @@ import {
   YieldableContext,
   Maybe,
   MaybeCallbackContext,
-  Consumable,
+  HeldContext,
+  writeFile,
+  readFileStaticArray,
+  readDir,
+
+//   Consumable,
 } from "./index";
 
 export function _start(): void {
@@ -25,6 +31,9 @@ export function _start(): void {
   testMaybe();
   testSharedMap();
   testYieldable();
+  testReaddir();
+  testWriteAndReadFile();
+  // testStackTrace();
 }
 
 
@@ -42,6 +51,15 @@ function testSpawnInheritWith(): void {
     assert(message.type == MessageType.Data);
   }).expect();
   process.send(41);
+
+  let rawProcess = Process.inheritSpawn<i32>((mb: Mailbox<i32>) => {
+    let raw = mb.receiveUnsafe();
+    assert(raw.type == MessageType.Data);
+    for (let i = 0; i < 10; i++) {
+      assert(raw.buffer![i] == <u8>i);
+    }
+  }).expect();
+  rawProcess.sendDataUnsafe([0, 1, 2, 3, 4, 5, 6, 7, 8, 9]);
 }
 
 let port: u16 = 0xA000;
@@ -135,13 +153,14 @@ export function testHeld(): void {
       heldValue++;
       assert(held.getValue().expect().value == heldValue)
     }
-    held.execute(0, (value: i32) => {
+    held.execute(0, (value: i32, ctx: i32): i32 => {
       assert(value == 0);
+      return 0;
     });
-    Process.inheritSpawnWith<Held<i32>, i32>(held, (held: Held<i32>, mb: Mailbox<i32>) => {
-      let value = mb.receive().unbox();
-      assert(held.getValue().expect().value = value);
-    }).expect().send(heldValue);
+    let result = held.request<i32, i32>(2, (start: i32, ctx: HeldContext<i32>) => {
+      return start * 2;
+    });
+    assert(result.expect().value == 4);
   }
   trace("Finished held");
 }
@@ -207,3 +226,22 @@ export function testYieldable(): void {
   // trace("Finished yieldable");
 }
 
+function testReaddir(): void {
+  let dirs = readDir("./assembly/").expect();
+  for (let i = 0; i < dirs.length; i++) {
+    trace(dirs[i].name);
+  }
+}
+
+function testWriteAndReadFile(): void {
+  writeFile("./build/test.txt", "Hello world!", "utf8").expect();
+  let contents = readFileStaticArray("./build/test.txt").expect();
+  let expected = String.UTF8.encode("Hello world!");
+
+  assert(contents.length == expected.byteLength);
+  assert(memory.compare(
+    changetype<usize>(contents),
+    changetype<usize>(expected),
+    <usize>expected.byteLength,
+  ) == 0);
+}

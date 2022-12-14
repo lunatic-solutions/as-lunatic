@@ -14,6 +14,7 @@ export class MaybeCallbackContext<TResolve, TReject> {
   private resolutionType: MaybeResolutionStatus = MaybeResolutionStatus.Pending;
   private resolved: Box<TResolve> | null = null;
   private rejected: Box<TReject> | null = null;
+  private stackTrace: string | null = null;
 
   /** Resolve the Maybe. Can only call resolve or reject once. */
   resolve(value: TResolve): void {
@@ -28,6 +29,8 @@ export class MaybeCallbackContext<TResolve, TReject> {
     if (this.resolutionType == MaybeResolutionStatus.Pending) {
       this.rejected = new Box<TReject>(value);
       this.resolutionType = MaybeResolutionStatus.Rejected;
+      // this.stackTrace = Process.getStackTrace();
+      this.stackTrace = "Stack Traces Aren't Supported Yet";
     }
   }
 
@@ -37,6 +40,7 @@ export class MaybeCallbackContext<TResolve, TReject> {
       this.resolutionType == MaybeResolutionStatus.Pending ? MaybeResolutionStatus.Resolved : this.resolutionType,
       this.resolved,
       this.rejected,
+      this.stackTrace,
     );
   }
 }
@@ -55,6 +59,8 @@ export class MaybeResolution<TResolve, TReject> {
     public resolved: Box<TResolve> | null = null,
     /** The rejected value is boxed if it was explicitly rejected. */
     public rejected: Box<TReject> | null = null,
+    /** The stack trace at which the rejection was created. */
+    public stackTrace: string | null = null,
   ) {}
 }
 
@@ -73,9 +79,10 @@ export class Maybe<TResolve, TReject> {
     let maybe = new Maybe<TResolve, TReject>(() => {});
     maybe.held.execute<TResolve>(
       value,
-      (value: TResolve, ctx: HeldContext<MaybeResolution<TResolve, TReject>>) => {
-        ctx.value.status = MaybeResolutionStatus.Resolved;
-        ctx.value.resolved = new Box<TResolve>(value);
+      (value: TResolve, ctx: MaybeResolution<TResolve, TReject>) => {
+        ctx.status = MaybeResolutionStatus.Resolved;
+        ctx.resolved = new Box<TResolve>(value);
+        return ctx;
       },
     );
     return maybe;
@@ -85,9 +92,10 @@ export class Maybe<TResolve, TReject> {
     let maybe = new Maybe<TResolve, TReject>(() => {});
     maybe.held.execute<TReject>(
       value,
-      (value: TReject, ctx: HeldContext<MaybeResolution<TResolve, TReject>>) => {
-        ctx.value.status = MaybeResolutionStatus.Rejected;
-        ctx.value.rejected = new Box<TReject>(value);
+      (value: TReject, ctx: MaybeResolution<TResolve, TReject>) => {
+        ctx.status = MaybeResolutionStatus.Rejected;
+        ctx.rejected = new Box<TReject>(value);
+        return ctx;
       },
     );
     return maybe; 
@@ -101,10 +109,10 @@ export class Maybe<TResolve, TReject> {
     // this operation is async and atomic
     this.held.execute<MaybeCallback<TResolve, TReject>>(
       callback,
-      (value: MaybeCallback<TResolve, TReject>, ctx: HeldContext<MaybeResolution<TResolve, TReject>>) => {
+      (value: MaybeCallback<TResolve, TReject>, ctx: MaybeResolution<TResolve, TReject>) => {
         let maybeContext = new MaybeCallbackContext<TResolve, TReject>();
         value(maybeContext);
-        ctx.value = maybeContext.unpack();
+        return maybeContext.unpack();
       },
     );
   }
@@ -129,8 +137,8 @@ export class Maybe<TResolve, TReject> {
       ),
       (
         thenCtx: ThenContext<TResolve, TReject, TResolveNext, TRejectNext>,
-        heldCtx: HeldContext<MaybeResolution<TResolveNext, TRejectNext>>
-      ): void => {
+        heldCtx: MaybeResolution<TResolveNext, TRejectNext>
+       ) => {
         // read the resolution of the parent Maybe
         // note: Held#value is a getter that blocks until the Maybe resolves
         let resolutionResult = thenCtx.held.getValue();
@@ -151,11 +159,12 @@ export class Maybe<TResolve, TReject> {
           }
 
           // finally set the resolution
-          heldCtx.value = maybeCallbackCtx.unpack();
+          return maybeCallbackCtx.unpack();
         } else {
           // resolution wasn't okay. we resolve to an empty rejected
           thenCtx.reject(null, maybeCallbackCtx);
         }
+        return heldCtx;
       }
     );
     return maybe;

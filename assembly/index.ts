@@ -2,6 +2,10 @@ export * from "./distributed";
 export * from "./distributed/bindings";
 export * from "./error";
 export * from "./error/bindings";
+export * from "./fs/async";
+export * from "./fs/sync";
+export * from "./fs/unsafe";
+export * from "./fs/util";
 export * from "./managed";
 export * from "./managed/held";
 export * from "./managed/maybe";
@@ -15,6 +19,7 @@ export * from "./net/tcp";
 export * from "./net/udp";
 export * from "./net/util";
 export * from "./process";
+export * from "./process/sandbox";
 export * from "./process/bindings";
 export * from "./registry"
 export * from "./registry/bindings";

@@ -1,14 +1,14 @@
 import { ASON } from "@ason/assembly";
 import { ASManaged } from "as-disposable/assembly";
 import { distributed } from "../distributed/bindings";
-import { Result } from "../error";
-import { Mailbox, Message, MessageWrapper } from "../message";
+import { Result, UnmanagedResult } from "../error";
+import { Mailbox, Message, MessageWrapper, UnmanagedMessage } from "../message";
 import { message } from "../message/bindings";
 import { MessageType } from "../message/util";
 import { CompileModuleErrCode, ErrCode, opaquePtr, TimeoutErrCode } from "../util";
 import { process } from "./bindings";
 import { Parameters, StartWrapper } from "./util";
-
+import { wasi } from "../wasi/bindings";
 const MESSAGE_BUFFER_SIZE =
   isDefined(MESSAGE_BUFFER_PREALLOC_SIZE)
     ? MESSAGE_BUFFER_PREALLOC_SIZE
@@ -113,6 +113,28 @@ export class Config extends ASManaged {
 
   set maxMemory(value: u64) {
     process.config_set_max_memory(this.id, value);
+  }
+
+  addCliArg(arg: string): void {
+    let argPtr = String.UTF8.encode(arg);
+    wasi.config_add_command_line_argument(this.id, changetype<usize>(argPtr), <usize>argPtr.byteLength);
+  }
+
+  addEnv(key: string, value: string): void {
+    let keyPtr = String.UTF8.encode(key);
+    let valuePtr = String.UTF8.encode(value);
+    wasi.config_add_environment_variable(
+      this.id,
+      changetype<usize>(keyPtr),
+      <usize>keyPtr.byteLength,
+      changetype<usize>(valuePtr),
+      <usize>valuePtr.byteLength,
+    );
+  }
+
+  addPreopen(dir: string): void {
+    let dirPtr = String.UTF8.encode(dir);
+    wasi.config_preopen_dir(this.id, changetype<usize>(dirPtr), <usize>dirPtr.byteLength);
   }
 }
 
@@ -239,6 +261,20 @@ export class Process<TMessage> {
   static set dieWhenLinkDies(value: bool) {
     process.die_when_link_dies(value);
   }
+
+  /** Obtain the current stack trace. */
+  // static getStackTrace(): string {
+  //   process.trace_get(opaquePtr);
+  //   let traceId = load<u64>(opaquePtr);
+  //   let size = <usize>process.trace_get_size(traceId);
+  //   let ptr = heap.alloc(size);
+  //   let read = process.trace_read(traceId, ptr, size);
+  //   assert(read == size);
+  //   let trace = String.UTF8.decodeUnsafe(ptr, read);
+  //   heap.free(ptr);
+  //   process.drop_trace(traceId);
+  //   return trace;
+  // }
 
   // @ts-ignore: unsafe valid here
   @unsafe constructor(public id: u64, public tag: u64, public nodeID: u64 = u64.MAX_VALUE) {}
@@ -543,6 +579,24 @@ export class Process<TMessage> {
     else errCode = distributed.send_receive_skip_search(this.nodeID, this.id, timeout);
     // A message now sits in the scratch area
     return new Message<TRet>(errCode == TimeoutErrCode.Timeout ? MessageType.Timeout : MessageType.Data);
+  }
+
+  @unsafe requestDataUnsafe(buffer: StaticArray<u8>, tag: i64 = Process.replyTag++, timeout: u64 = u64.MAX_VALUE): UnmanagedMessage {
+    message.create_data(tag, MESSAGE_BUFFER_SIZE);
+    let bufferLength = <usize>buffer.length;
+
+    // need to write the sending process id
+    store<u64>(opaquePtr, Process.processID);
+    message.write_data(opaquePtr, sizeof<u64>());
+
+    // write the buffer
+    message.write_data(changetype<usize>(buffer), bufferLength);
+    let errCode: TimeoutErrCode;
+    
+    if (this.nodeID == u64.MAX_VALUE) errCode = message.send_receive_skip_search(this.id, timeout);
+    else errCode = distributed.send_receive_skip_search(this.nodeID, this.id, timeout);
+    // A message now sits in the scratch area
+    return new UnmanagedMessage(errCode == TimeoutErrCode.Timeout ? MessageType.Timeout : MessageType.Data);
   }
 
   /**

@@ -2,6 +2,10 @@
   "targets": {
     "debug": {
       "debug": true
+    },
+    "release": {
+      "shrinkLevel": 3,
+      "converge": true
     }
   },
   "entries": [
