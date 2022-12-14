@@ -374,3 +374,183 @@ export namespace udp {
   @external("lunatic::networking", "udp_local_addr")
   export declare function udp_local_addr(udp_socket_id: u64, id_u64_ptr: u32): ErrCode;
 }
+
+export namespace tls {
+    /**
+     * Creates a new TLS listener, which will be bound to the specified address. The returned listener
+     * is ready for accepting connections.
+     *
+     * Binding with a port number of 0 will request that the OS assigns a port to this listener. The
+     * port allocated can be queried via the `tls_local_addr` (TODO) method.
+     *
+     * Returns:
+     * * 0 on success - The ID of the newly created TLS listener is written to **id_u64_ptr**
+     * * 1 on error   - The error ID is written to **id_u64_ptr**
+     *
+     * Traps:
+     * * If any memory outside the guest heap space is referenced.
+     */
+    @external("lunatic::networking", "tls_bind")
+    export declare function tls_bind(
+        addr_type: IPType,
+        addr_u8_ptr: usize,
+        port: u16,
+        flow_info: u32,
+        scope_id: u32,
+        id_u64_ptr: usize,
+        certs_array_ptr: usize,
+        certs_array_len: usize,
+        keys_array_ptr: usize,
+        keys_array_len: usize,
+    ): ErrCode;
+
+  /**
+   * Get the IP address associated with this listener.
+   *
+   * @param {u64} tls_listener_id - The tcp_listener id.
+   * @param {usize} id_u64_ptr - The u64 pointer to write the dns iterator to.
+   */
+  // @ts-ignore: external is valid here
+  @external("lunatic::networking", "tls_local_addr")
+  export declare function tls_local_addr(
+      tls_listener_id: u64,
+      id_u64_ptr: usize,
+  ): ErrCode;
+
+  /**
+   * Drop a tls listener.
+   *
+   * @param {u64} id - The ID of the listener.
+   */
+  // @ts-ignore: external is valid here
+  @external("lunatic::networking", "drop_tls_listener")
+  export declare function drop_tls_listener(id: u64): void;
+
+  /**
+   * Accept a TLSSocket.
+   *
+   * @param listener_id - The TLSListener.
+   * @param id_ptr - A pointer to a u64 that will contain the TCPServer id or the error.
+   * @param socket_addr_id_ptr - A pointer to a u64 that will contain a dns iterator.
+   * @returns {ErrCode} - `err_code.Success` If the value written to `id_ptr` is an error or a socket id.
+   */
+  // @ts-ignore: external is valid here
+  @external("lunatic::networking", "tls_accept")
+  export declare function tls_accept(listener_id: u64, id_ptr: usize, socket_addr_id_ptr: usize): ErrCode;
+
+  /**
+   * Drop a tls stream.
+   *
+   * @param {u64} id - The ID of the stream.
+   */
+  // @ts-ignore: external is valid here
+  @external("lunatic::networking", "drop_tls_stream")
+  export declare function drop_tls_stream(id: u64): void;
+
+  
+  /**
+   * Read from a tls stream.
+   *
+   * @param stream_id - The TLS Stream to be read from.
+   * @param buffer_ptr - The pointer to the buffer.
+   * @param buffer_len - The length of the buffer.
+   * @param opaque_ptr - A pointer to the error id.
+   */
+  // @ts-ignore: external is valid here
+  @external("lunatic::networking", "tls_read")
+  export declare function tls_read(stream_id: u64, buffer_ptr: usize, buffer_len: usize, opaque_ptr: usize): TimeoutErrCode;
+
+  
+  /**
+   * Set the read timeout for a given tls stream.
+   *
+   * @param {u64} tls_listener_id - The listener id.
+   * @param {u64} duration - The duration in milliseconds.
+   */
+  // @ts-ignore: external is valid here
+  @external("lunatic::networking", "set_tls_read_timeout")
+  export declare function set_tls_read_timeout(
+    tls_listener_id: u64,
+    duration: u64,
+  ): void;
+
+  /**
+   * Get the current read timeout duration for a given tls stream.
+   *
+   * @param {u64} tls_listener_id - The tcp stream id.
+   */
+  // @ts-ignore: external is valid here
+  @external("lunatic::networking", "get_tls_read_timeout")
+  export declare function get_tls_read_timeout(
+    tls_listener_id: u64,
+  ): ErrCode;
+  
+  /**
+   * Set the write timeout for a given tls stream.
+   *
+   * @param {u64} tls_listener_id - The listener id.
+   * @param {u64} duration - The duration in milliseconds.
+   */
+  // @ts-ignore: external is valid here
+  @external("lunatic::networking", "set_tls_write_timeout")
+  export declare function set_tls_write_timeout(
+    tls_listener_id: u64,
+    duration: u64,
+  ): void;
+
+  /**
+   * Get the current write timeout duration for a given tls stream.
+   *
+   * @param {u64} tls_listener_id - The tcp stream id.
+   */
+  // @ts-ignore: external is valid here
+  @external("lunatic::networking", "get_tls_write_timeout")
+  export declare function get_tls_write_timeout(
+    tls_listener_id: u64,
+  ): ErrCode;
+
+  // @ts-ignore: external is valid here
+  @external("lunatic::networking", "tls_flush")
+  export declare function tls_flush(
+    tls_listener_id: u64,
+    error_id_ptr: usize,
+  ): ErrCode;
+
+  /**
+   * Clone a TLSStream.
+   *
+   * @param id - The id of the socket.
+   * @returns The internal id for this tls stream in this message.
+   */
+  // @ts-ignore: external is valid here
+  @external("lunatic::networking", "clone_tls_stream")
+  export declare function clone_tls_stream(id: u64): u64;
+
+  /**
+   * Create a new tls connection to a TLS Server.
+   *
+   * @param {u32} addr_type - The address type, 4 or 6
+   * @param {usize} addr_u8_ptr - A pointer to a memory location containing the ip address
+   * @param {u16} port - The port of the ip address.
+   * @param {u32} flow_info - The flow info
+   * @param {u32} scope_id - The scope id.
+   * @param {u32} timeout - A timeout in ms.
+   * @param {usize} id_u64_ptr - A pointer to a 64 bit number that will contain the error string id,
+   *                             or the id of the tcp socket.
+   * @param {usize} certs_array_ptr - A pointer to the certsarray.
+   * @param {usize} certs_array_len - The length of the certsarray.
+   */
+  // @ts-ignore: external is valid here
+  @external("lunatic::networking", "tls_connect")
+  export declare function tls_connect(
+    addr_type: u32,
+    addr_u8_ptr: usize,
+    port: u32,
+    flow_info: u32,
+    scope_id: u32,
+    timeout: u64,
+    id_u64_ptr: usize,
+    certs_array_ptr: usize,
+    certs_array_len: usize,
+  ): ErrCode;
+}

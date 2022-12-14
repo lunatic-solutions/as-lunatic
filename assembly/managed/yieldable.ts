@@ -125,6 +125,7 @@ export class StartYieldableContext<TStart, TIn, TOut> {
 }
 
 /** Represents a handle to a a process that yields values. */
+// @ts-ignore: __asonPut is implemented by ASON
 export class Yieldable<TStart, TIn, TOut> extends ASManaged implements Consumable<TIn, TOut> {
   private proc: Process<YieldableEvent<TStart, TIn, TOut>>;
 
